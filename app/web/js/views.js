@@ -47,8 +47,10 @@ function render(){
   else if(S.source==='live'&&S.meta){const m=S.meta;b.innerHTML='<bdi>'+esc(m.source)+'</bdi> · <bdi>'+esc(m.symbol)+'</bdi> · '+N+' شمعة'+(m.currency?' · <bdi>'+esc(m.currency)+'</bdi>':'');b.className='badge';}
   else{b.textContent=(S.fileName?S.fileName+' · ':'')+N+' شمعة';b.className='badge';}
   $('#offlineBadge').hidden=!(S.meta&&S.meta.offline);
-  const shL=S.ex!=='GOLD'&&S.source!=='sample'?shariaStatus(S.code):null,shA=!shL&&S.ex==='US'&&S.usSharia&&S.usSharia.status?S.usSharia:null,sh=shL||(shA&&shA.status),sb=$('#shariaBadge');
-  sb.hidden=!sh;if(sh){sb.textContent=shA?(sh==='ok'?'متوافق شرعيًا مبدئيًا':'غير متوافق شرعيًا مبدئيًا'):(sh==='ok'?'متوافق شرعيًا':'غير متوافق شرعيًا');sb.className='badge '+sh;
+  const shL=S.ex!=='GOLD'&&S.source!=='sample'?shariaStatus(S.code):null,shY=!shL&&S.ex==='US'&&S.source!=='sample'?yaaqenStatus(S.code):null,
+    shA=!shL&&!shY&&S.ex==='US'&&S.usSharia&&S.usSharia.status?S.usSharia:null,sh=shL||shY||(shA&&shA.status),sb=$('#shariaBadge');
+  sb.hidden=!sh;if(sh&&shY){sb.textContent=YQ_LABEL[shY];sb.className='badge '+(shY==='doubt'?'off':shY);sb.title='حسب تصنيف موقع يقين للأسهم الأمريكية · '+YQ.date;}
+  else if(sh){sb.textContent=shA?(sh==='ok'?'متوافق شرعيًا مبدئيًا':'غير متوافق شرعيًا مبدئيًا'):(sh==='ok'?'متوافق شرعيًا':'غير متوافق شرعيًا');sb.className='badge '+sh;
     sb.title=shA?_t(shA.why)+' — فحص مبدئي لا يشمل نسبة الإيراد غير المباح.':(P.sharia.asOf?'حسب قائمة '+P.sharia.asOf:'');}
   const seg=S.source!=='sample'&&(S.ex==='SR'||/\.SR$/i.test(S.code))?saSegment(S.code):'',gb=$('#segBadge');
   gb.hidden=!seg;if(seg){gb.textContent=SEG_LABEL[seg];gb.className='badge seg-'+seg;gb.title=SEG_TIP[seg];}

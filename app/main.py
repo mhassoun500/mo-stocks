@@ -1193,6 +1193,68 @@ def tv_universe(ex, size=None):
     return items
 
 
+# ---------------------------------------------------------------- Yaqeen's US Sharia list
+# yaaqen.com classifies about 7,900 US stocks as شرعي / غير شرعي / محل نظر and updates monthly.
+# A copy ships inside the page; the app refreshes it from the site in the background every two weeks.
+YAAQEN_URL = "https://yaaqen.com/stocks/all-stocks"
+YAAQEN_BUSY = threading.Event()
+
+
+def _yaaqen_page(p):
+    url = YAAQEN_URL + ("?p=%d" % p if p > 1 else "")
+    req = urllib.request.Request(url, headers={"User-Agent": UA, "X-Requested-With": "XMLHttpRequest"})
+    with urllib.request.urlopen(req, timeout=40) as r:
+        h = r.read().decode("utf-8", errors="replace")
+    out = []
+    for row in re.findall(r"<tr[^>]*stock-row[^>]*>(.*?)</tr>", h, re.S):
+        t = re.search(r"<span class='block w-max text-nowrap'>([^<]+)</span>", row)
+        c = re.search(r'data-compliance="(\d)"', row)
+        if t and c:
+            out.append((t.group(1).strip(), int(c.group(1))))
+    last = re.search(r'data-last-page="(\d+)"', h)
+    return out, int(last.group(1)) if last else None
+
+
+def yaaqen_refresh():
+    if YAAQEN_BUSY.is_set():
+        return
+    YAAQEN_BUSY.set()
+    try:
+        first, last = _yaaqen_page(1)
+        rows = list(first)
+        for p in range(2, (last or 1) + 1):
+            for attempt in range(3):
+                try:
+                    got, _ = _yaaqen_page(p)
+                    rows += got
+                    break
+                except Exception:
+                    QUIT.wait(3)
+            QUIT.wait(0.3)
+            if QUIT.is_set():
+                return
+        if len(rows) < 1000:  # the site changed; keep the copy we have
+            return
+        d = dict(rows)
+        cache_put("yaaqen|us", {"source": "يقين", "url": YAAQEN_URL, "date": time.strftime("%Y-%m-%d"),
+                                "ok": sorted(t for t, c in d.items() if c == 1),
+                                "no": sorted(t for t, c in d.items() if c == 0),
+                                "doubt": sorted(t for t, c in d.items() if c == 2)})
+    except Exception as e:
+        log(" Yaqeen list refresh failed (%s)" % e)
+    finally:
+        YAAQEN_BUSY.clear()
+
+
+def yaaqen_refresher():
+    QUIT.wait(90)
+    while not QUIT.is_set():
+        _, t = cache_get("yaaqen|us")
+        if not t or time.time() - t > 14 * 86400:
+            yaaqen_refresh()
+        QUIT.wait(12 * 3600)
+
+
 def us_sharia(code):
     """Preliminary screen for one US ticker (analysis view)."""
     c = code.strip().upper()
@@ -1677,6 +1739,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(get_universe(q.get("ex", "SR"), None if size == "all" else size))
             if p == "/api/ussharia":
                 return self._json(us_sharia(q.get("code", "")))
+            if p == "/api/yaaqen":
+                if q.get("refresh") == "1":
+                    threading.Thread(target=yaaqen_refresh, daemon=True).start()
+                    return self._json({"ok": True, "started": True})
+                hit, _ = cache_get("yaaqen|us")
+                return self._json({"ok": True, "busy": YAAQEN_BUSY.is_set(), "list": hit})
             if p == "/api/store":
                 return self._json({"ok": True, "value": Store.get(q.get("key", ""))})
             if p == "/api/autostart":
@@ -1867,6 +1935,7 @@ def start_server():
     srv.daemon_threads = True
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     threading.Thread(target=fund_refresher, daemon=True).start()
+    threading.Thread(target=yaaqen_refresher, daemon=True).start()
     return srv, "http://%s:%d/" % (HOST, srv.server_address[1])
 
 

@@ -69,7 +69,9 @@ def build():
     body = read("body.html").replace("{{LOGO}}", read("logo.inc").strip())
     js = wrap_js_strings("\n".join(read("js", n + ".js") for n in JS_ORDER))
     data = json.dumps(i18n_data(), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
-    page = (head.rstrip() + "\n\n" + body.rstrip() + '\n\n<script type="application/json" id="i18n-data">' + data
+    yq = open(os.path.join(ROOT, "app", "data", "yaaqen_us.json"), encoding="utf-8").read().strip()
+    page = (head.rstrip() + "\n\n" + body.rstrip() + '\n\n<script type="application/json" id="sharia-us">' + yq
+            + '</script>\n<script type="application/json" id="i18n-data">' + data
             + "</script>\n<script>\n(function(){\n'use strict';\n" + js + "\n})();\n</script>\n")
     out = os.path.join(ROOT, "app", "page.html")
     with open(out, "w", encoding="utf-8", newline="\n") as f:

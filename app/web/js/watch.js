@@ -122,7 +122,8 @@ async function schedulerTick(){
 const SC={running:false,stop:false,rows:[],sector:null,sort:{k:'conf',dir:'desc'},ex:'SR',sel:'SR'};
 const SEG_AR={main:'الرئيسية',nomu:'نمو',reit:'ريت'};
 const scanExOf=v=>/^US/.test(v)?{ex:'US',size:v.slice(2)}:{ex:v,size:null};
-const rowSharia=r=>{const u=shariaStatus(r.code);return u?{s:u,auto:false}:r.shariaAuto?{s:r.shariaAuto,auto:true,why:r.shariaWhy}:null;};
+const rowSharia=r=>{const u=shariaStatus(r.code);if(u)return{s:u,src:'list'};const y=SC.ex==='US'?yaaqenStatus(r.code):null;if(y)return{s:y,src:'yaaqen'};
+  return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy}:null;};
 function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);}
 async function runScan(){
   if(SC.running)return;SC.running=true;SC.stop=false;SC.sector=null;
@@ -161,15 +162,16 @@ async function loadSectors(){
   $('#scanMeta').textContent='آخر فحص '+fmtLocalTime.format(new Date())+' · '+SC.rows.length+' شركة';
 }
 function scanFiltered(){
-  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=$('#scanSharia').checked,seg=SC.ex==='SR'?$('#scanSeg').value:'';
-  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||(rowSharia(r)||{}).s==='ok')&&(!SC.sector||sectorAr(r.sector)===SC.sector));
+  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=$('#scanSharia').value,seg=SC.ex==='SR'?$('#scanSeg').value:'';
+  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||(x=>x&&x.s==='ok'&&(sh==='any'||x.src!=='auto'))(rowSharia(r)))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
 }
 function renderScan(){
   const rows=scanFiltered().slice();const {k,dir}=SC.sort;const m=dir==='asc'?1:-1;
   rows.sort((a,b)=>{const x=a[k],y=b[k];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y,'ar'):x-y)*m;});
   $$('#scanTable th button').forEach(b=>{if(b.dataset.sort===k)b.dataset.dir=dir;else delete b.dataset.dir;});
   $('#scanBody').innerHTML=rows.length?rows.slice(0,2000).map(r=>{const shr=rowSharia(r),sh=shr&&shr.s;
-    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+(sh?'<span class="tag '+(sh==='ok'?'b':'x')+'"'+(shr.auto?' title="'+esc(_t(shr.why||''))+'"':'')+'>'+(sh==='ok'?(shr.auto?'متوافق مبدئيًا':'متوافق'):(shr.auto?'غير متوافق مبدئيًا':'غير متوافق'))+'</span>':'')+'</td>'+
+    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+(sh?'<span class="tag '+(sh==='ok'?'b':sh==='doubt'?'in':'x')+'"'+(shr.src==='auto'?' title="'+esc(_t(shr.why||''))+'"':shr.src==='yaaqen'?' title="'+esc('حسب تصنيف موقع يقين · '+YQ.date)+'"':'')+'>'+
+      (shr.src==='yaaqen'?YQ_LABEL[sh]:sh==='ok'?(shr.src==='auto'?'متوافق مبدئيًا':'متوافق'):(shr.src==='auto'?'غير متوافق مبدئيًا':'غير متوافق'))+'</span>':'')+'</td>'+
       '<td>'+NUM(fp(r.price))+'</td><td>'+chgSpan(r.chg)+'</td><td><span class="kind '+stanceKind(r.stance)+'">'+STANCE_AR[r.stance]+'</span></td><td>'+(r.conf!=null?NUM(r.conf+'%'):'—')+'</td>'+
       '<td>'+(r.distBuy!=null?NUM(pct(r.distBuy)):'—')+'</td><td>'+(r.rsi!=null?NUM(r.rsi.toFixed(0)):'—')+'</td><td>'+r.trend+'</td><td>'+esc(r.notable||'')+'</td><td>'+esc(r.sector?sectorAr(r.sector):'')+'</td></tr>';}).join('')
     :'<tr><td colspan="10" class="empty">'+(SC.rows.length?'لا توجد نتائج تطابق التصفية.':'اختر السوق واضغط «ابدأ الفحص».')+'</td></tr>';

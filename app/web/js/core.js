@@ -114,6 +114,14 @@ function shariaStatus(code){
   if(shariaTokens(P.sharia.no).has(c))return 'no';
   return null;
 }
+/* Yaqeen (yaaqen.com) classification of US stocks: شرعي / غير شرعي / محل نظر.
+   A copy is built into the page; the desktop app refreshes it from the site every two weeks. */
+const YQ={date:'',url:'',ok:new Set(),no:new Set(),doubt:new Set()};
+function loadYaaqen(d){if(!d||!d.ok)return;YQ.date=d.date||'';YQ.url=d.url||'';for(const k of ['ok','no','doubt'])YQ[k]=new Set(d[k]||[]);}
+try{loadYaaqen(JSON.parse(document.getElementById('sharia-us').textContent));}catch(e){}
+function yaaqenStatus(code){const c=String(code||'').toUpperCase();if(!c||/\.(SR|CA)$/.test(c))return null;
+  return YQ.ok.has(c)?'ok':YQ.no.has(c)?'no':YQ.doubt.has(c)?'doubt':null;}
+const YQ_LABEL={ok:'شرعي (يقين)',no:'غير شرعي (يقين)',doubt:'محل نظر (يقين)'};
 
 /* ---------- markets ---------- */
 const EX={SR:{tv:'TADAWUL',ph:'مثال: 1120 أو 2222',idx:'مؤشر تاسي',region:'SR'},CA:{tv:'EGX',ph:'مثال: COMI أو TMGH',idx:'مؤشر إي جي إكس 30',region:'CA'},

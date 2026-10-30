@@ -35,6 +35,7 @@ function bindPrefs(){
     $$('[data-pref^="ana."]').forEach(el=>{el.value=getPref(el.dataset.pref);});if(S.daily){S.ind=computeInd(S.data);analyzeNow(false);}toast('استُعيدت إعدادات التحليل الافتراضية.');});
   $('#themeBtn').addEventListener('click',()=>{const order=['system','light','dark'];P.theme=order[(order.indexOf(P.theme||'system')+1)%3];savePrefs();applyTheme();});
   $('#eduBtn').addEventListener('click',()=>{P.edu=!P.edu;savePrefs();applyEdu();});
+  setupYaaqen();
   if(!LOCAL)return;
   /* desktop-only integration */
   api('/api/autostart').then(j=>{$('#pAuto').checked=!!j.enabled;if(!j.available){$('#pAuto').disabled=true;$('#pAutoNote').textContent='متاح في النسخة المثبتة من البرنامج.';}}).catch(()=>{});
@@ -55,6 +56,18 @@ function bindPrefs(){
   $('#updateCheck').addEventListener('click',()=>checkUpdate(true));
   $('#updateGo').addEventListener('click',()=>{if(S.updateUrl)openExternal(S.updateUrl);});
   $('#updateHide').addEventListener('click',()=>{$('#updateBanner').hidden=true;Store.set('updateSnooze',todayKey());});
+}
+/* ---------- Yaqeen list (US stocks) ---------- */
+function renderYaaqenInfo(){$('#yqInfo').innerHTML=YQ.ok.size?'شرعي: '+NUM(YQ.ok.size)+' سهمًا · غير شرعي: '+NUM(YQ.no.size)+' · محل نظر: '+NUM(YQ.doubt.size)+' · آخر تحديث: '+NUM(esc(YQ.date))+'. تحدّث تلقائيًا كل أسبوعين في البرنامج المثبت.':'لا تتوفر القائمة.';}
+async function syncYaaqen(){const j=await api('/api/yaaqen').catch(()=>null);
+  if(j&&j.list&&j.list.date&&j.list.date>=YQ.date){loadYaaqen(j.list);renderYaaqenInfo();if(typeof renderScan==='function')renderScan();}return j;}
+function setupYaaqen(){
+  renderYaaqenInfo();if(!LOCAL)return;syncYaaqen();
+  $('#yqRefresh').addEventListener('click',async()=>{const st=$('#yqStatus');st.className='status';st.textContent='جارٍ تحديث القائمة من موقع يقين… يستغرق دقيقة إلى دقيقتين.';
+    await api('/api/yaaqen',{refresh:'1'}).catch(()=>null);
+    const t0=Date.now();const iv=setInterval(async()=>{const j=await syncYaaqen();
+      if(j&&!j.busy){clearInterval(iv);st.textContent=j.list?'تم تحديث قائمة يقين.':'تعذّر تحديث القائمة؛ تبقى النسخة المحفوظة.';if(!j.list)st.className='status err';}
+      else if(Date.now()-t0>6*60e3){clearInterval(iv);st.className='status err';st.textContent='استغرق التحديث وقتًا أطول من المعتاد.';}},5000);});
 }
 /* ---------- TradingView account ---------- */
 function renderTvAccount(j){
