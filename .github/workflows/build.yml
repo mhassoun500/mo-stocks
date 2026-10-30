@@ -22,6 +22,12 @@ jobs:
         run: |
           python tools/build_page.py
           python -m PyInstaller --noconfirm --clean --windowed --name MoStocks --icon assets\icon.ico --add-data "app\page.html;." --add-data "app\fonts;fonts" --add-data "assets\icon.png;." --add-data "VERSION;." app\main.py
+      - name: Check the packaged app can reach the data sources
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\MoStocks\MoStocks.exe -ArgumentList "--selftest","$PWD\selftest.txt" -Wait -PassThru
+          Get-Content selftest.txt
+          if ($p.ExitCode -ne 0) { exit 1 }
       - name: Sign app (only when a certificate secret exists)
         if: env.WIN_CERT != ''
         shell: pwsh
@@ -70,6 +76,8 @@ jobs:
           p12-password: ${{ secrets.MACOS_CERT_PASSWORD }}
       - name: Build app and DMG
         run: ./build_mac.sh
+      - name: Check the packaged app can reach the data sources
+        run: '"dist/Mo Stocks.app/Contents/MacOS/Mo Stocks" --selftest'
       - uses: actions/upload-artifact@v4
         with:
           name: mac-dmg-${{ matrix.runner }}

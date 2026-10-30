@@ -37,6 +37,18 @@ import webbrowser
 import xml.etree.ElementTree as ET
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# The packaged macOS app carries its own OpenSSL, which cannot see the Mac's certificate store, so
+# every HTTPS request would fail certificate checks. Use certifi's bundle when the system has none.
+try:
+    import ssl as _ssl
+    import certifi as _certifi
+    _paths = _ssl.get_default_verify_paths()
+    if not os.environ.get("SSL_CERT_FILE") and (sys.platform == "darwin" or not (
+            (_paths.cafile and os.path.exists(_paths.cafile)) or (_paths.capath and os.path.isdir(_paths.capath)))):
+        os.environ["SSL_CERT_FILE"] = _certifi.where()
+except Exception:
+    pass
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import funds  # noqa: E402  Egyptian mutual funds (Mubasher)
 import tvdata  # noqa: E402  TradingView data feed and account session
@@ -1846,6 +1858,30 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+    if "--selftest" in sys.argv:  # used by the build pipeline to check HTTPS works inside the packaged app
+        i = sys.argv.index("--selftest")
+        out_path = sys.argv[i + 1] if len(sys.argv) > i + 1 else None
+        lines, ok = [], True
+        checks = (("TradingView scanner", True, lambda: tv_scan("ksa", {"columns": ["close"], "range": [0, 1]})),
+                  ("TradingView chart feed", True, lambda: tvdata.CLIENT.history("TADAWUL:1120", "1D", 5)),
+                  ("Yahoo Finance", False, lambda: http_json("https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d&interval=1d")),
+                  ("Mubasher", False, lambda: http_text("https://www.mubasher.info/api/1/listed-companies?country=sa&size=1")))
+        for name, required, fn in checks:
+            try:
+                fn()
+                lines.append("OK    " + name)
+            except Exception as e:
+                ok = ok and not required
+                lines.append(("FAIL  " if required else "WARN  ") + name + " - " + str(e))
+        lines.append("SSL_CERT_FILE = %s" % os.environ.get("SSL_CERT_FILE"))
+        text = "\n".join(lines) + "\n"
+        if out_path:
+            with open(out_path, "w", encoding="utf-8") as f:
+                f.write(text)
+        elif sys.stdout:
+            sys.stdout.write(text)
+            sys.stdout.flush()
+        os._exit(0 if ok else 1)
     srv, url = start_server()
     if FROZEN:
         try:  # keep "start with the computer" pointing at this copy (the program was renamed in 2.4)
