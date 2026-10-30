@@ -4,7 +4,7 @@
       {{LOGO}}
       <div>
         <h1>Mo Stocks</h1>
-        <p>دعم ومقاومة ومناطق شراء وبيع للأسهم والذهب والصناديق</p>
+        <p>محلل أداء الأسهم والذهب</p>
       </div>
     </div>
     <div class="top-tools">
@@ -17,6 +17,7 @@
         <a href="#prefs" data-view="prefs">الإعدادات</a>
       </nav>
       <button class="icon-btn" id="eduBtn" type="button" aria-pressed="false" title="يعرض شرحًا مبسطًا تحت كل مؤشر">وضع التعلم</button>
+      <button class="icon-btn" id="langBtn" type="button" title="Language / اللغة">English</button>
       <button class="icon-btn" id="themeBtn" type="button" title="تبديل المظهر">المظهر: تلقائي</button>
     </div>
   </header>
@@ -129,8 +130,14 @@
           <p class="edu">يقيس سرعة الحركة من 0 إلى 100. فوق 70 تشبّع شرائي (ارتفع بسرعة)، وتحت 30 تشبّع بيعي (هبط بسرعة).</p></div>
         <div class="metric"><span class="k">الاتجاه العام</span><span class="v" id="mTrend" style="font-family:var(--f-display)">—</span><span class="s" id="mTrendSub"></span>
           <p class="edu">يُحكم عليه من موقع السعر بالنسبة للمتوسط المتحرك الطويل واتجاه ميله.</p></div>
-        <div class="metric"><span class="k">الماكد</span><span class="v" id="mMacd">—</span><span class="s" id="mMacdSub"></span>
-          <p class="edu">يقيس الزخم بالفرق بين متوسطين أسيين. فوق خط الإشارة زخم صاعد، وتحته زخم هابط.</p></div>
+        <div class="metric"><span class="k">الماكد <bdi class="small ar-only">(MACD)</bdi></span><span class="v" id="mMacd">—</span><span class="s" id="mMacdSub"></span>
+          <p class="edu">يقيس الزخم بالفرق بين متوسطين أسيين. فوق خط الإشارة زخم صاعد، وتحته زخم هابط.</p>
+          <details class="explain"><summary>ما هو الماكد؟</summary>
+            <p>الماكد اختصار «تقارب وتباعد المتوسطات المتحركة»، ويقيس زخم السعر: قوة اندفاعه واتجاهه.</p>
+            <p>خط الماكد = متوسط السعر لـ 12 يومًا ناقص متوسطه لـ 26 يومًا. وخط الإشارة = متوسط خط الماكد لـ 9 أيام.</p>
+            <p>الرقم المعروض هو المسافة بين الخطين: الموجب زخم صاعد والسالب زخم هابط، وكلما كبر الرقم كانت الحركة أقوى. «يقوى» يعني أن المسافة اتسعت عن اليوم السابق، و«يضعف» أنها ضاقت، والضعف غالبًا يسبق تغيّر الاتجاه.</p>
+            <p>عبور الماكد فوق خط الإشارة إشارة شراء، وعبوره تحته إشارة بيع. لرؤيته على الرسم اختر «الماكد» في «اللوحة السفلية».</p>
+          </details></div>
         <div class="metric local-only" id="mCmpCard"><span class="k" id="mCmpK">مقارنة بالمؤشر العام</span><span class="v" id="mCmp">—</span><span class="s" id="mCmpSub"></span>
           <p class="edu">الفرق بين أداء السهم وأداء السوق كله في نفس الفترة. الموجب يعني أن السهم أقوى من السوق.</p></div>
       </div>
@@ -323,11 +330,12 @@
     <section class="card panel">
       <div class="panel-head"><h2>ماسح السوق</h2><span class="muted small" id="scanMeta"></span></div>
       <div class="form-grid">
-        <label class="field" for="scanEx"><span>السوق</span><select id="scanEx"><option value="SR">السعودية — تداول</option><option value="CA">مصر — البورصة المصرية</option><option value="US100">أمريكا — أكبر 100 شركة</option><option value="US500">أمريكا — أكبر 500 شركة</option></select></label>
+        <label class="field" for="scanEx"><span>السوق</span><select id="scanEx"><option value="SR">السعودية — تداول</option><option value="CA">مصر — البورصة المصرية</option><option value="US100">أمريكا — أكبر 100 شركة</option><option value="US500">أمريكا — أكبر 500 شركة</option><option value="US1000">أمريكا — أكبر 1000 شركة</option><option value="UScap300">أمريكا — أكبر من 300 مليون دولار (≈3000)</option><option value="USall">أمريكا — كل الأسهم (≈5000، نحو 15 دقيقة)</option></select></label>
         <label class="field" for="scanSeg" id="scanSegField"><span>السوق السعودي</span><select id="scanSeg"><option value="">الرئيسية ونمو</option><option value="main">السوق الرئيسية فقط</option><option value="nomu">نمو (السوق الموازية) فقط</option><option value="reit">صناديق الريت فقط</option></select></label>
         <label class="field" for="scanStance"><span>الحكم</span><select id="scanStance"><option value="">الكل</option><option value="buy">منطقة شراء</option><option value="sell">منطقة بيع</option><option value="neutral">انتظار</option></select></label>
         <label class="field" for="scanConf"><span>أدنى ثقة %</span><input id="scanConf" type="number" min="0" max="100" step="5" value="0"></label>
         <label class="field row" for="scanSharia"><input id="scanSharia" type="checkbox"><span>المتوافقة شرعيًا فقط</span></label>
+        <p class="small muted wide" id="usShariaNote" hidden>الأسهم الأمريكية: فحص شرعي مبدئي تلقائي (استبعاد البنوك والتأمين التقليدي والخمور والتبغ والقمار والترفيه والأسلحة، والديون والنقد كلٌّ أقل من 30% من القيمة السوقية). لا يشمل نسبة الإيراد غير المباح، فتأكد من مصدر موثوق.</p>
         <div class="actions"><button class="btn primary" id="scanGo" type="button">ابدأ الفحص</button><button class="btn ghost" id="scanStop" type="button" hidden>إيقاف</button></div>
       </div>
       <div class="progress" id="scanProg" hidden><i></i></div>

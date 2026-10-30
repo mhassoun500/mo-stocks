@@ -154,7 +154,7 @@ async function loadFundCompare(seq){
   if(cat==='metals'){j=await api('/api/history',{code:sa?'XAU-SAR-24':'XAU-EGP-24',ex:'GOLD',range:'5y'}).catch(()=>null);if(j&&j.ok)j.label=sa?'جرام الذهب ٢٤ بالريال':'جرام الذهب ٢٤ بالجنيه';}
   else if(cat==='equity'||cat==='balanced'||cat==='other'||cat==='realestate'){j=await api('/api/index',{ex:sa?'SR':'CA',range:'5y'}).catch(()=>null);}
   if(seq!==S.loadSeq||!j||!j.ok)return;
-  S.cmpRaw=j.rows;S.cmpLabel=j.label||'مؤشر السوق';$('#cmpChipLabel').textContent='مقارنة بـ'+S.cmpLabel;alignCompare();
+  S.cmpRaw=j.rows;S.cmpLabel=_t(j.label||'مؤشر السوق');$('#cmpChipLabel').textContent='مقارنة بـ'+S.cmpLabel;alignCompare();
   const fs=fundStats(S.daily.map(d=>[d.t,d.c,d.c,d.c,d.c,0])),cs=fundStats(j.rows);
   S.fundCmp=[];for(const [k,v] of [['شهر','r1m'],['3 أشهر','r3m'],['سنة','r1y']])if(fs[v]!=null&&cs[v]!=null)S.fundCmp.push([(cat==='metals'?'الذهب':'مؤشر السوق')+' خلال '+k,pct(cs[v])]);
   renderCompareMetric();renderFundCard();draw();

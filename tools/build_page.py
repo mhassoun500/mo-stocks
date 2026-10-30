@@ -5,6 +5,7 @@ published as the web page). Optionally download the Google Fonts for offline use
     python tools/build_page.py            # build page.html
     python tools/build_page.py --fonts    # also refresh app/fonts/ (needs internet)
 """
+import json
 import os
 import re
 import sys
@@ -21,11 +22,55 @@ def read(*p):
         return f.read()
 
 
+AR = re.compile(r"[\u0600-\u06FF]")
+JS_LIT = re.compile(r"'((?:[^'\\\n]|\\.)*)'")
+I18N_DIR = os.path.join(ROOT, "tools", "i18n")
+
+
+def wrap_js_strings(js):
+    """Every Arabic string literal becomes _t('...') so it shows in English when that language is on."""
+    out = []
+    for line in js.split("\n"):
+        if line.lstrip().startswith("//"):
+            out.append(line)
+            continue
+        out.append(JS_LIT.sub(lambda m: "_t(%s)" % m.group(0) if AR.search(m.group(1)) else m.group(0), line))
+    return "\n".join(out)
+
+
+def server_pattern(ar):
+    """'تعذّر جلب %s' -> a regex for the message as the page receives it, with groups for the values."""
+    parts = re.split(r"%(?:-?\d*(?:\.\d+)?)[sdf]", ar.replace("%%", "%"))
+    return "(.+?)".join(re.escape(p) for p in parts), len(parts) - 1
+
+
+def i18n_data():
+    path = os.path.join(I18N_DIR, "en.json")
+    if not os.path.exists(path):
+        return {"t": {}, "p": []}
+    en = json.load(open(path, encoding="utf-8"))
+    t, pats = {}, []
+    for ar, tr in en.items():
+        if not tr:
+            continue
+        if re.search(r"%(?:-?\d*(?:\.\d+)?)[sdf]", ar):
+            rx, n = server_pattern(ar)
+            k = iter(range(1, n + 1))
+            rep = re.sub(r"%(?:-?\d*(?:\.\d+)?)[sdf]", lambda m: "$%d" % next(k), tr.replace("%%", "%"))
+            pats.append([rx, rep])
+        else:
+            t[" ".join(ar.split()) if "<" not in ar else ar] = tr
+            t[ar] = tr
+    return {"t": t, "p": pats}
+
+
 def build():
     head = read("head.html")
     body = read("body.html").replace("{{LOGO}}", read("logo.inc").strip())
-    js = "\n".join(read("js", n + ".js") for n in JS_ORDER)
-    page = head.rstrip() + "\n\n" + body.rstrip() + "\n\n<script>\n(function(){\n'use strict';\n" + js + "\n})();\n</script>\n"
+    js = wrap_js_strings("\n".join(read("js", n + ".js") for n in JS_ORDER))
+    data = json.dumps(i18n_data(), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    page = (head.rstrip() + "\n\n" + body.rstrip() + '\n\n<script type="application/json" id="i18n-data">' + data
+            + "</script>\n<script>\n(function(){\n'use strict';\n" + js + "\n})();\n</script>\n")
     out = os.path.join(ROOT, "app", "page.html")
     with open(out, "w", encoding="utf-8", newline="\n") as f:
         f.write(page)

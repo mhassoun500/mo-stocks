@@ -1,23 +1,63 @@
 /* ================= core: helpers, formatting, storage, prefs, parsing ================= */
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
+
+/* ---------- language: Arabic (default) or English ----------
+   The build wraps every Arabic string literal in the scripts as _t('...'); static page text and
+   messages coming from the local server are translated in the page itself (exact phrases only,
+   so company and fund names are never altered). */
+const I18N=(()=>{try{const d=JSON.parse(document.getElementById('i18n-data').textContent);d.re=(d.p||[]).map(([r,x])=>[new RegExp('^'+r+'$'),x]);return d;}catch(e){return{t:{},re:[]};}})();
+const LANG=(()=>{try{return localStorage.getItem('mo-lang')==='en'?'en':'ar';}catch(e){return'ar';}})();
+const EN=LANG==='en';
+const HAS=Object.prototype.hasOwnProperty;
+const _t=s=>{if(!EN||typeof s!=='string')return s;if(HAS.call(I18N.t,s))return I18N.t[s];const v=AR_RE.test(s)?trPhrase(s):null;return v==null?s:v;};
+const AR_RE=/[\u0600-\u06FF]/;
+function trPhrase(raw){
+  const key=raw.replace(/\s+/g,' ').trim();if(!key||!AR_RE.test(key))return null;
+  let v=HAS.call(I18N.t,key)?I18N.t[key]:null;
+  if(v==null)for(const [re,x] of I18N.re){const m=key.match(re);if(m){v=x.replace(/\$(\d)/g,(_,i)=>m[+i]||'');break;}}
+  if(v==null)return null;
+  const lead=raw.match(/^\s*/)[0],trail=raw.match(/\s*$/)[0];return lead+v+trail;
+}
+function trTree(root){
+  if(!EN||!root)return;
+  if(root.nodeType===3){const v=trPhrase(root.nodeValue);if(v!=null&&v!==root.nodeValue)root.nodeValue=v;return;}
+  if(root.nodeType!==1||root.closest&&root.closest('[translate="no"],script,style'))return;
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT);let n=root;
+  do{if(n.nodeType===3){if(AR_RE.test(n.nodeValue)){const v=trPhrase(n.nodeValue);if(v!=null&&v!==n.nodeValue)n.nodeValue=v;}}
+     else for(const a of ['placeholder','title','aria-label','label']){const x=n.getAttribute&&n.getAttribute(a);if(x&&AR_RE.test(x)){const v=trPhrase(x);if(v!=null&&v!==x)n.setAttribute(a,v);}}
+  }while((n=w.nextNode()));
+}
+function setupLanguage(){
+  const app=$('.app');
+  if(EN){document.documentElement.lang='en';document.documentElement.dir='ltr';if(app){app.lang='en';app.dir='ltr';}
+    trTree(document.body);
+    new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData')trTree(m.target);else m.addedNodes.forEach(trTree);}})
+      .observe(document.body,{childList:true,subtree:true,characterData:true});}
+  else{document.documentElement.lang='ar';document.documentElement.dir='rtl';}
+  const b=$('#langBtn');if(b){b.textContent=EN?'العربية':'English';b.lang=EN?'ar':'en';
+    b.addEventListener('click',()=>switchLanguage(EN?'ar':'en'));}
+}
+function switchLanguage(l){try{localStorage.setItem('mo-lang',l);}catch(e){}
+  if(typeof P!=='undefined'){P.lang=l;Store.set('prefs',P).finally(()=>location.reload());}else location.reload();}
+setupLanguage();
 const LOCAL=window.LOCAL_API||null;
 const LS_KEY='stock-zones-v2';
 const DAY=864e5;
 
-const LOC='ar-EG-u-nu-latn-ca-gregory';
+const LOC=EN?'en-GB-u-ca-gregory':'ar-EG-u-nu-latn-ca-gregory';
 const fmtDate=new Intl.DateTimeFormat(LOC,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
 const fmtDateTime=new Intl.DateTimeFormat(LOC,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'UTC'});
 const fmtMon=new Intl.DateTimeFormat(LOC,{month:'short',year:'2-digit',timeZone:'UTC'});
 const fmtDay=new Intl.DateTimeFormat(LOC,{day:'numeric',month:'short',timeZone:'UTC'});
 const fmtLocal=new Intl.DateTimeFormat(LOC,{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 const fmtLocalTime=new Intl.DateTimeFormat(LOC,{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-const fmtVol=new Intl.NumberFormat('ar-EG-u-nu-latn',{notation:'compact',maximumFractionDigits:1});
+const fmtVol=new Intl.NumberFormat(EN?'en-US':'ar-EG-u-nu-latn',{notation:'compact',maximumFractionDigits:1});
 const fmtMoney=new Intl.NumberFormat('en-US',{maximumFractionDigits:2});
 const dec=p=>p<1?4:p<10?3:2;
 const fp=p=>(p==null||!isFinite(p))?'—':p.toFixed(dec(Math.abs(p)));
 const pct=(x,d=1)=>(x==null||!isFinite(x))?'—':(x>0?'+':'')+(x*100).toFixed(d)+'%';
-const NUM=t=>'<span class="num">'+t+'</span>';
+const NUM=t=>'<span class="num">\u2066'+t+'\u2069</span>';  /* LRI…PDI keep a minus sign before the number in right-to-left text */
 const RANGE=(a,b)=>NUM(fp(a)+' – '+fp(b));
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -63,6 +103,7 @@ function setPref(path,val){const ks=path.split('.');let o=P;for(let i=0;i<ks.len
 let prefTimer=null;
 function savePrefs(){clearTimeout(prefTimer);prefTimer=setTimeout(()=>Store.set('prefs',P),300);}
 async function loadPrefs(){const saved=await Store.get('prefs',null);if(saved)deepMerge(P,saved);
+  if(P.lang&&P.lang!==LANG){try{localStorage.setItem('mo-lang',P.lang);if(localStorage.getItem('mo-lang')===P.lang){location.reload();return;}}catch(e){}}
   if(P.updateRepo==='mhassoun500/stock-zones'){P.updateRepo=PREF_DEFAULTS.updateRepo;savePrefs();}}  /* renamed to Mo Stocks in 2.4 */
 
 /* ---------- Sharia list ---------- */

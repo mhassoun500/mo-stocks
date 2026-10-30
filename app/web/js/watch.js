@@ -121,8 +121,9 @@ async function schedulerTick(){
 /* ---------- market scanner ---------- */
 const SC={running:false,stop:false,rows:[],sector:null,sort:{k:'conf',dir:'desc'},ex:'SR',sel:'SR'};
 const SEG_AR={main:'الرئيسية',nomu:'نمو',reit:'ريت'};
-const scanExOf=v=>/^US/.test(v)?{ex:'US',size:+v.slice(2)}:{ex:v,size:null};
-function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';}
+const scanExOf=v=>/^US/.test(v)?{ex:'US',size:v.slice(2)}:{ex:v,size:null};
+const rowSharia=r=>{const u=shariaStatus(r.code);return u?{s:u,auto:false}:r.shariaAuto?{s:r.shariaAuto,auto:true,why:r.shariaWhy}:null;};
+function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);}
 async function runScan(){
   if(SC.running)return;SC.running=true;SC.stop=false;SC.sector=null;
   const sel=$('#scanEx').value,{ex,size}=scanExOf(sel);SC.ex=ex;SC.sel=sel;$('#scanGo').hidden=true;$('#scanStop').hidden=false;$('#scanProg').hidden=false;
@@ -133,9 +134,9 @@ async function runScan(){
   const worker=async()=>{while(!SC.stop&&idx<items.length){const it=items[idx++];
       try{const j=await api('/api/history',{code:it.symbol,ex:ex==='US'?'US':'XX',range:'1y',lite:'1'});
         if(j.ok&&j.rows.length>=60){const D=rowsToData(j.rows),I=computeInd(D);const A=analyzeCore(D,I,{span:Math.min(250,D.length),sens:5,zoneCount:6,stopMult:P.ana.stopMult});
-          if(A)SC.rows.push({symbol:it.symbol,code:it.symbol.replace(/\.(SR|CA)$/,''),name:it.short||it.name,price:A.close,chg:it.chg!=null?it.chg/100:A.close/D[D.length-2].c-1,
+          if(A)SC.rows.push({symbol:it.symbol,code:it.symbol.replace(/\.(SR|CA)$/,''),name:EN?(it.nameEn||it.name):(it.short||it.name),price:A.close,chg:it.chg!=null?it.chg/100:A.close/D[D.length-2].c-1,
             stance:A.stance,stanceN:A.stance==='buy'?1:A.stance==='sell'?-1:0,conf:A.dirStrength,bull:A.bull,distBuy:A.buy?(A.buy.hi-A.close)/A.close:null,
-            rsi:A.rsi,trend:A.trend,trendN:A.trendN,notable:A.notable,sector:it.sector||null,segment:it.segment||''});}}
+            rsi:A.rsi,trend:A.trend,trendN:A.trendN,notable:A.notable,sector:(EN?it.sectorEn:'')||it.sector||null,segment:it.segment||'',shariaAuto:it.shariaAuto||'',shariaWhy:it.shariaWhy||''});}}
       catch(e){}
       done++;$('#scanProg i').style.width=(done/items.length*100).toFixed(1)+'%';$('#scanMeta').textContent='فُحص '+done+' من '+items.length;
       if(done%15===0)renderScan();}};
@@ -161,14 +162,14 @@ async function loadSectors(){
 }
 function scanFiltered(){
   const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=$('#scanSharia').checked,seg=SC.ex==='SR'?$('#scanSeg').value:'';
-  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||shariaStatus(r.code)==='ok')&&(!SC.sector||sectorAr(r.sector)===SC.sector));
+  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||(rowSharia(r)||{}).s==='ok')&&(!SC.sector||sectorAr(r.sector)===SC.sector));
 }
 function renderScan(){
   const rows=scanFiltered().slice();const {k,dir}=SC.sort;const m=dir==='asc'?1:-1;
   rows.sort((a,b)=>{const x=a[k],y=b[k];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y,'ar'):x-y)*m;});
   $$('#scanTable th button').forEach(b=>{if(b.dataset.sort===k)b.dataset.dir=dir;else delete b.dataset.dir;});
-  $('#scanBody').innerHTML=rows.length?rows.slice(0,400).map(r=>{const sh=shariaStatus(r.code);
-    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+(sh?'<span class="tag '+(sh==='ok'?'b':'x')+'">'+(sh==='ok'?'متوافق':'غير متوافق')+'</span>':'')+'</td>'+
+  $('#scanBody').innerHTML=rows.length?rows.slice(0,2000).map(r=>{const shr=rowSharia(r),sh=shr&&shr.s;
+    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+(sh?'<span class="tag '+(sh==='ok'?'b':'x')+'"'+(shr.auto?' title="'+esc(_t(shr.why||''))+'"':'')+'>'+(sh==='ok'?(shr.auto?'متوافق مبدئيًا':'متوافق'):(shr.auto?'غير متوافق مبدئيًا':'غير متوافق'))+'</span>':'')+'</td>'+
       '<td>'+NUM(fp(r.price))+'</td><td>'+chgSpan(r.chg)+'</td><td><span class="kind '+stanceKind(r.stance)+'">'+STANCE_AR[r.stance]+'</span></td><td>'+(r.conf!=null?NUM(r.conf+'%'):'—')+'</td>'+
       '<td>'+(r.distBuy!=null?NUM(pct(r.distBuy)):'—')+'</td><td>'+(r.rsi!=null?NUM(r.rsi.toFixed(0)):'—')+'</td><td>'+r.trend+'</td><td>'+esc(r.notable||'')+'</td><td>'+esc(r.sector?sectorAr(r.sector):'')+'</td></tr>';}).join('')
     :'<tr><td colspan="10" class="empty">'+(SC.rows.length?'لا توجد نتائج تطابق التصفية.':'اختر السوق واضغط «ابدأ الفحص».')+'</td></tr>';

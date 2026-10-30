@@ -47,8 +47,9 @@ function render(){
   else if(S.source==='live'&&S.meta){const m=S.meta;b.innerHTML='<bdi>'+esc(m.source)+'</bdi> · <bdi>'+esc(m.symbol)+'</bdi> · '+N+' شمعة'+(m.currency?' · <bdi>'+esc(m.currency)+'</bdi>':'');b.className='badge';}
   else{b.textContent=(S.fileName?S.fileName+' · ':'')+N+' شمعة';b.className='badge';}
   $('#offlineBadge').hidden=!(S.meta&&S.meta.offline);
-  const sh=S.ex!=='GOLD'&&S.source!=='sample'?shariaStatus(S.code):null,sb=$('#shariaBadge');
-  sb.hidden=!sh;if(sh){sb.textContent=sh==='ok'?'متوافق شرعيًا':'غير متوافق شرعيًا';sb.className='badge '+sh;sb.title=P.sharia.asOf?'حسب قائمة '+P.sharia.asOf:'';}
+  const shL=S.ex!=='GOLD'&&S.source!=='sample'?shariaStatus(S.code):null,shA=!shL&&S.ex==='US'&&S.usSharia&&S.usSharia.status?S.usSharia:null,sh=shL||(shA&&shA.status),sb=$('#shariaBadge');
+  sb.hidden=!sh;if(sh){sb.textContent=shA?(sh==='ok'?'متوافق شرعيًا مبدئيًا':'غير متوافق شرعيًا مبدئيًا'):(sh==='ok'?'متوافق شرعيًا':'غير متوافق شرعيًا');sb.className='badge '+sh;
+    sb.title=shA?_t(shA.why)+' — فحص مبدئي لا يشمل نسبة الإيراد غير المباح.':(P.sharia.asOf?'حسب قائمة '+P.sharia.asOf:'');}
   const seg=S.source!=='sample'&&(S.ex==='SR'||/\.SR$/i.test(S.code))?saSegment(S.code):'',gb=$('#segBadge');
   gb.hidden=!seg;if(seg){gb.textContent=SEG_LABEL[seg];gb.className='badge seg-'+seg;gb.title=SEG_TIP[seg];}
 
@@ -168,7 +169,7 @@ async function loadCompare(seq){
   S.cmpLabel=EX[S.ex].idx;$('#cmpChipLabel').textContent=S.ex==='GOLD'?'مقارنة بمؤشر الدولار':'مقارنة بالمؤشر العام';
   const j=await api('/api/index',{ex:S.ex,range:$('#rng').value}).catch(()=>null);
   if(seq!==S.loadSeq||!j||!j.ok)return;
-  S.cmpRaw=j.rows;S.cmpLabel=j.label||S.cmpLabel;alignCompare();renderCompareMetric();renderGoldCard();draw();
+  S.cmpRaw=j.rows;S.cmpLabel=j.label?_t(j.label):S.cmpLabel;alignCompare();renderCompareMetric();renderGoldCard();draw();
 }
 function renderCompareMetric(){
   const card=$('#mCmpCard');if(!LOCAL)return;
@@ -303,6 +304,7 @@ async function fetchSymbol(code,ex){
     setStatus('تم جلب '+S.daily.length+(S.isFund?' سعرًا للصندوق من ':' يوم تداول من ')+j.source+(j.live||j.source==='TradingView'?'، وآخر سعر من جلسة '+fmtDate.format(S.daily[S.daily.length-1].t)+' ('+priceQual(j)+(marketOpen(ex)?' ويتحدث تلقائيًا كل دقيقتين':'')+').':'، وآخر إغلاق بتاريخ '+fmtDate.format(S.daily[S.daily.length-1].t)+'.')+(j.note?' '+j.note:''),!!j.offline);
     addRecent({ex,code:S.code,name:S.name,short:j.short||''});
     loadProfile(seq);if(S.isFund)loadFundCompare(seq);else loadCompare(seq);loadGoldExtras(seq);
+    S.usSharia=null;if(LOCAL&&ex==='US')api('/api/ussharia',{code:S.code}).then(r=>{if(seq===S.loadSeq&&r&&r.ok){S.usSharia=r;if(S.A)render();}}).catch(()=>{});
   }catch(e){setStatus(e instanceof TypeError||e instanceof SyntaxError?'تعذّر الاتصال بالبرنامج. أعد تشغيله إذا استمرت المشكلة.':(e.message||'تعذّر جلب البيانات.'),true);}
   finally{btn.disabled=false;btn.textContent='جلب البيانات';}
 }
@@ -322,7 +324,7 @@ async function liveTick(){
   if(!j||!j.ok||seq!==S.loadSeq||S.tf==='H'||!j.rows||j.rows.length<30)return;
   let D;try{D=rowsToData(j.rows);}catch(e){return;}
   const a=S.daily[S.daily.length-1],b=D[D.length-1];S.meta=j;
-  const when=new Date().toLocaleTimeString('ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});
+  const when=new Date().toLocaleTimeString(EN?'en-GB':'ar-SA-u-nu-latn',{hour:'2-digit',minute:'2-digit'});
   const same=(x,y)=>x===y||(x!==x&&y!==y);
   if(b.t===a.t&&same(b.c,a.c)&&same(b.h,a.h)&&same(b.l,a.l)&&same(b.v,a.v)){setStatus('السعر محدَّث ('+priceQual(j)+') — آخر فحص '+when+'.');return;}
   const oldN=S.data.length,atEnd=CH.to>=oldN;

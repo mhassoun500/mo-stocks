@@ -1123,40 +1123,99 @@ def sa_names():
 US_EXCH = {}  # ticker -> TradingView exchange, filled from the US list
 
 
+# ---------------------------------------------------------------- preliminary Sharia screen (US stocks)
+# AAOIFI-style screen on TradingView data: no prohibited core business, interest-bearing debt below
+# 30% of market value, cash and short-term investments below 30% of market value. The share of
+# impermissible income cannot be checked from this data, so the result is only preliminary.
+SHARIA_EXCLUDED_INDUSTRIES = {
+    "Major Banks": "بنوك تقليدية", "Regional Banks": "بنوك تقليدية", "Savings Banks": "بنوك تقليدية",
+    "Investment Banks/Brokers": "خدمات مالية تقليدية", "Investment Managers": "خدمات مالية تقليدية",
+    "Finance/Rental/Leasing": "تمويل بفائدة", "Financial Conglomerates": "خدمات مالية تقليدية",
+    "Life/Health Insurance": "تأمين تقليدي", "Property/Casualty Insurance": "تأمين تقليدي",
+    "Multi-Line Insurance": "تأمين تقليدي", "Specialty Insurance": "تأمين تقليدي", "Insurance Brokers/Services": "تأمين تقليدي",
+    "Beverages: Alcoholic": "خمور", "Tobacco": "تبغ", "Casinos/Gaming": "قمار",
+    "Movies/Entertainment": "ترفيه وإعلام", "Hotels/Resorts/Cruise lines": "فنادق ومنتجعات", "Aerospace & Defense": "أسلحة ودفاع",
+}
+SHARIA_LIMIT = 0.30
+
+
+def sharia_screen(industry, cap, debt, cash):
+    """Returns (status, reason): status 'ok', 'no' or '' (not enough data)."""
+    if industry in SHARIA_EXCLUDED_INDUSTRIES:
+        return "no", "النشاط: " + SHARIA_EXCLUDED_INDUSTRIES[industry]
+    if not cap or cap <= 0 or debt is None:
+        return "", "بيانات الديون غير متاحة"
+    dr, cr = (debt or 0) / cap, (cash or 0) / cap
+    detail = "الديون %.0f%% والنقد %.0f%% من القيمة السوقية" % (dr * 100, cr * 100)
+    if dr >= SHARIA_LIMIT or cr >= SHARIA_LIMIT:
+        return "no", detail
+    return "ok", detail
+
+
+UNIVERSE_COLS = ["name", "description", "market_cap_basic", "sector", "change", "close", "exchange", "industry",
+                 "total_debt_fq", "cash_n_short_term_invest_fq"]
+
+
 def tv_universe(ex, size=None):
+    """size: a number (largest N by market value), 'cap300' (above $300M) or None/'all'."""
     market = TV_MARKET_OF[ex]
     filt = [{"left": "type", "operation": "equal", "right": "stock"},
             {"left": "is_primary", "operation": "equal", "right": True}]
     if ex == "US":
         filt += [{"left": "exchange", "operation": "in_range", "right": ["NASDAQ", "NYSE", "AMEX"]},
                  {"left": "subtype", "operation": "in_range", "right": ["common", "foreign-issuer"]}]
-    body = {"filter": filt, "columns": ["name", "description", "market_cap_basic", "sector", "change", "close", "exchange"],
-            "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"}, "range": [0, size or 1500]}
-    d = tv_scan(market, body)
+        if size == "cap300":
+            filt.append({"left": "market_cap_basic", "operation": "greater", "right": 3e8})
+    n = int(size) if str(size or "").isdigit() else 8000
+    body = {"filter": filt, "columns": UNIVERSE_COLS, "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"},
+            "range": [0, n]}
+    d = tv_scan(market, body, timeout=60)
     names = sa_names() if ex == "SR" else {}
     egx = dict(EGX_LIST) if ex == "CA" else {}
     items = []
     for row in d.get("data") or []:
-        v = row.get("d") or []
-        if len(v) < 7 or not v[0]:
+        v = (row.get("d") or []) + [None] * len(UNIVERSE_COLS)
+        if not v[0]:
             continue
         code = str(v[0])
         ar = names.get(code) or ["", ""]
         it = {"symbol": code + {"SR": ".SR", "CA": ".CA"}.get(ex, ""), "name": ar[0] or egx.get(code) or v[1] or code,
-              "short": ar[0] or "", "price": v[5], "chg": v[4], "cap": v[2], "pe": None, "dy": None, "chg52": None,
-              "sector": ar[1] or TV_SECTOR_AR.get(v[3] or "", v[3] or "")}
+              "short": ar[0] or "", "nameEn": v[1] or code, "price": v[5], "chg": v[4], "cap": v[2], "pe": None,
+              "dy": None, "chg52": None, "sector": ar[1] or TV_SECTOR_AR.get(v[3] or "", v[3] or ""),
+              "sectorEn": v[3] or ""}
         if ex == "SR":
             it["segment"] = sa_segment(code)
         if ex == "US":
             it["exch"] = v[6] or ""
             US_EXCH[code] = it["exch"]
+            it["shariaAuto"], it["shariaWhy"] = sharia_screen(v[7], v[2], v[8], v[9])
         items.append(it)
     return items
 
 
+def us_sharia(code):
+    """Preliminary screen for one US ticker (analysis view)."""
+    c = code.strip().upper()
+    key = "ush|" + c
+    hit, _ = cache_get(key, max_age=86400)
+    if hit:
+        return hit
+    d = tv_scan("america", {"filter": [{"left": "name", "operation": "equal", "right": c}],
+                            "columns": UNIVERSE_COLS, "range": [0, 5]})
+    rows = [r.get("d") or [] for r in d.get("data") or []]
+    rows = [r + [None] * len(UNIVERSE_COLS) for r in rows if r and r[0] == c]
+    if not rows:
+        return {"ok": False}
+    v = max(rows, key=lambda r: r[2] or 0)
+    st, why = sharia_screen(v[7], v[2], v[8], v[9])
+    out = {"ok": True, "status": st, "why": why, "industry": v[7] or ""}
+    cache_put(key, out)
+    return out
+
+
 def get_universe(ex, size=None):
     if ex in TV_MARKET_OF:
-        key = "tvu|%s|%s" % (ex, size or "all")
+        key = "tvu2|%s|%s" % (ex, size or "all")
         cached, _ = cache_get(key, max_age=900)
         if cached:
             for it in cached["items"] if ex == "US" else []:
@@ -1614,8 +1673,10 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/funds":
                 return self._json(get_funds())
             if p == "/api/universe":
-                size = int(q["size"]) if q.get("size", "").isdigit() else None
-                return self._json(get_universe(q.get("ex", "SR"), size))
+                size = q.get("size") if re.match(r"^(\d+|cap300|all)$", q.get("size", "")) else None
+                return self._json(get_universe(q.get("ex", "SR"), None if size == "all" else size))
+            if p == "/api/ussharia":
+                return self._json(us_sharia(q.get("code", "")))
             if p == "/api/store":
                 return self._json({"ok": True, "value": Store.get(q.get("key", ""))})
             if p == "/api/autostart":
