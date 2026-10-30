@@ -1,4 +1,4 @@
-# Mo Stocks  (الإصدار 2.6.1)
+# Mo Stocks  (الإصدار 2.6.2)
 
 برنامج سطح مكتب لويندوز وماك للتحليل الفني للأسهم والذهب: يجلب الأسعار تلقائيًا، ويحدد مناطق الدعم والمقاومة والشراء والبيع، ويرسل التنبيهات.
 
@@ -88,11 +88,11 @@
 ## بناء ملفات التثبيت
 ### عبر GitHub (ويندوز وماك معًا)
 1. ارفع المجلد إلى مستودع على GitHub.
-2. `git tag v2.6.1 && git push origin v2.6.1`
+2. `git tag v2.6.2 && git push origin v2.6.2`
 3. بعد نحو 15 دقيقة تجد في صفحة Releases:
-   - `MoStocks_Setup_v2.6.1.exe` لويندوز
-   - `MoStocks_v2.6.1_mac_apple-silicon.dmg` لأجهزة ماك الحديثة
-   - `MoStocks_v2.6.1_mac_intel.dmg` لأجهزة ماك بمعالج إنتل
+   - `MoStocks_Setup_v2.6.2.exe` لويندوز
+   - `MoStocks_v2.6.2_mac_apple-silicon.dmg` لأجهزة ماك الحديثة
+   - `MoStocks_v2.6.2_mac_intel.dmg` لأجهزة ماك بمعالج إنتل
 
 ### على جهازك
 - ويندوز: ثبّت Inno Setup 6 ثم شغّل `build_windows.bat`

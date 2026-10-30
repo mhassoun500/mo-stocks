@@ -1590,6 +1590,12 @@ def check_update():
             headers={"User-Agent": UA, "Accept": "application/vnd.github+json"}), timeout=15).read().decode())
     except urllib.error.HTTPError as e:
         if e.code == 404:
+            try:  # tell "no release published yet" apart from "repository missing or private"
+                urllib.request.urlopen(urllib.request.Request("https://api.github.com/repos/%s" % repo, headers={
+                    "User-Agent": UA, "Accept": "application/vnd.github+json"}), timeout=15).read()
+                return {"ok": False, "error": "لا يوجد إصدار منشور بعد في المستودع %s. أنشئ إصدارًا من صفحة Releases." % repo}
+            except Exception:
+                pass
             return {"ok": False, "error": "لم أجد إصدارات منشورة في %s. يجب أن يكون المستودع عامًا ليعمل فحص التحديث." % repo}
         return {"ok": False, "error": "تعذّر فحص التحديثات (HTTP %s)." % e.code}
     except Exception:
