@@ -52,6 +52,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import funds  # noqa: E402  Egyptian mutual funds (Mubasher)
 import tvdata  # noqa: E402  TradingView data feed and account session
+import sharia  # noqa: E402  Saudi (Argaam) and Egyptian Sharia lists
 
 APP_NAME = "Mo Stocks"
 APP_TITLE = "Mo Stocks"
@@ -1097,6 +1098,8 @@ def sa_segment(code):
     if not c.isdigit():
         return ""
     n = int(c)
+    if 9400 <= n <= 9499:  # exchange-traded funds on the main market
+        return "main"
     if 9000 <= n <= 9999:
         return "nomu"
     if 4330 <= n <= 4349:
@@ -1244,6 +1247,46 @@ def yaaqen_refresh():
         log(" Yaqeen list refresh failed (%s)" % e)
     finally:
         YAAQEN_BUSY.clear()
+
+
+# ---------------------------------------------------------------- Saudi / Egyptian Sharia lists
+SHARIA_BUSY = threading.Event()
+
+
+def sharia_refresh():
+    if SHARIA_BUSY.is_set():
+        return {}
+    SHARIA_BUSY.set()
+    res = {}
+    try:
+        for key, fn in (("sa", sharia.fetch_saudi), ("eg", sharia.fetch_egypt)):
+            try:
+                cache_put("sharia|" + key, fn())
+                res[key] = True
+            except Exception as e:
+                log(" Sharia list (%s) refresh failed (%s)" % (key, e))
+                res[key] = False
+    finally:
+        SHARIA_BUSY.clear()
+    return res
+
+
+def sharia_lists():
+    out = {"ok": True, "busy": SHARIA_BUSY.is_set()}
+    for key in ("sa", "eg"):
+        hit, _ = cache_get("sharia|" + key)
+        out[key] = hit
+    return out
+
+
+def sharia_refresher():
+    QUIT.wait(60)
+    while not QUIT.is_set():
+        _, t1 = cache_get("sharia|sa")
+        _, t2 = cache_get("sharia|eg")
+        if not t1 or not t2 or time.time() - min(t1, t2) > 7 * 86400:
+            sharia_refresh()
+        QUIT.wait(12 * 3600)
 
 
 def yaaqen_refresher():
@@ -1745,6 +1788,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(get_universe(q.get("ex", "SR"), None if size == "all" else size))
             if p == "/api/ussharia":
                 return self._json(us_sharia(q.get("code", "")))
+            if p == "/api/sharialists":
+                if q.get("refresh") == "1":
+                    threading.Thread(target=sharia_refresh, daemon=True).start()
+                    return self._json({"ok": True, "started": True})
+                return self._json(sharia_lists())
             if p == "/api/yaaqen":
                 if q.get("refresh") == "1":
                     threading.Thread(target=yaaqen_refresh, daemon=True).start()
@@ -1942,6 +1990,7 @@ def start_server():
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     threading.Thread(target=fund_refresher, daemon=True).start()
     threading.Thread(target=yaaqen_refresher, daemon=True).start()
+    threading.Thread(target=sharia_refresher, daemon=True).start()
     return srv, "http://%s:%d/" % (HOST, srv.server_address[1])
 
 

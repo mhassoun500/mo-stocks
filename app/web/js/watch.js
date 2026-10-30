@@ -122,10 +122,10 @@ async function schedulerTick(){
 const SC={running:false,stop:false,rows:[],sector:null,sort:{k:'conf',dir:'desc'},ex:'SR',sel:'SR'};
 const SEG_AR={main:'الرئيسية',nomu:'نمو',reit:'ريت'};
 const scanExOf=v=>/^US/.test(v)?{ex:'US',size:v.slice(2)}:{ex:v,size:null};
-const rowSharia=r=>{const u=shariaStatus(r.code);if(u)return{s:u,src:'list'};const y=SC.ex==='US'?yaaqenStatus(r.code):null;if(y)return{s:y,src:'yaaqen'};
-  return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy}:null;};
-function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);$$('#scanShariaDD [data-us]').forEach(l=>l.hidden=!/^US/.test($('#scanEx').value));updateShariaLabel();}
-const SH_SHORT={ok:'متوافق',doubt:'محل نظر',no:'غير متوافق',auto_ok:'متوافق مبدئيًا',auto_no:'غير متوافق مبدئيًا',none:'غير مصنّف'};
+const rowSharia=r=>{const i=shariaInfo(r.code,SC.ex);if(i)return i;
+  return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy,label:r.shariaAuto==='ok'?'متوافق مبدئيًا':'غير متوافق مبدئيًا',title:_t(r.shariaWhy||'')}:null;};
+function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);$$('#scanShariaDD [data-us]').forEach(l=>l.hidden=!/^US/.test($('#scanEx').value));$$('#scanShariaDD [data-ca]').forEach(l=>l.hidden=$('#scanEx').value!=='CA');updateShariaLabel();}
+const SH_SHORT={egx33:'EGX33',ok:'متوافق',doubt:'محل نظر / مختلف فيه',no:'غير متوافق',auto_ok:'متوافق مبدئيًا',auto_no:'غير متوافق مبدئيًا',none:'غير مصنّف'};
 function shariaChoice(){const on=$$('#scanShariaDD label:not([hidden]) input').filter(i=>i.checked).map(i=>i.value);return on.length?new Set(on):null;}  /* nothing ticked = all stocks */
 function updateShariaLabel(){const c=shariaChoice();$('#scanShariaLbl').textContent=!c?'الكل':[...c].map(v=>SH_SHORT[v]).join('، ');}
 function shariaCat(r){const x=rowSharia(r);if(!x)return'none';if(x.src==='auto')return x.s==='ok'?'auto_ok':'auto_no';return x.s;}
@@ -141,7 +141,7 @@ async function runScan(){
         if(j.ok&&j.rows.length>=60){const D=rowsToData(j.rows),I=computeInd(D);const A=analyzeCore(D,I,{span:Math.min(250,D.length),sens:5,zoneCount:6,stopMult:P.ana.stopMult});
           if(A)SC.rows.push({symbol:it.symbol,code:it.symbol.replace(/\.(SR|CA)$/,''),name:EN?(it.nameEn||it.name):(it.short||it.name),price:A.close,chg:it.chg!=null?it.chg/100:A.close/D[D.length-2].c-1,
             stance:A.stance,stanceN:A.stance==='buy'?1:A.stance==='sell'?-1:0,conf:A.dirStrength,bull:A.bull,distBuy:A.buy?(A.buy.hi-A.close)/A.close:null,
-            rsi:A.rsi,trend:A.trend,trendN:A.trendN,notable:A.notable,sector:(EN?it.sectorEn:'')||it.sector||null,segment:it.segment||'',shariaAuto:it.shariaAuto||'',shariaWhy:it.shariaWhy||''});}}
+            rsi:A.rsi,trend:A.trend,trendN:A.trendN,notable:A.notable,sector:(EN?it.sectorEn:'')||it.sector||null,segment:SC.ex==='SR'?saSegment(it.symbol):'',shariaAuto:it.shariaAuto||'',shariaWhy:it.shariaWhy||''});}}
       catch(e){}
       done++;$('#scanProg i').style.width=(done/items.length*100).toFixed(1)+'%';$('#scanMeta').textContent='فُحص '+done+' من '+items.length;
       if(done%15===0)renderScan();}};
@@ -167,15 +167,14 @@ async function loadSectors(){
 }
 function scanFiltered(){
   const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=shariaChoice(),seg=SC.ex==='SR'?$('#scanSeg').value:'';
-  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||sh.has(shariaCat(r)))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
+  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||sh.has(shariaCat(r))||(sh.has('egx33')&&SC.ex==='CA'&&(egSharia(r.code)||{}).egx33))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
 }
 function renderScan(){
   const rows=scanFiltered().slice();const {k,dir}=SC.sort;const m=dir==='asc'?1:-1;
   rows.sort((a,b)=>{const x=a[k],y=b[k];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y,'ar'):x-y)*m;});
   $$('#scanTable th button').forEach(b=>{if(b.dataset.sort===k)b.dataset.dir=dir;else delete b.dataset.dir;});
   $('#scanBody').innerHTML=rows.length?rows.slice(0,2000).map(r=>{const shr=rowSharia(r),sh=shr&&shr.s;
-    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+(sh?'<span class="tag '+(sh==='ok'?'b':sh==='doubt'?'in':'x')+'"'+(shr.src==='auto'?' title="'+esc(_t(shr.why||''))+'"':shr.src==='yaaqen'?' title="'+esc('حسب تصنيف موقع يقين · '+YQ.date)+'"':'')+'>'+
-      (shr.src==='yaaqen'?YQ_LABEL[sh]:sh==='ok'?(shr.src==='auto'?'متوافق مبدئيًا':'متوافق'):(shr.src==='auto'?'غير متوافق مبدئيًا':'غير متوافق'))+'</span>':'')+'</td>'+
+    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+(sh?'<span class="tag '+(sh==='ok'?'b':sh==='doubt'?'in':'x')+'" title="'+esc(shr.title||'')+'">'+esc(shr.label||'')+'</span>':'')+(SC.ex==='CA'&&(egSharia(r.code)||{}).egx33?'<span class="tag v" title="ضمن مكونات مؤشر الشريعة EGX33">EGX33</span>':'')+'</td>'+
       '<td>'+NUM(fp(r.price))+'</td><td>'+chgSpan(r.chg)+'</td><td><span class="kind '+stanceKind(r.stance)+'">'+STANCE_AR[r.stance]+'</span></td><td>'+(r.conf!=null?NUM(r.conf+'%'):'—')+'</td>'+
       '<td>'+(r.distBuy!=null?NUM(pct(r.distBuy)):'—')+'</td><td>'+(r.rsi!=null?NUM(r.rsi.toFixed(0)):'—')+'</td><td>'+r.trend+'</td><td>'+esc(r.notable||'')+'</td><td>'+esc(r.sector?sectorAr(r.sector):'')+'</td></tr>';}).join('')
     :'<tr><td colspan="10" class="empty">'+(SC.rows.length?'لا توجد نتائج تطابق التصفية.':'اختر السوق واضغط «ابدأ الفحص».')+'</td></tr>';

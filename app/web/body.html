@@ -337,8 +337,9 @@
         <div class="field" id="scanShariaField"><span>التوافق الشرعي</span>
           <details class="dd" id="scanShariaDD"><summary class="dd-btn"><span id="scanShariaLbl">الكل</span></summary>
             <div class="dd-menu" role="group" aria-label="التوافق الشرعي">
-              <label><input type="checkbox" value="ok"><span>متوافق (قائمتك أو يقين)</span></label>
-              <label data-us><input type="checkbox" value="doubt"><span>محل نظر (يقين)</span></label>
+              <label><input type="checkbox" value="ok"><span>متوافق</span></label>
+              <label data-ca hidden><input type="checkbox" value="egx33"><span>ضمن مؤشر الشريعة EGX33</span></label>
+              <label><input type="checkbox" value="doubt"><span>محل نظر / مختلف فيه</span></label>
               <label><input type="checkbox" value="no"><span>غير متوافق</span></label>
               <label data-us><input type="checkbox" value="auto_ok"><span>متوافق مبدئيًا (فحص تلقائي)</span></label>
               <label data-us><input type="checkbox" value="auto_no"><span>غير متوافق مبدئيًا (فحص تلقائي)</span></label>
@@ -549,6 +550,11 @@
         <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
         <label class="field" for="pShNo"><span>غير متوافقة</span><textarea id="pShNo" data-pref="sharia.no" placeholder="1180 1050 ..."></textarea></label>
         <label class="field" for="pShDate"><span>تاريخ القائمة المعتمدة</span><input id="pShDate" type="text" data-pref="sharia.asOf" placeholder="مثال: الربع الثالث 2026"></label>
+        <h3 class="sub-h">قوائم مدمجة تتحدث تلقائيًا</h3>
+        <p class="small muted">قائمتك أعلاه لها الأولوية دائمًا. وإن لم يكن السهم فيها يُستخدم:</p>
+        <ul class="small muted sh-src" id="shInfo"></ul>
+        <div class="actions local-only"><button class="btn sm" id="shRefresh" type="button">تحديث قوائم السعودية ومصر الآن</button></div>
+        <p class="status" id="shStatus"></p>
         <h3 class="sub-h">الأسهم الأمريكية — تصنيف موقع يقين</h3>
         <p class="small muted" id="yqInfo"></p>
         <div class="actions local-only"><button class="btn sm" id="yqRefresh" type="button">تحديث قائمة يقين الآن</button></div>

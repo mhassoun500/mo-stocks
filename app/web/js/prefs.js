@@ -35,7 +35,7 @@ function bindPrefs(){
     $$('[data-pref^="ana."]').forEach(el=>{el.value=getPref(el.dataset.pref);});if(S.daily){S.ind=computeInd(S.data);analyzeNow(false);}toast('استُعيدت إعدادات التحليل الافتراضية.');});
   $('#themeBtn').addEventListener('click',()=>{const order=['system','light','dark'];P.theme=order[(order.indexOf(P.theme||'system')+1)%3];savePrefs();applyTheme();});
   $('#eduBtn').addEventListener('click',()=>{P.edu=!P.edu;savePrefs();applyEdu();});
-  setupYaaqen();
+  setupYaaqen();setupShariaLists();
   if(!LOCAL)return;
   /* desktop-only integration */
   api('/api/autostart').then(j=>{$('#pAuto').checked=!!j.enabled;if(!j.available){$('#pAuto').disabled=true;$('#pAutoNote').textContent='متاح في النسخة المثبتة من البرنامج.';}}).catch(()=>{});
@@ -57,6 +57,22 @@ function bindPrefs(){
   $('#updateGo').addEventListener('click',()=>{if(S.updateUrl)openExternal(S.updateUrl);});
   $('#updateHide').addEventListener('click',()=>{$('#updateBanner').hidden=true;Store.set('updateSnooze',todayKey());});
 }
+/* ---------- Saudi and Egyptian lists ---------- */
+function renderShariaInfo(){const a=[];
+  if(SHL.sa)a.push('<li><b>السعودية (الرئيسية ونمو):</b> أرقام — '+NUM(Object.keys(SHL.sa.main).length+Object.keys(SHL.sa.nomu).length)+' شركة بتصنيف '+esc(SHL.sa.refs.map(r=>r[0]).join('، '))+'. «متوافق» إذا أجازه مرجعان أو ثلاثة، و«مختلف فيه» إذا أجازه مرجع واحد. آخر تحديث '+NUM(esc(SHL.sa.date))+'.</li>');
+  if(SHL.eg)a.push('<li><b>مصر:</b> '+NUM(Object.keys(SHL.eg.rows).length)+' سهمًا من '+NUM(SHL.eg.refs.length)+' مصادر ('+esc(SHL.eg.refs.slice(1,-1).join('، '))+'). «متوافق» إذا أجازته نصف المصادر على الأقل، و«مختلف فيه» إذا أجازه بعضها، مع تمييز أسهم مؤشر الشريعة EGX33. آخر تحديث '+NUM(esc(SHL.eg.date))+'.</li>');
+  a.push('<li><b>أمريكا:</b> تصنيف موقع يقين، ثم فحص مبدئي تلقائي لما لا يغطيه.</li>');
+  $('#shInfo').innerHTML=a.join('');}
+async function syncShariaLists(){const j=await api('/api/sharialists').catch(()=>null);if(!j)return null;
+  const newer=(x,cur)=>x&&(!cur||x.date>=cur.date);
+  if(newer(j.sa,SHL.sa))SHL.sa=j.sa;if(newer(j.eg,SHL.eg))SHL.eg=j.eg;renderShariaInfo();if(typeof renderScan==='function')renderScan();if(S.A)render();return j;}
+function setupShariaLists(){renderShariaInfo();if(!LOCAL)return;syncShariaLists();
+  $('#shRefresh').addEventListener('click',async()=>{const st=$('#shStatus');st.className='status';st.textContent='جارٍ تحديث القوائم من أرقام والمصادر المصرية…';
+    await api('/api/sharialists',{refresh:'1'}).catch(()=>null);const t0=Date.now();
+    const iv=setInterval(async()=>{const j=await syncShariaLists();
+      if(j&&!j.busy){clearInterval(iv);st.textContent='تم تحديث القوائم.';}
+      else if(Date.now()-t0>3*60e3){clearInterval(iv);st.className='status err';st.textContent='تعذّر التحديث الآن؛ تبقى النسخة المحفوظة.';}},3000);});}
+
 /* ---------- Yaqeen list (US stocks) ---------- */
 function renderYaaqenInfo(){$('#yqInfo').innerHTML=YQ.ok.size?'شرعي: '+NUM(YQ.ok.size)+' سهمًا · غير شرعي: '+NUM(YQ.no.size)+' · محل نظر: '+NUM(YQ.doubt.size)+' · آخر تحديث: '+NUM(esc(YQ.date))+'. تحدّث تلقائيًا كل أسبوعين في البرنامج المثبت.':'لا تتوفر القائمة.';}
 async function syncYaaqen(){const j=await api('/api/yaaqen').catch(()=>null);

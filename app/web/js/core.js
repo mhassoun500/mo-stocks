@@ -122,6 +122,29 @@ try{loadYaaqen(JSON.parse(document.getElementById('sharia-us').textContent));}ca
 function yaaqenStatus(code){const c=String(code||'').toUpperCase();if(!c||/\.(SR|CA)$/.test(c))return null;
   return YQ.ok.has(c)?'ok':YQ.no.has(c)?'no':YQ.doubt.has(c)?'doubt':null;}
 const YQ_LABEL={ok:'شرعي (يقين)',no:'غير شرعي (يقين)',doubt:'محل نظر (يقين)'};
+/* Saudi lists (Argaam: Al Rajhi Capital, Dr. Al-Osaimi, Albilad Capital) and Egyptian lists
+   (about ten sources aggregated by stocks.templatesnippet.com). Built into the page, refreshed weekly by the app. */
+const SHL={sa:null,eg:null};
+function loadShariaLists(sa,eg){if(sa&&sa.main)SHL.sa=sa;if(eg&&eg.rows)SHL.eg=eg;}
+try{loadShariaLists(JSON.parse($('#sharia-sa').textContent),JSON.parse($('#sharia-eg').textContent));}catch(e){}
+const VMARK={'1':'✔','0':'✘','2':'؟','-':'—'};
+function saSharia(code){const c=String(code||'').toUpperCase().replace(/\.SR$/,'');if(!SHL.sa||!/^\d{4}$/.test(c))return null;
+  const r=SHL.sa.main[c]||SHL.sa.nomu[c];if(!r)return null;const yes=[...r.v].filter(x=>x==='1').length,n=r.v.length;
+  if(!yes&&/^94/.test(c))return null;  /* exchange-traded funds are listed but not rated */
+  const s=yes>=2?'ok':yes===1?'doubt':'no';
+  return{s,src:'argaam',label:(s==='ok'?'متوافق ':s==='doubt'?'مختلف فيه ':'غير متوافق ')+yes+'/'+n,
+    title:'حسب أرقام ('+SHL.sa.date+'): '+SHL.sa.refs.map((x,i)=>VMARK[r.v[i]||'-']+' '+x[0]).join(' · ')};}
+function egSharia(code){const c=String(code||'').toUpperCase().replace(/\.CA$/,'');const r=SHL.eg&&SHL.eg.rows[c];if(!r)return null;
+  const votes=[...r.v].slice(1,-1).filter(x=>x!=='-'),yes=votes.filter(x=>x==='1').length,n=votes.length,egx33=r.v[0]==='1';
+  const s=!n?null:yes===0?'no':yes/n>=0.5?'ok':'doubt';
+  return{s,src:'eg',egx33,label:s?(s==='ok'?'متوافق ':s==='doubt'?'مختلف فيه ':'غير متوافق ')+yes+'/'+n:'',
+    title:'حسب '+n+' مصادر مصرية ('+SHL.eg.date+'): '+SHL.eg.refs.map((x,i)=>VMARK[r.v[i]||'-']+' '+x).join(' · ')};}
+/* the verdict for one stock: your own pasted list first, then the market's built-in list */
+function shariaInfo(code,ex){const u=shariaStatus(code);if(u)return{s:u,src:'list',label:u==='ok'?'متوافق':'غير متوافق',title:P.sharia.asOf?'حسب قائمتك · '+P.sharia.asOf:'حسب قائمتك في الإعدادات'};
+  if(ex==='SR'||/\.SR$/i.test(code))return saSharia(code);
+  if(ex==='CA'||/\.CA$/i.test(code)){const e=egSharia(code);return e&&e.s?e:null;}
+  if(ex==='US'){const y=yaaqenStatus(code);if(y)return{s:y,src:'yaaqen',label:YQ_LABEL[y],title:'حسب تصنيف موقع يقين · '+YQ.date};}
+  return null;}
 
 /* ---------- markets ---------- */
 const EX={SR:{tv:'TADAWUL',ph:'مثال: 1120 أو 2222',idx:'مؤشر تاسي',region:'SR'},CA:{tv:'EGX',ph:'مثال: COMI أو TMGH',idx:'مؤشر إي جي إكس 30',region:'CA'},
@@ -134,7 +157,9 @@ const SECTOR_AR={'Financial Services':'الخدمات المالية','Basic Mat
   'Utilities':'المرافق','Communication Services':'الاتصالات والإعلام','Technology':'التقنية','':'غير مصنّف'};
 const sectorAr=s=>SECTOR_AR[s||'']||s||'غير مصنّف';
 /* Tadawul: 9xxx codes trade on Nomu (the parallel market); 4330-4349 are REIT funds on the main market */
-function saSegment(code){const c=String(code||'').split('.')[0];if(!/^\d{4}$/.test(c))return'';const n=+c;return n>=9000?'nomu':n>=4330&&n<=4349?'reit':'main';}
+function saSegment(code){const c=String(code||'').split('.')[0];if(!/^\d{4}$/.test(c))return'';const n=+c;const reit=n>=4330&&n<=4349;
+  if(SHL.sa){if(SHL.sa.nomu[c])return'nomu';if(SHL.sa.main[c])return reit?'reit':'main';}  /* Argaam's market lists */
+  return n>=9400&&n<=9499?'main':n>=9000?'nomu':reit?'reit':'main';}
 const SEG_LABEL={main:'السوق الرئيسية',nomu:'نمو — السوق الموازية',reit:'صندوق ريت · السوق الرئيسية'};
 const SEG_TIP={main:'مدرج في السوق الرئيسية لتداول السعودية.',nomu:'مدرج في نمو: سوق موازية بمتطلبات إدراج أخف، وسيولة أقل وتذبذب أعلى عادةً.',reit:'صندوق استثمار عقاري متداول (ريت) في السوق الرئيسية.'};
 
