@@ -124,7 +124,7 @@ const SEG_AR={main:'الرئيسية',nomu:'نمو',reit:'ريت'};
 const scanExOf=v=>/^US/.test(v)?{ex:'US',size:v.slice(2)}:{ex:v,size:null};
 const rowSharia=r=>{const u=shariaStatus(r.code);if(u)return{s:u,src:'list'};const y=SC.ex==='US'?yaaqenStatus(r.code):null;if(y)return{s:y,src:'yaaqen'};
   return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy}:null;};
-function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);}
+function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);$('#scanShariaAutoField').hidden=!/^US/.test($('#scanEx').value);}
 async function runScan(){
   if(SC.running)return;SC.running=true;SC.stop=false;SC.sector=null;
   const sel=$('#scanEx').value,{ex,size}=scanExOf(sel);SC.ex=ex;SC.sel=sel;$('#scanGo').hidden=true;$('#scanStop').hidden=false;$('#scanProg').hidden=false;
@@ -162,7 +162,7 @@ async function loadSectors(){
   $('#scanMeta').textContent='آخر فحص '+fmtLocalTime.format(new Date())+' · '+SC.rows.length+' شركة';
 }
 function scanFiltered(){
-  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=$('#scanSharia').value,seg=SC.ex==='SR'?$('#scanSeg').value:'';
+  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=$('#scanSharia').checked?($('#scanShariaAuto').checked&&SC.ex==='US'?'any':'ok'):'',seg=SC.ex==='SR'?$('#scanSeg').value:'';
   return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||(x=>x&&x.s==='ok'&&(sh==='any'||x.src!=='auto'))(rowSharia(r)))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
 }
 function renderScan(){
@@ -198,7 +198,7 @@ function setupWatchViews(){
   $('#reportSend').addEventListener('click',sendReport);
   $('#scanGo').addEventListener('click',runScan);
   $('#scanStop').addEventListener('click',()=>{SC.stop=true;});
-  ['scanStance','scanConf','scanSharia','scanSeg'].forEach(id=>$('#'+id).addEventListener('input',()=>{renderScan();renderHeat();}));
+  ['scanStance','scanConf','scanSharia','scanShariaAuto','scanSeg'].forEach(id=>$('#'+id).addEventListener('input',()=>{renderScan();renderHeat();}));
   $('#scanEx').addEventListener('change',updateScanSeg);updateScanSeg();
   $('#scanTable thead').addEventListener('click',e=>{const b=e.target.closest('button[data-sort]');if(!b)return;const k=b.dataset.sort;
     SC.sort={k,dir:SC.sort.k===k&&SC.sort.dir==='desc'?'asc':'desc'};renderScan();});

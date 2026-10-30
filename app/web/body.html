@@ -334,7 +334,8 @@
         <label class="field" for="scanSeg" id="scanSegField"><span>السوق السعودي</span><select id="scanSeg"><option value="">الرئيسية ونمو</option><option value="main">السوق الرئيسية فقط</option><option value="nomu">نمو (السوق الموازية) فقط</option><option value="reit">صناديق الريت فقط</option></select></label>
         <label class="field" for="scanStance"><span>الحكم</span><select id="scanStance"><option value="">الكل</option><option value="buy">منطقة شراء</option><option value="sell">منطقة بيع</option><option value="neutral">انتظار</option></select></label>
         <label class="field" for="scanConf"><span>أدنى ثقة %</span><input id="scanConf" type="number" min="0" max="100" step="5" value="0"></label>
-        <label class="field" for="scanSharia"><span>التوافق الشرعي</span><select id="scanSharia"><option value="">كل الأسهم</option><option value="ok">المتوافقة فقط (قائمتك أو يقين)</option><option value="any">المتوافقة مع الفحص المبدئي</option></select></label>
+        <label class="field row" for="scanSharia"><input id="scanSharia" type="checkbox"><span>المتوافقة شرعيًا فقط</span></label>
+        <label class="field row" for="scanShariaAuto" id="scanShariaAutoField" hidden><input id="scanShariaAuto" type="checkbox"><span>مع الفحص المبدئي (لما لا يصنّفه يقين)</span></label>
         <p class="small muted wide" id="usShariaNote" hidden>الأسهم الأمريكية مصنّفة حسب موقع يقين (شرعي، غير شرعي، محل نظر). وما لم يصنّفه يقين يخضع لفحص شرعي مبدئي تلقائي (استبعاد البنوك والتأمين التقليدي والخمور والتبغ والقمار والترفيه والأسلحة، والديون والنقد كلٌّ أقل من 30% من القيمة السوقية). لا يشمل نسبة الإيراد غير المباح، فتأكد من مصدر موثوق.</p>
         <div class="actions"><button class="btn primary" id="scanGo" type="button">ابدأ الفحص</button><button class="btn ghost" id="scanStop" type="button" hidden>إيقاف</button></div>
       </div>
