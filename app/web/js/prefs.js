@@ -61,7 +61,7 @@ function bindPrefs(){
 function renderShariaInfo(){const a=[];
   if(SHL.sa)a.push('<li><b>السعودية (الرئيسية ونمو):</b> أرقام — '+NUM(Object.keys(SHL.sa.main).length+Object.keys(SHL.sa.nomu).length)+' شركة بتصنيف '+esc(SHL.sa.refs.map(r=>r[0]).join('، '))+'. «متوافق» إذا أجازه مرجعان أو ثلاثة، و«مختلف فيه» إذا أجازه مرجع واحد. آخر تحديث '+NUM(esc(SHL.sa.date))+'.</li>');
   if(SHL.eg)a.push('<li><b>مصر:</b> '+NUM(Object.keys(SHL.eg.rows).length)+' سهمًا من '+NUM(SHL.eg.refs.length)+' مصادر ('+esc(SHL.eg.refs.slice(1,-1).join('، '))+'). «متوافق» إذا أجازته نصف المصادر على الأقل، و«مختلف فيه» إذا أجازه بعضها، مع تمييز أسهم مؤشر الشريعة EGX33. آخر تحديث '+NUM(esc(SHL.eg.date))+'.</li>');
-  a.push('<li><b>أمريكا:</b> تصنيف موقع يقين، ومكونات مؤشر S&P 500 الشرعي'+(SHL.spus?' ('+NUM(SHL.spus.tickers.length)+' سهمًا · '+NUM(esc(SHL.spus.date))+')':'')+'، ثم فحص مبدئي تلقائي لما لا يغطيانه.</li>');
+  a.push('<li><b>أمريكا:</b> تصنيف موقع يقين، ومكونات مؤشر S&P 500 الشرعي'+(SHL.spus?' ('+NUM(SHL.spus.tickers.length)+' سهمًا · '+NUM(esc(SHL.spus.date))+')':'')+(SHL.bitarabi?'، وقائمة البيت العربي وفق معيار الراجحي ('+NUM(Object.keys(SHL.bitarabi.rows).length)+' سهمًا · '+NUM(esc(SHL.bitarabi.date))+')':'')+'، ثم فحص مبدئي تلقائي لما لا تغطيه.</li>');
   $('#shInfo').innerHTML=a.join('');}
 async function syncShariaLists(){const j=await api('/api/sharialists').catch(()=>null);if(!j)return null;
   const newer=(x,cur)=>x&&(!cur||x.date>=cur.date);

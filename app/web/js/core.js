@@ -124,7 +124,8 @@ function yaaqenStatus(code){const c=String(code||'').toUpperCase();if(!c||/\.(SR
 const YQ_LABEL={ok:'شرعي (يقين)',no:'غير شرعي (يقين)',doubt:'محل نظر (يقين)'};
 /* Saudi lists (Argaam: Al Rajhi Capital, Dr. Al-Osaimi, Albilad Capital) and Egyptian lists
    (about ten sources aggregated by stocks.templatesnippet.com). Built into the page, refreshed weekly by the app. */
-const SHL={sa:null,eg:null,spus:null};
+const SHL={sa:null,eg:null,spus:null,bitarabi:null};
+try{const b=JSON.parse(document.getElementById('sharia-bitarabi').textContent);if(b&&b.rows)SHL.bitarabi=b;}catch(e){}
 function loadShariaLists(sa,eg,spus){if(sa&&sa.main)SHL.sa=sa;if(eg&&eg.rows)SHL.eg=eg;if(spus&&spus.tickers)SHL.spus=Object.assign({},spus,{set:new Set(spus.tickers)});}
 try{loadShariaLists(JSON.parse($('#sharia-sa').textContent),JSON.parse($('#sharia-eg').textContent),JSON.parse($('#sharia-spus').textContent));}catch(e){}
 const VMARK={'1':'✔','0':'✘','2':'؟','-':'—'};
@@ -141,9 +142,14 @@ function egSharia(code){const c=String(code||'').toUpperCase().replace(/\.CA$/,'
   const s=!n?null:yes===0?'no':yes/n>=0.5?'ok':'doubt';
   return{s,src:'eg',egx33,word:s?SH_WORD[s]:'',count:n?yes+'/'+n:'',head:'مصادر مصرية · '+SHL.eg.date,refs:SHL.eg.refs.map((x,i)=>[x,r.v[i]||'-'])};}
 function usSharia(code){const c=String(code||'').toUpperCase();const y=yaaqenStatus(c),sp=!!(SHL.spus&&SHL.spus.set.has(c));
-  if(!y&&!sp)return null;const s=y||'ok';
-  return{s,src:'us',spus:sp,word:y?YQ_LABEL[y]:'متوافق',count:'',head:'الأسهم الأمريكية',
-    refs:[['موقع يقين',y==='ok'?'1':y==='no'?'0':y==='doubt'?'2':'-'],['مؤشر S&P 500 الشرعي (SPUS)',sp?'1':'-']]};}
+  const bt=SHL.bitarabi&&SHL.bitarabi.rows[c]||'-';
+  if(!y&&!sp&&bt==='-')return null;
+  const refs=[['موقع يقين',y==='ok'?'1':y==='no'?'0':y==='doubt'?'2':'-'],['مؤشر S&P 500 الشرعي (SPUS)',sp?'1':'-'],
+      ['البيت العربي · معيار الراجحي',bt]];
+  /* majority of the references that cover the stock: more than half approve -> compliant, some approve or doubt -> disputed */
+  const vs=refs.map(r=>r[1]).filter(v=>v!=='-'),yes=vs.filter(v=>v==='1').length,n=vs.length;
+  const s=yes*2>n?'ok':(yes||vs.includes('2'))?'doubt':'no';
+  return{s,src:'us',spus:sp,word:n===1&&y?YQ_LABEL[y]:SH_WORD[s],count:n>1?yes+'/'+n:'',head:'الأسهم الأمريكية',refs};}
 /* the verdict for one stock: your own pasted list first, then the market's built-in lists */
 function shariaInfo(code,ex){const u=shariaStatus(code);
   if(u)return{s:u,src:'list',word:SH_WORD[u],count:'',head:P.sharia.asOf?'قائمتك · '+P.sharia.asOf:'قائمتك في الإعدادات',refs:[['قائمتك',u==='ok'?'1':'0']]};
