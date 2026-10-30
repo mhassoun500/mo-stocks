@@ -1,0 +1,8 @@
+build/
+dist/
+dist-installer/
+*.spec
+__pycache__/
+assets/icon.icns
+icon.iconset/
+dmg/

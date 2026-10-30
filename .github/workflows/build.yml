@@ -1,0 +1,91 @@
+name: Build installers
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      WIN_CERT: ${{ secrets.WINDOWS_CERT_PFX }}
+      WIN_CERT_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install --upgrade -r requirements.txt pyinstaller
+      - name: Build app
+        run: |
+          python tools/build_page.py
+          python -m PyInstaller --noconfirm --clean --windowed --name MoStocks --icon assets\icon.ico --add-data "app\page.html;." --add-data "app\fonts;fonts" --add-data "assets\icon.png;." --add-data "VERSION;." app\main.py
+      - name: Sign app (only when a certificate secret exists)
+        if: env.WIN_CERT != ''
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:WIN_CERT))
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object FullName -like "*x64*" | Select-Object -Last 1
+          & $signtool.FullName sign /f cert.pfx /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 dist\MoStocks\MoStocks.exe
+      - name: Build installer
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+          $ver = (Get-Content VERSION).Trim()
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" installer\windows.iss
+      - name: Sign installer (only when a certificate secret exists)
+        if: env.WIN_CERT != ''
+        shell: pwsh
+        run: |
+          $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe | Where-Object FullName -like "*x64*" | Select-Object -Last 1
+          Get-ChildItem dist-installer\*.exe | ForEach-Object { & $signtool.FullName sign /f cert.pfx /p $env:WIN_CERT_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist-installer/*.exe
+
+  macos:
+    strategy:
+      matrix:
+        runner: [macos-latest, macos-15-intel]   # Apple Silicon and Intel
+    runs-on: ${{ matrix.runner }}
+    env:
+      MAC_CERT: ${{ secrets.MACOS_CERT_P12 }}
+      MAC_SIGN_ID: ${{ secrets.MACOS_SIGN_ID }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Import signing certificate (only when the secret exists)
+        if: env.MAC_CERT != ''
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERT_P12 }}
+          p12-password: ${{ secrets.MACOS_CERT_PASSWORD }}
+      - name: Build app and DMG
+        run: ./build_mac.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-dmg-${{ matrix.runner }}
+          path: dist/*.dmg
+
+  release:
+    needs: [windows, macos]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*

@@ -1,0 +1,562 @@
+<div class="app" dir="rtl" lang="ar">
+  <header class="top">
+    <div class="brand">
+      {{LOGO}}
+      <div>
+        <h1>Mo Stocks</h1>
+        <p>دعم ومقاومة ومناطق شراء وبيع للأسهم والذهب والصناديق</p>
+      </div>
+    </div>
+    <div class="top-tools">
+      <nav class="nav" aria-label="أقسام البرنامج">
+        <a href="#analysis" data-view="analysis">التحليل</a>
+        <a href="#watch" data-view="watch" class="local-only">المراقبة والتنبيهات</a>
+        <a href="#scanner" data-view="scanner" class="local-only">ماسح السوق</a>
+        <a href="#funds" data-view="funds" class="local-only">الصناديق</a>
+        <a href="#journal" data-view="journal">الصفقات والمحفظة</a>
+        <a href="#prefs" data-view="prefs">الإعدادات</a>
+      </nav>
+      <button class="icon-btn" id="eduBtn" type="button" aria-pressed="false" title="يعرض شرحًا مبسطًا تحت كل مؤشر">وضع التعلم</button>
+      <button class="icon-btn" id="themeBtn" type="button" title="تبديل المظهر">المظهر: تلقائي</button>
+    </div>
+  </header>
+
+  <div class="banner local-only" id="updateBanner" hidden>
+    <span id="updateText"></span>
+    <span class="actions"><button class="btn sm primary" id="updateGo" type="button">تنزيل التحديث</button><button class="btn sm ghost" id="updateHide" type="button">لاحقًا</button></span>
+  </div>
+
+  <!-- ===================================================== ANALYSIS -->
+  <section class="view" id="view-analysis">
+    <section class="card source">
+      <div class="src-row">
+        <label class="field" for="ex"><span>السوق</span>
+          <select id="ex">
+            <option value="SR">السعودية — تداول</option>
+            <option value="CA">مصر — البورصة المصرية</option>
+            <option value="US">الأسواق الأمريكية</option>
+            <option value="GOLD">الذهب والفضة</option>
+            <option value="FUND" data-local>صناديق الاستثمار (السعودية ومصر)</option>
+            <option value="XX">أخرى — الرمز الكامل</option>
+          </select></label>
+        <label class="field grow" id="goldField" for="gold" hidden><span>المعدن والوحدة</span>
+          <select id="gold">
+            <optgroup label="الذهب">
+              <option value="XAU-USD-OZ">ذهب — أوقية بالدولار</option>
+              <option value="XAU-SAR-24" data-gram>ذهب عيار ٢٤ — جرام بالريال</option>
+              <option value="XAU-SAR-21" data-gram>ذهب عيار ٢١ — جرام بالريال</option>
+              <option value="XAU-SAR-18" data-gram>ذهب عيار ١٨ — جرام بالريال</option>
+              <option value="XAU-EGP-24" data-gram>ذهب عيار ٢٤ — جرام بالجنيه</option>
+              <option value="XAU-EGP-21" data-gram>ذهب عيار ٢١ — جرام بالجنيه</option>
+              <option value="XAU-EGP-18" data-gram>ذهب عيار ١٨ — جرام بالجنيه</option>
+            </optgroup>
+            <optgroup label="الفضة">
+              <option value="XAG-USD-OZ">فضة — أوقية بالدولار</option>
+            </optgroup>
+          </select></label>
+        <label class="field" id="fundCountryField" for="fundCountry" hidden><span>الدولة</span><select id="fundCountry"><option value="SA">السعودية</option><option value="EG">مصر</option></select></label>
+        <label class="field grow" id="fundField" for="fund" hidden><span>الصندوق</span><select id="fund"><option value="">جارٍ تحميل قائمة الصناديق…</option></select></label>
+        <label class="field row" id="fundAllField" for="fundAll" hidden><input type="checkbox" id="fundAll"><span>عرض كل الصناديق</span></label>
+        <label class="field grow" id="symField" for="sym"><span><span class="web-only">رمز السهم</span><span class="local-only">رمز السهم أو اسمه بالإنجليزية</span></span><input id="sym" type="text" dir="ltr" autocomplete="off" spellcheck="false" placeholder="مثال: 1120"></label>
+        <label class="field local-only" for="rng"><span>المدة</span>
+          <select id="rng"><option value="1y">سنة</option><option value="2y" selected>سنتان</option><option value="5y">٥ سنوات</option><option value="max">كل التاريخ</option></select></label>
+        <button class="btn primary local-only" id="fetchBtn" type="button">جلب البيانات</button>
+        <a class="btn web-only" id="invLink" href="https://sa.investing.com/" target="_blank" rel="noopener">ابحث في <bdi>Investing.com</bdi></a>
+        <a class="btn web-only" id="tvLink" href="https://www.tradingview.com/" target="_blank" rel="noopener">افتح في <bdi>TradingView</bdi></a>
+      </div>
+      <div class="src-row sub">
+        <span class="web-only hint">نزّل ملف البيانات التاريخية من الموقع، ثم ارفعه هنا:</span>
+        <label class="btn sm" for="file">رفع ملف بيانات</label>
+        <input type="file" id="file" accept=".csv,.txt,.tsv" hidden>
+        <button id="pasteBtn" class="btn sm ghost" type="button">لصق البيانات</button>
+        <button id="sampleBtn" class="btn sm ghost" type="button">بيانات تجريبية</button>
+        <div class="recent local-only" id="recent"></div>
+      </div>
+      <div class="src-row sub" id="favRow" hidden><span class="hint">المفضلة:</span><div class="recent favs" id="favs"></div></div>
+      <div class="results" id="results" hidden></div>
+    </section>
+
+    <section class="card paste" id="pastePanel" hidden>
+      <h2>الصق بيانات الأسعار</h2>
+      <p class="muted small">انسخ جدول الأسعار التاريخية من موقع البيانات أو من ملف إكسل والصقه هنا. الأعمدة المطلوبة: التاريخ والإغلاق، ويُفضّل وجود الافتتاح والأعلى والأدنى والحجم.</p>
+      <textarea id="pasteText" spellcheck="false" placeholder="Date,Open,High,Low,Close,Volume
+2026-10-26,45.10,45.80,44.90,45.60,1250000"></textarea>
+      <div class="actions">
+        <button class="btn primary" id="pasteGo" type="button">تحليل البيانات</button>
+        <button class="btn ghost" id="pasteCancel" type="button">إلغاء</button>
+      </div>
+    </section>
+
+    <p class="status" id="status" role="status"></p>
+
+    <section class="card panel" id="fundCard" hidden>
+      <div class="panel-head"><h2>أداء الصندوق</h2><span class="actions"><span class="badge" id="fundSharia" hidden></span><span class="badge" id="fundCat"></span></span></div>
+      <div class="kv" id="fundKv"></div>
+      <p class="small muted" id="fundNote"></p>
+      <div class="actions"><label class="btn sm" for="file">استيراد سجل أسعار للصندوق</label><span class="small muted">من ثاندر أو كشف الحساب: ملف أو جدول فيه التاريخ والسعر. يُدمج مع السجل المحفوظ.</span></div>
+      <p class="edu">صناديق الاستثمار تُشترى وتُسترد بسعر الوثيقة، فلها سعر واحد يوميًا دون أعلى وأدنى وحجم تداول. أقصى تراجع = أكبر هبوط من قمة إلى قاع خلال السنة، ويقيس المخاطرة الفعلية التي مر بها المستثمر. التذبذب السنوي يقيس حدة تقلب السعر.</p>
+    </section>
+
+    <section class="verdict" id="verdictSec">
+      <div class="stance" id="stance">
+        <span class="eyebrow">القراءة الآلية للوضع الحالي</span>
+        <strong id="stanceText">—</strong>
+        <p class="sub" id="stanceSub"></p>
+        <div class="conf">
+          <div class="conf-row"><span>درجة الثقة</span><b id="confVal">—</b></div>
+          <div class="meter"><i id="confBar" style="width:0%"></i></div>
+          <div class="conf-row"><span id="confNote"></span></div>
+        </div>
+        <p class="edu">درجة الثقة تجمع قوة الأسباب المؤيدة والمعارضة، ونسبة نجاح نفس الإعداد على تاريخ السهم نفسه. أقل من 55% تعني إشارة ضعيفة.</p>
+        <ul class="reasons" id="reasons"></ul>
+        <div class="actions">
+          <button class="btn sm local-only" id="watchAdd" type="button">أضف إلى المراقبة</button>
+          <button class="btn sm" id="tradeFromView" type="button">سجّل صفقة</button>
+          <button class="btn sm ghost" id="exportBtn" type="button">حفظ التحليل كصورة</button>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><span class="k">آخر سعر</span><span class="v" id="mPrice">—</span><span class="s" id="mPriceSub"></span></div>
+        <div class="metric buy"><span class="k"><i style="background:var(--buy)"></i>منطقة الشراء</span><span class="v" id="mBuy">—</span><span class="s" id="mBuySub"></span>
+          <p class="edu">أقرب منطقة دعم أسفل السعر: مستوى ارتد منه السعر أكثر من مرة. الشراء على دفعات داخلها أفضل من مطاردة السعر.</p></div>
+        <div class="metric sell"><span class="k"><i style="background:var(--sell)"></i>منطقة البيع (الهدف)</span><span class="v" id="mSell">—</span><span class="s" id="mSellSub"></span>
+          <p class="edu">أقرب مقاومة أعلى السعر: مستوى تراجع منه السعر سابقًا. مناسبة لجني الأرباح أو تخفيف الكمية.</p></div>
+        <div class="metric"><span class="k">وقف الخسارة المقترح</span><span class="v" id="mStop">—</span><span class="s" id="mStopSub"></span>
+          <p class="edu">السعر الذي تخرج عنده إذا كسر السعر منطقة الشراء، لتبقى الخسارة صغيرة ومحددة مسبقًا.</p></div>
+        <div class="metric"><span class="k">العائد إلى المخاطرة</span><span class="v" id="mRR">—</span><span class="s" id="mRRSub"></span>
+          <p class="edu">كم تربح مقابل كل ريال تخاطر به. 1 : 2 تعني ربحًا محتملًا ضعف الخسارة المحتملة.</p></div>
+        <div class="metric"><span class="k">مؤشر القوة النسبية</span><span class="v" id="mRsi">—</span><div class="gauge" aria-hidden="true"><b id="mRsiBar" style="left:50%"></b></div><span class="s" id="mRsiSub"></span>
+          <p class="edu">يقيس سرعة الحركة من 0 إلى 100. فوق 70 تشبّع شرائي (ارتفع بسرعة)، وتحت 30 تشبّع بيعي (هبط بسرعة).</p></div>
+        <div class="metric"><span class="k">الاتجاه العام</span><span class="v" id="mTrend" style="font-family:var(--f-display)">—</span><span class="s" id="mTrendSub"></span>
+          <p class="edu">يُحكم عليه من موقع السعر بالنسبة للمتوسط المتحرك الطويل واتجاه ميله.</p></div>
+        <div class="metric"><span class="k">الماكد</span><span class="v" id="mMacd">—</span><span class="s" id="mMacdSub"></span>
+          <p class="edu">يقيس الزخم بالفرق بين متوسطين أسيين. فوق خط الإشارة زخم صاعد، وتحته زخم هابط.</p></div>
+        <div class="metric local-only" id="mCmpCard"><span class="k" id="mCmpK">مقارنة بالمؤشر العام</span><span class="v" id="mCmp">—</span><span class="s" id="mCmpSub"></span>
+          <p class="edu">الفرق بين أداء السهم وأداء السوق كله في نفس الفترة. الموجب يعني أن السهم أقوى من السوق.</p></div>
+      </div>
+    </section>
+
+    <section class="card chart-card" id="chartCard">
+      <div class="chart-head">
+        <div class="chart-title"><h2 id="chartName">—</h2><button class="icon-btn" id="favBtn" type="button" aria-pressed="false" hidden>☆ أضف للمفضلة</button><span class="badge" id="srcBadge"></span><span class="badge" id="shariaBadge" hidden></span><span class="badge seg" id="segBadge" hidden></span><span class="badge off" id="offlineBadge" hidden>بيانات محفوظة</span></div>
+        <div class="toolbar">
+          <div class="seg" role="group" aria-label="الإطار الزمني" id="tfSeg">
+            <button type="button" data-tf="H" class="local-only">ساعة</button>
+            <button type="button" data-tf="D" aria-pressed="true">يومي</button>
+            <button type="button" data-tf="W">أسبوعي</button>
+          </div>
+          <div class="seg" role="group" aria-label="الفترة" id="rangeSeg"></div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="chips">
+          <label class="chip"><input type="checkbox" data-show="zones" checked><span>المناطق</span></label>
+          <label class="chip"><input type="checkbox" data-show="ma" checked><span>المتوسطات</span></label>
+          <label class="chip"><input type="checkbox" data-show="bb"><span>بولنجر</span></label>
+          <label class="chip"><input type="checkbox" data-show="trend" checked><span>خطوط الاتجاه</span></label>
+          <label class="chip"><input type="checkbox" data-show="pat" checked><span>النماذج</span></label>
+          <label class="chip"><input type="checkbox" data-show="sig" checked><span>الإشارات</span></label>
+          <label class="chip"><input type="checkbox" data-show="vol" checked><span>الحجم</span></label>
+          <label class="chip"><input type="checkbox" data-show="vp"><span>ملف الحجم</span></label>
+          <label class="chip"><input type="checkbox" data-show="gaps" checked><span>الفجوات</span></label>
+          <label class="chip"><input type="checkbox" data-show="events" checked><span>الأحداث</span></label>
+          <label class="chip local-only"><input type="checkbox" data-show="cmp"><span id="cmpChipLabel">مقارنة بالمؤشر</span></label>
+          <label class="chip"><input type="checkbox" data-show="fib"><span>فيبوناتشي</span></label>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="selects">
+          <label class="field" for="pane"><span>اللوحة السفلية</span><select id="pane"><option value="rsi">القوة النسبية</option><option value="macd">الماكد</option></select></label>
+          <label class="field" for="sens"><span>حساسية القمم والقيعان</span>
+            <select id="sens"><option value="8">منخفضة</option><option value="5" selected>متوسطة</option><option value="3">عالية</option></select></label>
+          <label class="field" for="zc"><span>عدد المناطق</span>
+            <select id="zc"><option>4</option><option selected>6</option><option>8</option></select></label>
+        </div>
+        <div class="draw-tools">
+          <span>الرسم:</span>
+          <button class="btn xs" type="button" data-draw="h" aria-pressed="false">خط أفقي</button>
+          <button class="btn xs" type="button" data-draw="t" aria-pressed="false">خط اتجاه</button>
+          <button class="btn xs ghost" type="button" id="drawClear">مسح رسوماتي</button>
+          <span aria-hidden="true">·</span>
+          <button class="btn xs" type="button" id="zoomIn" aria-label="تكبير">+</button>
+          <button class="btn xs" type="button" id="zoomOut" aria-label="تصغير">−</button>
+          <button class="btn xs ghost" type="button" id="zoomReset">ضبط العرض</button>
+        </div>
+      </div>
+      <div class="perf" id="perf"></div>
+      <div class="readout" id="readout"></div>
+      <div class="chart-box" id="chartBox"><canvas id="cv" aria-label="رسم الشموع مع مناطق الدعم والمقاومة" role="img"></canvas></div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--buy-zone);border:1px solid var(--buy)"></i>دعم / شراء</span>
+        <span><i class="sw" style="background:var(--sell-zone);border:1px solid var(--sell)"></i>مقاومة / بيع</span>
+        <span><i class="sw dash"></i>وقف الخسارة</span>
+        <span><i class="sw line" style="background:var(--ma1)"></i>متوسط قصير</span>
+        <span><i class="sw line" style="background:var(--ma2)"></i>متوسط طويل</span>
+        <span><i class="sw line" style="background:var(--trend)"></i>خط اتجاه</span>
+        <span><i class="tri up"></i>إشارة شراء</span>
+        <span><i class="tri dn"></i>إشارة بيع</span>
+        <span class="muted">اسحب الشارت للتنقل، واستخدم + و − أو عجلة الفأرة مع Ctrl للتكبير.</span>
+      </div>
+      <p class="edu">المناطق الخضراء دعم والحمراء مقاومة، وكلما كثرت لمسات السعر لها زادت قوتها. وسم «حجم» يعني أن تداولًا كثيفًا حدث داخل المنطقة، ووسم «أسبوعي» يعني أنها ظاهرة أيضًا على الإطار الأسبوعي، وكلاهما يقوّيها.</p>
+    </section>
+
+    <section class="card panel" id="goldCard" hidden>
+      <div class="panel-head"><h2>لوحة الذهب</h2><span class="muted small">عوامل تؤثر في سعر الذهب</span></div>
+      <div class="kv" id="goldKv"></div>
+      <div class="form-grid" id="egpGapBox" hidden>
+        <label class="field" for="egpLocal"><span>سعر الصاغة اليوم للجرام (بالجنيه)</span><input id="egpLocal" type="number" step="0.01" inputmode="decimal" placeholder="مثال: 6500"></label>
+        <p class="small muted" id="egpGapOut"></p>
+      </div>
+      <p class="edu">نسبة الذهب إلى الفضة المرتفعة تعني أن الفضة رخيصة نسبيًا. مؤشر الدولار يتحرك غالبًا عكس الذهب. اجتماعات الفيدرالي الأمريكي تسبب تقلبات كبيرة في الذهب.</p>
+    </section>
+
+    <section class="grid-2" id="levelsRow">
+      <div class="card panel">
+        <div class="panel-head"><h2>سلّم المستويات</h2><span class="muted small">مرتبة من الأعلى إلى الأدنى</span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>النوع</th><th>النطاق السعري</th><th>اللمسات</th><th>القوة</th><th>البعد عن السعر</th></tr></thead>
+            <tbody id="levels"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card panel">
+        <div class="panel-head"><h2>الإشارات والنماذج</h2><span class="muted small">داخل الفترة المختارة</span></div>
+        <ul class="list" id="signals"></ul>
+      </div>
+    </section>
+
+    <section class="grid-2 even" id="calcRow">
+      <div class="card panel">
+        <div class="panel-head"><h2>حاسبة حجم الصفقة</h2><span class="muted small">مبنية على وقف الخسارة</span></div>
+        <div class="form-grid">
+          <label class="field" for="cCap"><span>رأس المال</span><input id="cCap" type="number" min="0" step="100" inputmode="decimal"></label>
+          <label class="field" for="cRisk"><span>المخاطرة من رأس المال %</span><input id="cRisk" type="number" min="0.1" max="10" step="0.1" inputmode="decimal"></label>
+          <label class="field" for="cEntry"><span>سعر الدخول</span><input id="cEntry" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field" for="cStop"><span>وقف الخسارة</span><input id="cStop" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field" for="cTarget"><span>الهدف</span><input id="cTarget" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field" for="cFee"><span>العمولة % لكل اتجاه</span><input id="cFee" type="number" min="0" step="0.01" inputmode="decimal"></label>
+        </div>
+        <div class="kv" id="calcOut"></div>
+        <div class="actions"><button class="btn sm" id="calcReset" type="button">إعادة الأسعار من التحليل</button><button class="btn sm primary" id="calcToJournal" type="button">سجّل هذه الصفقة</button></div>
+        <p class="edu">القاعدة المهنية: لا تخاطر بأكثر من 1% إلى 2% من رأس مالك في الصفقة الواحدة. الحاسبة تحدد عدد الأسهم بحيث لا تتجاوز خسارتك هذه النسبة إذا ضُرب وقف الخسارة.</p>
+      </div>
+      <div class="card panel">
+        <div class="panel-head"><h2>الاختبار التاريخي</h2><span class="muted small" id="btNote">على تاريخ هذا الأصل نفسه</span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>الإعداد</th><th>الحالات</th><th>نسبة النجاح</th><th>متوسط العائد</th><th>متوسط المدة</th></tr></thead>
+            <tbody id="btBody"></tbody>
+          </table>
+        </div>
+        <p class="small muted">النجاح يعني بلوغ الهدف قبل وقف الخسارة خلال 30 شمعة. النتائج السابقة لا تضمن المستقبل.</p>
+        <p class="edu">يحاكي الاختبار ما كانت الأداة ستقوله في كل يوم من الماضي باستخدام البيانات المتاحة حتى ذلك اليوم فقط، ثم يقيس ماذا حدث بعدها.</p>
+      </div>
+    </section>
+
+    <section class="grid-2 even local-only" id="companyRow">
+      <div class="card panel">
+        <div class="panel-head"><h2>بيانات الشركة والأحداث</h2><span class="muted small" id="profileNote"></span></div>
+        <div class="kv" id="profileKv"></div>
+        <ul class="list" id="eventsList"></ul>
+        <details id="profileSummaryBox" hidden><summary>نبذة عن الشركة (بالإنجليزية)</summary><p class="small muted" id="profileSummary" dir="ltr" style="text-align:left;margin-top:6px"></p></details>
+        <p class="edu">مكرر الربحية = السعر ÷ ربح السهم السنوي، والأقل يعني سعرًا أرخص نسبيًا مقارنة بشركات القطاع. العائد التوزيعي = التوزيعات السنوية ÷ السعر.</p>
+      </div>
+      <div class="card panel">
+        <div class="panel-head"><h2>آخر الأخبار</h2>
+          <span class="actions"><input id="newsQ" class="small" style="font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:180px" aria-label="كلمات البحث عن الأخبار"><button class="btn xs" id="newsGo" type="button">بحث</button></span></div>
+        <ul class="list news" id="newsList"></ul>
+      </div>
+    </section>
+
+    <section class="howto">
+      <div class="card panel">
+        <h3>كيف تُحسب المناطق</h3>
+        <ul>
+          <li>تُرصد القمم والقيعان المحلية، وتُجمع المتقاربة سعريًا في منطقة واحدة بعرض يعتمد على متوسط المدى الحقيقي.</li>
+          <li>تزيد قوة المنطقة بعدد اللمسات وحداثتها، وبحجم التداول داخلها، وبظهورها على الإطار الأسبوعي، وبتبادلها دور الدعم والمقاومة.</li>
+          <li>الاختراق يُعدّ مؤكدًا إذا أغلق السعر بوضوح خلف المنطقة بحجم تداول أعلى من المعتاد بنسبة 40% على الأقل وثبت بعدها.</li>
+          <li>درجة الثقة تجمع قوة الأسباب مع نسبة نجاح نفس الإعداد تاريخيًا على الأصل نفسه.</li>
+        </ul>
+      </div>
+      <div class="card panel">
+        <h3>مصادر البيانات</h3>
+        <p class="local-only">الأسعار والبيانات الأساسية من <bdi>Yahoo Finance</bdi>، مع <bdi>TradingView</bdi> و<bdi>Stooq</bdi> احتياطيًا، والأخبار من أخبار جوجل. تُحفظ آخر بيانات على جهازك لتعمل بدون إنترنت. أسعار الذهب بالجرام محسوبة من العقود الآجلة وسعر الصرف وقد تختلف عن سعر الصاغة.</p>
+        <ol class="web-only">
+          <li>من صفحة السهم في <bdi>Investing.com</bdi>: البيانات التاريخية، ثم الإطار اليومي، ثم تنزيل الملف.</li>
+          <li>من منصة <bdi>TradingView</bdi>: تصدير بيانات الرسم البياني.</li>
+          <li>أو أي ملف إكسل محفوظ بصيغة <code>CSV</code> يحتوي على عمودي التاريخ والإغلاق على الأقل.</li>
+        </ol>
+        <p class="web-only">للجلب التلقائي والتنبيهات وماسح السوق استخدم نسخة سطح المكتب من البرنامج.</p>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================================================== WATCHLIST -->
+  <section class="view local-only" id="view-watch" hidden>
+    <section class="card panel">
+      <div class="panel-head"><h2>قائمة المراقبة</h2>
+        <span class="actions"><span class="muted small" id="watchMeta"></span><button class="btn sm" id="watchRefresh" type="button">فحص الآن</button></span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>الأصل</th><th>السعر</th><th>التغير</th><th>الحكم</th><th>الثقة</th><th>إلى منطقة الشراء</th><th>إلى منطقة البيع</th><th>القوة النسبية</th><th>تنبيه سعري (أعلى / أدنى)</th><th></th></tr></thead>
+          <tbody id="watchBody"></tbody>
+        </table>
+      </div>
+      <p class="small muted">أضف أي سهم أو معدن من صفحة التحليل بزر «أضف إلى المراقبة». يفحص البرنامج القائمة دوريًا وينبّهك عند دخول منطقة شراء أو بيع، أو تأكيد اختراق أو نموذج، أو بلوغ تنبيه سعري، أو اقتراب حدث مهم، أو وصول صفقة مفتوحة إلى الهدف أو الوقف.</p>
+    </section>
+    <section class="grid-2 even">
+      <div class="card panel">
+        <div class="panel-head"><h2>سجل التنبيهات</h2><button class="btn xs ghost" id="alertClear" type="button">مسح السجل</button></div>
+        <ul class="list" id="alertLog"></ul>
+      </div>
+      <div class="card panel">
+        <div class="panel-head"><h2>التقرير الصباحي</h2><span class="actions"><button class="btn sm" id="reportNow" type="button">إنشاء الآن</button><button class="btn sm primary" id="reportSend" type="button">إرسال الآن</button></span></div>
+        <p class="small muted" id="reportMeta"></p>
+        <pre id="reportText" style="white-space:pre-wrap;font-family:var(--f-body);font-size:13.5px;margin:0;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;max-height:420px;overflow:auto"></pre>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================================================== SCANNER -->
+  <section class="view local-only" id="view-scanner" hidden>
+    <section class="card panel">
+      <div class="panel-head"><h2>ماسح السوق</h2><span class="muted small" id="scanMeta"></span></div>
+      <div class="form-grid">
+        <label class="field" for="scanEx"><span>السوق</span><select id="scanEx"><option value="SR">السعودية — تداول</option><option value="CA">مصر — البورصة المصرية</option><option value="US100">أمريكا — أكبر 100 شركة</option><option value="US500">أمريكا — أكبر 500 شركة</option></select></label>
+        <label class="field" for="scanSeg" id="scanSegField"><span>السوق السعودي</span><select id="scanSeg"><option value="">الرئيسية ونمو</option><option value="main">السوق الرئيسية فقط</option><option value="nomu">نمو (السوق الموازية) فقط</option><option value="reit">صناديق الريت فقط</option></select></label>
+        <label class="field" for="scanStance"><span>الحكم</span><select id="scanStance"><option value="">الكل</option><option value="buy">منطقة شراء</option><option value="sell">منطقة بيع</option><option value="neutral">انتظار</option></select></label>
+        <label class="field" for="scanConf"><span>أدنى ثقة %</span><input id="scanConf" type="number" min="0" max="100" step="5" value="0"></label>
+        <label class="field row" for="scanSharia"><input id="scanSharia" type="checkbox"><span>المتوافقة شرعيًا فقط</span></label>
+        <div class="actions"><button class="btn primary" id="scanGo" type="button">ابدأ الفحص</button><button class="btn ghost" id="scanStop" type="button" hidden>إيقاف</button></div>
+      </div>
+      <div class="progress" id="scanProg" hidden><i></i></div>
+    </section>
+    <section class="card panel">
+      <div class="panel-head"><h2>خريطة القطاعات</h2><span class="muted small" id="heatMeta">متوسط تغير اليوم لكل قطاع. اضغط قطاعًا لتصفية النتائج.</span></div>
+      <div class="heat" id="heat"><p class="empty">شغّل الفحص لتظهر خريطة القطاعات.</p></div>
+    </section>
+    <section class="card panel">
+      <div class="tbl-wrap">
+        <table id="scanTable">
+          <thead><tr>
+            <th><button type="button" data-sort="name">الشركة</button></th>
+            <th><button type="button" data-sort="price">السعر</button></th>
+            <th><button type="button" data-sort="chg">تغير اليوم</button></th>
+            <th><button type="button" data-sort="stanceN">الحكم</button></th>
+            <th><button type="button" data-sort="conf" data-dir="desc">الثقة</button></th>
+            <th><button type="button" data-sort="distBuy">إلى منطقة الشراء</button></th>
+            <th><button type="button" data-sort="rsi">القوة النسبية</button></th>
+            <th><button type="button" data-sort="trendN">الاتجاه</button></th>
+            <th>إشارة بارزة</th>
+            <th><button type="button" data-sort="sector">القطاع</button></th>
+          </tr></thead>
+          <tbody id="scanBody"><tr><td colspan="10" class="empty">اختر السوق واضغط «ابدأ الفحص». يستغرق فحص السوق السعودي أو المصري دقيقة تقريبًا، وأكبر 500 شركة أمريكية دقيقتين.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================================================== FUNDS -->
+  <section class="view local-only" id="view-funds" hidden>
+    <section class="card panel">
+      <div class="panel-head"><h2>صناديق الاستثمار</h2><span class="muted small" id="fundsMeta"></span></div>
+      <div class="form-grid">
+        <label class="field" for="fCountry"><span>الدولة</span><select id="fCountry"><option value="SA">السعودية</option><option value="EG">مصر</option><option value="">السعودية ومصر</option></select></label>
+        <label class="field row" for="fShariaOnly"><input id="fShariaOnly" type="checkbox" checked><span>المتوافقة مع الشريعة فقط</span></label>
+        <label class="field row" for="fStale"><input id="fStale" type="checkbox"><span>إظهار الصناديق المتوقفة</span></label>
+        <label class="field" for="fCat"><span>نوع الصندوق</span><select id="fCat"><option value="">الكل</option></select></label>
+        <label class="field" for="fSearch"><span>بحث بالاسم أو المدير</span><input id="fSearch" type="search" placeholder="مثال: الراجحي، أزيموت، مرابحة"></label>
+        <div class="actions"><button class="btn sm" id="fundsReload" type="button">تحديث الأسعار</button></div>
+      </div>
+      <div class="progress" id="fundsProg" hidden><i></i></div>
+      <p class="small muted">التصنيف الشرعي مبني على اسم الصندوق أو نوعه (إسلامي، شريعة، مرابحة، صكوك، تكافل، وقف، أسهم نقية) أو على كونه صادرًا عن بنك إسلامي أو مدير صناديق متوافق مع الشريعة بالكامل (مثل الراجحي المالية والإنماء والبلاد والجزيرة). بعض الصناديق المتوافقة لا ينص اسمها على ذلك فتظهر «غير مصنّف»؛ راجع نشرة الصندوق للتأكيد. الصناديق المتوقفة: آخر سعر لها أقدم من سنة.</p>
+    </section>
+    <section class="card panel">
+      <div class="tbl-wrap">
+        <table id="fundsTable">
+          <thead><tr>
+            <th><button type="button" data-fsort="short">الصندوق</button></th>
+            <th><button type="button" data-fsort="catAr">النوع</button></th>
+            <th><button type="button" data-fsort="price">السعر</button></th>
+            <th><button type="button" data-fsort="ytdN" data-dir="desc">منذ بداية العام</button></th>
+            <th><button type="button" data-fsort="r1m">شهر</button></th>
+            <th><button type="button" data-fsort="r3m">3 أشهر</button></th>
+            <th><button type="button" data-fsort="r1y">سنة</button></th>
+            <th><button type="button" data-fsort="dd">أقصى تراجع</button></th>
+            <th><button type="button" data-fsort="vol">التذبذب</button></th>
+            <th>السجل</th>
+          </tr></thead>
+          <tbody id="fundsBody"><tr><td colspan="10" class="empty">جارٍ تحميل الصناديق…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="small muted">الأسعار والسجل من موقع مباشر، ويحفظ البرنامج سعر كل صندوق يوميًا ليكمل السجلات الناقصة. اضغط أي صندوق لفتح تحليله.</p>
+    </section>
+  </section>
+
+  <!-- ===================================================== JOURNAL -->
+  <section class="view" id="view-journal" hidden>
+    <section class="kpis" id="jKpis"></section>
+    <section class="card panel">
+      <div class="panel-head"><h2>المحفظة: الصفقات المفتوحة</h2><span class="actions"><button class="btn sm local-only" id="jRefresh" type="button">تحديث الأسعار</button><button class="btn sm primary" id="jNew" type="button">صفقة جديدة</button></span></div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>الأصل</th><th>الكمية</th><th>الدخول</th><th>السعر الحالي</th><th>الربح / الخسارة</th><th>الوقف</th><th>الهدف</th><th>المضاعف</th><th></th></tr></thead>
+        <tbody id="jOpen"></tbody></table>
+      </div>
+    </section>
+    <section class="card panel" id="jForm" hidden>
+      <h2 id="jFormTitle">صفقة جديدة</h2>
+      <div class="form-grid">
+        <label class="field" for="fCode"><span>الرمز</span><input id="fCode" type="text" class="ltr" autocomplete="off"></label>
+        <label class="field" for="fName"><span>الاسم</span><input id="fName" type="text"></label>
+        <label class="field" for="fEx"><span>السوق</span><select id="fEx"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option><option value="GOLD">الذهب والفضة</option><option value="XX">أخرى</option></select></label>
+        <label class="field" for="fQty"><span>الكمية</span><input id="fQty" type="number" min="0" step="1"></label>
+        <label class="field" for="fEntry"><span>سعر الدخول</span><input id="fEntry" type="number" step="0.01"></label>
+        <label class="field" for="fDate"><span>تاريخ الدخول</span><input id="fDate" type="date"></label>
+        <label class="field" for="fStop"><span>وقف الخسارة</span><input id="fStop" type="number" step="0.01"></label>
+        <label class="field" for="fTarget"><span>الهدف</span><input id="fTarget" type="number" step="0.01"></label>
+        <label class="field wide" for="fReason"><span>سبب الدخول</span><input id="fReason" type="text" placeholder="مثال: ارتداد من منطقة الشراء مع تشبّع بيعي"></label>
+      </div>
+      <div id="fCloseBox" hidden class="form-grid">
+        <label class="field" for="fExit"><span>سعر الخروج</span><input id="fExit" type="number" step="0.01"></label>
+        <label class="field" for="fExitDate"><span>تاريخ الخروج</span><input id="fExitDate" type="date"></label>
+        <label class="field wide" for="fExitReason"><span>سبب الخروج</span><input id="fExitReason" type="text" placeholder="مثال: بلوغ الهدف الأول"></label>
+      </div>
+      <div class="field"><span>تقييم الالتزام والأخطاء</span><div class="chips" id="fTags"></div></div>
+      <div class="actions"><button class="btn primary" id="fSave" type="button">حفظ</button><button class="btn ghost" id="fCancel" type="button">إلغاء</button></div>
+    </section>
+    <section class="grid-2">
+      <div class="card panel">
+        <div class="panel-head"><h2>الصفقات المغلقة</h2><button class="btn sm ghost" id="jExport" type="button">تصدير السجل</button></div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>الأصل</th><th>الدخول</th><th>الخروج</th><th>النتيجة</th><th>المضاعف</th><th>المدة</th><th>الوسوم</th><th></th></tr></thead>
+          <tbody id="jClosed"></tbody></table>
+        </div>
+      </div>
+      <div class="card panel">
+        <h2>أنماطك المتكررة</h2>
+        <ul class="list" id="jMistakes"></ul>
+        <p class="edu">المضاعف R = الربح أو الخسارة مقسومة على المخاطرة الأصلية (الدخول ناقص الوقف). متوسط مضاعف موجب يعني أن أسلوبك رابح حتى لو خسرت أغلب الصفقات.</p>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================================================== PREFERENCES -->
+  <section class="view" id="view-prefs" hidden>
+    <div class="prefs-grid">
+      <section class="card panel">
+        <h2>إعدادات التحليل</h2>
+        <div class="form-grid">
+          <label class="field" for="pMaFast"><span>المتوسط القصير</span><input id="pMaFast" type="number" min="3" max="100" data-pref="ana.maFast"></label>
+          <label class="field" for="pMaSlow"><span>المتوسط الطويل</span><input id="pMaSlow" type="number" min="10" max="300" data-pref="ana.maSlow"></label>
+          <label class="field" for="pRsi"><span>فترة القوة النسبية</span><input id="pRsi" type="number" min="5" max="50" data-pref="ana.rsi"></label>
+          <label class="field" for="pBb"><span>فترة بولنجر</span><input id="pBb" type="number" min="10" max="60" data-pref="ana.bb"></label>
+          <label class="field" for="pStop"><span>مسافة الوقف (× متوسط المدى)</span><input id="pStop" type="number" min="0.1" max="3" step="0.1" data-pref="ana.stopMult"></label>
+          <label class="field" for="pTf"><span>الإطار الافتراضي</span><select id="pTf" data-pref="ana.tf"><option value="D">يومي</option><option value="W">أسبوعي</option></select></label>
+        </div>
+        <button class="btn sm ghost" id="pAnaReset" type="button">استعادة القيم الافتراضية</button>
+      </section>
+
+      <section class="card panel local-only" id="srcPanel">
+        <h2>مصادر البيانات وحساب <bdi>TradingView</bdi></h2>
+        <div class="form-grid">
+          <label class="field wide" for="pSource"><span>مصدر الأسعار الأول</span><select id="pSource" data-pref="dataSource">
+            <option value="tv">TradingView أولًا، ثم Yahoo Finance</option><option value="yahoo">Yahoo Finance أولًا، ثم TradingView</option></select></label>
+        </div>
+        <p class="small muted">بدون حساب: بيانات <bdi>TradingView</bdi> العامة، وأسعار تداول والبورصة المصرية متأخرة 15 دقيقة. مع حسابك: نفس البيانات التي يعرضها لك <bdi>TradingView</bdi>، وتكون لحظية إذا كان اشتراكك يشمل بيانات السوق اللحظية.</p>
+        <div class="tv-acct" id="tvAcct"><span class="tv-dot" id="tvDot"></span><span id="tvState">جارٍ التحقق…</span></div>
+        <div class="actions"><button class="btn sm" id="tvLogin" type="button">تسجيل الدخول إلى TradingView</button><button class="btn sm ghost" id="tvLogout" type="button" hidden>تسجيل الخروج</button></div>
+        <p class="status" id="tvStatus"></p>
+        <details class="tv-manual" id="tvManual">
+          <summary>إدخال الجلسة يدويًا</summary>
+          <ol class="small muted" style="margin:6px 0;padding-inline-start:18px">
+            <li>سجّل الدخول إلى <bdi>tradingview.com</bdi> في متصفحك.</li>
+            <li>اضغط <bdi>F12</bdi>، ثم افتح <bdi>Application</bdi> (أو <bdi>Storage</bdi>)، ثم <bdi>Cookies</bdi>، ثم <bdi>https://www.tradingview.com</bdi>.</li>
+            <li>انسخ قيمة <code>sessionid</code> وقيمة <code>sessionid_sign</code> والصقهما هنا.</li>
+          </ol>
+          <div class="form-grid">
+            <label class="field" for="tvSid"><span>sessionid</span><input id="tvSid" type="password" class="ltr" autocomplete="off"></label>
+            <label class="field" for="tvSign"><span>sessionid_sign</span><input id="tvSign" type="password" class="ltr" autocomplete="off"></label>
+          </div>
+          <div class="actions"><button class="btn sm" id="tvSave" type="button">حفظ الجلسة</button></div>
+        </details>
+        <p class="small muted">لا يحفظ البرنامج كلمة المرور أبدًا؛ تسجّل الدخول في صفحة <bdi>TradingView</bdi> نفسها، ويحتفظ البرنامج بجلسة الدخول فقط مشفّرة بنظام التشغيل.</p>
+        <p class="small muted">موقع <bdi>Investing.com</bdi> يحجب أي جلب آلي لبياناته بحماية <bdi>Cloudflare</bdi> حتى مع تسجيل الدخول، لذلك لا يمكن ربطه بالبرنامج.</p>
+      </section>
+
+      <section class="card panel local-only">
+        <h2>التنبيهات</h2>
+        <label class="field row" for="pAlerts"><input id="pAlerts" type="checkbox" data-pref="alerts.enabled"><span>تفعيل تنبيهات قائمة المراقبة</span></label>
+        <div class="form-grid">
+          <label class="field" for="pAlertInt"><span>الفحص كل (دقيقة)</span><input id="pAlertInt" type="number" min="5" max="240" step="5" data-pref="alerts.interval"></label>
+        </div>
+        <label class="field row" for="pAlertDesk"><input id="pAlertDesk" type="checkbox" data-pref="alerts.desktop"><span>إشعار على سطح المكتب</span></label>
+        <label class="field row" for="pAlertTg"><input id="pAlertTg" type="checkbox" data-pref="alerts.telegram"><span>إرسال إلى تيليجرام</span></label>
+        <label class="field row" for="pBg"><input id="pBg" type="checkbox" data-pref="background"><span>عند إغلاق النافذة: صغّرها واستمر في التنبيهات</span></label>
+        <label class="field row" for="pAuto"><input id="pAuto" type="checkbox"><span>تشغيل البرنامج مع بدء الجهاز</span></label>
+        <p class="small muted" id="pAutoNote"></p>
+        <button class="btn sm danger" id="quitBtn" type="button">إنهاء البرنامج بالكامل</button>
+      </section>
+
+      <section class="card panel local-only">
+        <h2>تيليجرام</h2>
+        <ol class="small muted" style="margin:0;padding-inline-start:18px">
+          <li>افتح <bdi>@BotFather</bdi> في تيليجرام وأرسل <code>/newbot</code>، ثم انسخ الرمز الذي يعطيك إياه.</li>
+          <li>أرسل أي رسالة للبوت الجديد، ثم اضغط «اكتشاف المعرّف».</li>
+        </ol>
+        <label class="field row" for="pTg"><input id="pTg" type="checkbox" data-pref="telegram.enabled"><span>تفعيل الإرسال إلى تيليجرام</span></label>
+        <div class="form-grid">
+          <label class="field wide" for="pTgToken"><span>رمز البوت</span><input id="pTgToken" type="password" class="ltr" autocomplete="off" data-pref="telegram.token"></label>
+          <label class="field" for="pTgChat"><span>معرّف المحادثة</span><input id="pTgChat" type="text" class="ltr" data-pref="telegram.chatId"></label>
+        </div>
+        <div class="actions"><button class="btn sm" id="tgDetect" type="button">اكتشاف المعرّف</button><button class="btn sm" id="tgTest" type="button">إرسال رسالة تجريبية</button></div>
+        <p class="status" id="tgStatus"></p>
+      </section>
+
+      <section class="card panel local-only">
+        <h2>التقرير الصباحي</h2>
+        <label class="field row" for="pRep"><input id="pRep" type="checkbox" data-pref="report.enabled"><span>إرسال تقرير يومي بقائمة المراقبة والمحفظة</span></label>
+        <div class="form-grid">
+          <label class="field" for="pRepTime"><span>الوقت</span><input id="pRepTime" type="time" data-pref="report.time"></label>
+        </div>
+        <div class="field"><span>الأيام</span><div class="chips" id="pRepDays"></div></div>
+        <p class="small muted">يُرسل عبر تيليجرام وإشعار سطح المكتب. يجب أن يكون البرنامج مفتوحًا أو مصغّرًا وقت الإرسال.</p>
+      </section>
+
+      <section class="card panel">
+        <h2>الضوابط الشرعية</h2>
+        <p class="small muted">الصق رموز الأسهم المتوافقة وغير المتوافقة من أحدث قائمة تعتمدها (مثل قوائم الهيئات الشرعية في البنوك)، مفصولة بمسافات أو فواصل. تظهر الحالة بجانب اسم السهم وفي ماسح السوق.</p>
+        <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
+        <label class="field" for="pShNo"><span>غير متوافقة</span><textarea id="pShNo" data-pref="sharia.no" placeholder="1180 1050 ..."></textarea></label>
+        <label class="field" for="pShDate"><span>تاريخ القائمة المعتمدة</span><input id="pShDate" type="text" data-pref="sharia.asOf" placeholder="مثال: الربع الثالث 2026"></label>
+      </section>
+
+      <section class="card panel local-only">
+        <h2>التحديثات وحول البرنامج</h2>
+        <p class="small" id="aboutText"></p>
+        <label class="field" for="pRepo"><span>مستودع التحديثات على GitHub</span><input id="pRepo" type="text" class="ltr" data-pref="updateRepo" placeholder="mhassoun500/mo-stocks"></label>
+        <div class="actions"><button class="btn sm" id="updateCheck" type="button">التحقق من وجود تحديث</button></div>
+        <p class="status" id="updateStatus"></p>
+      </section>
+
+      <section class="card panel">
+        <h2>المظهر</h2>
+        <div class="form-grid">
+          <label class="field" for="pTheme"><span>المظهر</span><select id="pTheme" data-pref="theme"><option value="system">حسب النظام</option><option value="light">فاتح</option><option value="dark">داكن</option></select></label>
+        </div>
+        <div class="form-grid">
+          <label class="field" for="pFont"><span>خط الواجهة</span><select id="pFont" data-pref="font">
+            <option value="Cairo">القاهرة (Cairo)</option><option value="Tajawal">تجوال (Tajawal)</option><option value="Almarai">المراعي (Almarai)</option>
+            <option value="Noto Kufi Arabic">نوتو كوفي (Noto Kufi)</option><option value="IBM Plex Sans Arabic">آي بي إم بلكس (IBM Plex)</option></select></label>
+          <label class="field" for="pNum"><span>شكل الأرقام</span><select id="pNum" data-pref="numFont"><option value="same">بنفس خط الواجهة</option><option value="mono">أرقام متساوية العرض</option></select></label>
+        </div>
+        <p class="font-preview" id="fontPreview">Mo Stocks — مصرف الراجحي <span class="num">1120 · 60.15</span> ريال، منطقة الشراء <span class="num">57.48 – 57.82</span></p>
+        <label class="field row" for="pEdu"><input id="pEdu" type="checkbox" data-pref="edu"><span>وضع التعلم: شرح مبسط تحت كل مؤشر</span></label>
+      </section>
+    </div>
+  </section>
+
+  <p class="disclaimer">هذه الأداة تحليل فني آلي يعتمد على السعر والحجم، للمساعدة والتعلّم وليست توصية استثمارية. راجع الأخبار والقوائم المالية وإدارة المخاطر قبل أي قرار.</p>
+</div>
+<div class="drop-hint" id="dropHint" hidden>أفلت ملف البيانات هنا</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
