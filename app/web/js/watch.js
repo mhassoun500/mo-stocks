@@ -126,8 +126,8 @@ const rowSharia=r=>{const u=shariaStatus(r.code);if(u)return{s:u,src:'list'};con
   return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy}:null;};
 function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);$$('#scanShariaDD [data-us]').forEach(l=>l.hidden=!/^US/.test($('#scanEx').value));updateShariaLabel();}
 const SH_SHORT={ok:'متوافق',doubt:'محل نظر',no:'غير متوافق',auto_ok:'متوافق مبدئيًا',auto_no:'غير متوافق مبدئيًا',none:'غير مصنّف'};
-function shariaChoice(){const all=$$('#scanShariaDD label:not([hidden]) input'),on=all.filter(i=>i.checked).map(i=>i.value);return on.length===all.length?null:new Set(on);}
-function updateShariaLabel(){const c=shariaChoice();$('#scanShariaLbl').textContent=!c?'الكل':!c.size?'لا شيء':[...c].map(v=>SH_SHORT[v]).join('، ');}
+function shariaChoice(){const on=$$('#scanShariaDD label:not([hidden]) input').filter(i=>i.checked).map(i=>i.value);return on.length?new Set(on):null;}  /* nothing ticked = all stocks */
+function updateShariaLabel(){const c=shariaChoice();$('#scanShariaLbl').textContent=!c?'الكل':[...c].map(v=>SH_SHORT[v]).join('، ');}
 function shariaCat(r){const x=rowSharia(r);if(!x)return'none';if(x.src==='auto')return x.s==='ok'?'auto_ok':'auto_no';return x.s;}
 async function runScan(){
   if(SC.running)return;SC.running=true;SC.stop=false;SC.sector=null;
@@ -205,7 +205,7 @@ function setupWatchViews(){
   ['scanStance','scanConf','scanSeg'].forEach(id=>$('#'+id).addEventListener('input',()=>{renderScan();renderHeat();}));
   $('#scanShariaDD').addEventListener('change',()=>{updateShariaLabel();renderScan();renderHeat();});
   $('#scanShariaDD').addEventListener('click',e=>{const b=e.target.closest('[data-dd]');if(!b)return;
-    $$('#scanShariaDD input').forEach(i=>i.checked=b.dataset.dd==='all'||i.value==='ok');updateShariaLabel();renderScan();renderHeat();});
+    $$('#scanShariaDD input').forEach(i=>i.checked=b.dataset.dd==='ok'&&i.value==='ok');updateShariaLabel();renderScan();renderHeat();});
   document.addEventListener('click',e=>{const d=$('#scanShariaDD');if(d.open&&!d.contains(e.target))d.open=false;});
   $('#scanEx').addEventListener('change',updateScanSeg);updateScanSeg();
   $('#scanTable thead').addEventListener('click',e=>{const b=e.target.closest('button[data-sort]');if(!b)return;const k=b.dataset.sort;
