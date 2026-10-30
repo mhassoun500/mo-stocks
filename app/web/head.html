@@ -268,4 +268,9 @@ html.edu-on .edu{display:block}
 .explain p{margin:6px 0 0;line-height:1.7}
 .app[lang="en"] .ar-only{display:none}
 .sub-h{font-size:14px;margin:14px 0 4px}
+/* the main bar stays on screen while scrolling */
+.top{position:sticky;top:0;z-index:25;background:var(--bg);margin-top:-16px;padding-block:12px 10px;transition:box-shadow .2s}
+.top.stuck{box-shadow:0 6px 14px -10px rgba(0,0,0,.35);border-bottom:1px solid var(--line)}
+html{scroll-padding-top:96px}
+@media (max-width:700px){.top .brand p{display:none}.top{padding-block:8px 6px}html{scroll-padding-top:150px}}
 </style>

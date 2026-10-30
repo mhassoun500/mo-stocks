@@ -268,6 +268,11 @@ html.edu-on .edu{display:block}
 .explain p{margin:6px 0 0;line-height:1.7}
 .app[lang="en"] .ar-only{display:none}
 .sub-h{font-size:14px;margin:14px 0 4px}
+/* the main bar stays on screen while scrolling */
+.top{position:sticky;top:0;z-index:25;background:var(--bg);margin-top:-16px;padding-block:12px 10px;transition:box-shadow .2s}
+.top.stuck{box-shadow:0 6px 14px -10px rgba(0,0,0,.35);border-bottom:1px solid var(--line)}
+html{scroll-padding-top:96px}
+@media (max-width:700px){.top .brand p{display:none}.top{padding-block:8px 6px}html{scroll-padding-top:150px}}
 </style>
 
 <div class="app" dir="rtl" lang="ar">
@@ -2768,6 +2773,7 @@ function route(){
   setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();
   window.addEventListener('hashchange',route);route();
   updateLinks();renderRecent();renderRangeSeg();
+  {const top=$('header.top');const onScroll=()=>top.classList.toggle('stuck',window.scrollY>4);window.addEventListener('scroll',onScroll,{passive:true});onScroll();}
   if(LOCAL){setInterval(()=>{api('/api/ping').catch(()=>{});},20000);setInterval(liveTick,120000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)liveTick();});setTimeout(()=>checkUpdate(false),6000);}
   const rec=LOCAL?await getRecent():[];
   if(rec.length){applySource(rec[0].ex,rec[0].code);loadSample();fetchSymbol(rec[0].code,rec[0].ex);return;}

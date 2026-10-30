@@ -1,9 +1,16 @@
 name: Build installers
 
+# Runs when a release is published on GitHub (any tag name) and attaches the installers to it.
+# Can also be started by hand; give release_tag to attach the files to an existing release.
 on:
-  push:
-    tags: ["v*"]
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to attach the installers to (optional)"
+        required: false
+        default: ""
 
 jobs:
   windows:
@@ -85,7 +92,7 @@ jobs:
 
   release:
     needs: [windows, macos]
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'release' || inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -96,4 +103,5 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.release.tag_name || inputs.release_tag }}
           files: out/*
