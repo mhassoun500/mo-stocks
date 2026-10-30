@@ -124,7 +124,11 @@ const SEG_AR={main:'الرئيسية',nomu:'نمو',reit:'ريت'};
 const scanExOf=v=>/^US/.test(v)?{ex:'US',size:v.slice(2)}:{ex:v,size:null};
 const rowSharia=r=>{const u=shariaStatus(r.code);if(u)return{s:u,src:'list'};const y=SC.ex==='US'?yaaqenStatus(r.code):null;if(y)return{s:y,src:'yaaqen'};
   return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy}:null;};
-function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);$('#scanShariaAutoField').hidden=!/^US/.test($('#scanEx').value);}
+function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);$$('#scanShariaDD [data-us]').forEach(l=>l.hidden=!/^US/.test($('#scanEx').value));updateShariaLabel();}
+const SH_SHORT={ok:'متوافق',doubt:'محل نظر',no:'غير متوافق',auto_ok:'متوافق مبدئيًا',auto_no:'غير متوافق مبدئيًا',none:'غير مصنّف'};
+function shariaChoice(){const all=$$('#scanShariaDD label:not([hidden]) input'),on=all.filter(i=>i.checked).map(i=>i.value);return on.length===all.length?null:new Set(on);}
+function updateShariaLabel(){const c=shariaChoice();$('#scanShariaLbl').textContent=!c?'الكل':!c.size?'لا شيء':[...c].map(v=>SH_SHORT[v]).join('، ');}
+function shariaCat(r){const x=rowSharia(r);if(!x)return'none';if(x.src==='auto')return x.s==='ok'?'auto_ok':'auto_no';return x.s;}
 async function runScan(){
   if(SC.running)return;SC.running=true;SC.stop=false;SC.sector=null;
   const sel=$('#scanEx').value,{ex,size}=scanExOf(sel);SC.ex=ex;SC.sel=sel;$('#scanGo').hidden=true;$('#scanStop').hidden=false;$('#scanProg').hidden=false;
@@ -162,8 +166,8 @@ async function loadSectors(){
   $('#scanMeta').textContent='آخر فحص '+fmtLocalTime.format(new Date())+' · '+SC.rows.length+' شركة';
 }
 function scanFiltered(){
-  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=$('#scanSharia').checked?($('#scanShariaAuto').checked&&SC.ex==='US'?'any':'ok'):'',seg=SC.ex==='SR'?$('#scanSeg').value:'';
-  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||(x=>x&&x.s==='ok'&&(sh==='any'||x.src!=='auto'))(rowSharia(r)))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
+  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=shariaChoice(),seg=SC.ex==='SR'?$('#scanSeg').value:'';
+  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||sh.has(shariaCat(r)))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
 }
 function renderScan(){
   const rows=scanFiltered().slice();const {k,dir}=SC.sort;const m=dir==='asc'?1:-1;
@@ -198,7 +202,11 @@ function setupWatchViews(){
   $('#reportSend').addEventListener('click',sendReport);
   $('#scanGo').addEventListener('click',runScan);
   $('#scanStop').addEventListener('click',()=>{SC.stop=true;});
-  ['scanStance','scanConf','scanSharia','scanShariaAuto','scanSeg'].forEach(id=>$('#'+id).addEventListener('input',()=>{renderScan();renderHeat();}));
+  ['scanStance','scanConf','scanSeg'].forEach(id=>$('#'+id).addEventListener('input',()=>{renderScan();renderHeat();}));
+  $('#scanShariaDD').addEventListener('change',()=>{updateShariaLabel();renderScan();renderHeat();});
+  $('#scanShariaDD').addEventListener('click',e=>{const b=e.target.closest('[data-dd]');if(!b)return;
+    $$('#scanShariaDD input').forEach(i=>i.checked=b.dataset.dd==='all'||i.value==='ok');updateShariaLabel();renderScan();renderHeat();});
+  document.addEventListener('click',e=>{const d=$('#scanShariaDD');if(d.open&&!d.contains(e.target))d.open=false;});
   $('#scanEx').addEventListener('change',updateScanSeg);updateScanSeg();
   $('#scanTable thead').addEventListener('click',e=>{const b=e.target.closest('button[data-sort]');if(!b)return;const k=b.dataset.sort;
     SC.sort={k,dir:SC.sort.k===k&&SC.sort.dir==='desc'?'asc':'desc'};renderScan();});

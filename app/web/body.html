@@ -334,8 +334,19 @@
         <label class="field" for="scanSeg" id="scanSegField"><span>السوق السعودي</span><select id="scanSeg"><option value="">الرئيسية ونمو</option><option value="main">السوق الرئيسية فقط</option><option value="nomu">نمو (السوق الموازية) فقط</option><option value="reit">صناديق الريت فقط</option></select></label>
         <label class="field" for="scanStance"><span>الحكم</span><select id="scanStance"><option value="">الكل</option><option value="buy">منطقة شراء</option><option value="sell">منطقة بيع</option><option value="neutral">انتظار</option></select></label>
         <label class="field" for="scanConf"><span>أدنى ثقة %</span><input id="scanConf" type="number" min="0" max="100" step="5" value="0"></label>
-        <label class="field row" for="scanSharia"><input id="scanSharia" type="checkbox"><span>المتوافقة شرعيًا فقط</span></label>
-        <label class="field row" for="scanShariaAuto" id="scanShariaAutoField" hidden><input id="scanShariaAuto" type="checkbox"><span>مع الفحص المبدئي (لما لا يصنّفه يقين)</span></label>
+        <div class="field" id="scanShariaField"><span>التوافق الشرعي</span>
+          <details class="dd" id="scanShariaDD"><summary class="dd-btn"><span id="scanShariaLbl">الكل</span></summary>
+            <div class="dd-menu" role="group" aria-label="التوافق الشرعي">
+              <label><input type="checkbox" value="ok" checked><span>متوافق (قائمتك أو يقين)</span></label>
+              <label data-us><input type="checkbox" value="doubt" checked><span>محل نظر (يقين)</span></label>
+              <label><input type="checkbox" value="no" checked><span>غير متوافق</span></label>
+              <label data-us><input type="checkbox" value="auto_ok" checked><span>متوافق مبدئيًا (فحص تلقائي)</span></label>
+              <label data-us><input type="checkbox" value="auto_no" checked><span>غير متوافق مبدئيًا (فحص تلقائي)</span></label>
+              <label><input type="checkbox" value="none" checked><span>غير مصنّف</span></label>
+              <div class="dd-actions"><button class="btn xs ghost" type="button" data-dd="all">تحديد الكل</button><button class="btn xs ghost" type="button" data-dd="ok">المتوافقة فقط</button></div>
+            </div>
+          </details>
+        </div>
         <p class="small muted wide" id="usShariaNote" hidden>الأسهم الأمريكية مصنّفة حسب موقع يقين (شرعي، غير شرعي، محل نظر). وما لم يصنّفه يقين يخضع لفحص شرعي مبدئي تلقائي (استبعاد البنوك والتأمين التقليدي والخمور والتبغ والقمار والترفيه والأسلحة، والديون والنقد كلٌّ أقل من 30% من القيمة السوقية). لا يشمل نسبة الإيراد غير المباح، فتأكد من مصدر موثوق.</p>
         <div class="actions"><button class="btn primary" id="scanGo" type="button">ابدأ الفحص</button><button class="btn ghost" id="scanStop" type="button" hidden>إيقاف</button></div>
       </div>

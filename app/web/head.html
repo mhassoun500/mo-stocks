@@ -273,4 +273,16 @@ html.edu-on .edu{display:block}
 .top.stuck{box-shadow:0 6px 14px -10px rgba(0,0,0,.35);border-bottom:1px solid var(--line)}
 html{scroll-padding-top:96px}
 @media (max-width:700px){.top .brand p{display:none}.top{padding-block:8px 6px}html{scroll-padding-top:150px}}
+/* drop-down with checkboxes */
+.dd{position:relative}
+.dd-btn{list-style:none;cursor:pointer;font-size:14px;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;padding-inline-end:28px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;position:relative}
+.dd-btn::-webkit-details-marker{display:none}
+.dd-btn::after{content:"";position:absolute;inset-inline-end:11px;top:50%;width:7px;height:7px;border-right:1.6px solid var(--muted);border-bottom:1.6px solid var(--muted);transform:translateY(-70%) rotate(45deg)}
+.dd[open] .dd-btn{border-color:var(--accent)}
+.dd-menu{position:absolute;z-index:22;top:calc(100% + 4px);inset-inline-start:0;min-width:260px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 24px -8px rgba(0,0,0,.3);padding:6px;display:flex;flex-direction:column}
+.dd-menu label{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;font-size:13.5px;color:var(--ink);cursor:pointer}
+.dd-menu label:hover{background:var(--surface-2)}
+.dd-menu label[hidden]{display:none}
+.dd-menu input{width:16px;height:16px;accent-color:var(--accent);margin:0}
+.dd-actions{display:flex;gap:6px;justify-content:flex-end;border-top:1px solid var(--line);margin-top:4px;padding-top:6px}
 </style>
