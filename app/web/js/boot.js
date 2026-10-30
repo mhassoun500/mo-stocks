@@ -17,6 +17,7 @@ function route(){
   setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();
   window.addEventListener('hashchange',route);route();
   updateLinks();renderRecent();renderRangeSeg();
+  setupShariaPop();
   {const top=$('header.top');const onScroll=()=>top.classList.toggle('stuck',window.scrollY>4);window.addEventListener('scroll',onScroll,{passive:true});onScroll();}
   if(LOCAL){setInterval(()=>{api('/api/ping').catch(()=>{});},20000);setInterval(liveTick,120000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)liveTick();});setTimeout(()=>checkUpdate(false),6000);}
   const rec=LOCAL?await getRecent():[];

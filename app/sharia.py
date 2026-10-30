@@ -87,3 +87,23 @@ def fetch_egypt():
                      "v": "".join(_eg_verdict(it.get(k)) for k, _ in EG_SOURCES)}
     return {"source": "اسهم حلال (stocks.templatesnippet.com)", "url": EG_PAGE, "date": time.strftime("%Y-%m-%d"),
             "refs": [n for _, n in EG_SOURCES], "rows": rows}
+
+
+# ---------------------------------------------------------------- USA: S&P 500 Shariah (SPUS holdings)
+SPUS_CSV = "https://www.sp-funds.com/wp-content/uploads/data/TidalFG_Holdings_SPUS.csv"
+
+
+def fetch_spus():
+    """Holdings of the SP Funds S&P 500 Sharia ETF, which tracks the S&P 500 Shariah index (AAOIFI rules)."""
+    import csv
+    import io
+    rows = list(csv.DictReader(io.StringIO(_get(SPUS_CSV))))
+    tickers = sorted({(r.get("StockTicker") or "").strip().upper() for r in rows})
+    tickers = [t for t in tickers if re.match(r"^[A-Z]{1,5}(\.[A-Z])?$", t)]
+    if len(tickers) < 100:
+        raise ValueError("SPUS holdings look incomplete")
+    date = (rows[0].get("Date") or "").strip()
+    m = re.match(r"(\d{1,2})/(\d{1,2})/(\d{4})", date)
+    if m:
+        date = "%s-%02d-%02d" % (m.group(3), int(m.group(1)), int(m.group(2)))
+    return {"source": "SP Funds (SPUS)", "url": "https://www.sp-funds.com/spus/", "date": date, "tickers": tickers}

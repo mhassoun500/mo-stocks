@@ -1259,7 +1259,7 @@ def sharia_refresh():
     SHARIA_BUSY.set()
     res = {}
     try:
-        for key, fn in (("sa", sharia.fetch_saudi), ("eg", sharia.fetch_egypt)):
+        for key, fn in (("sa", sharia.fetch_saudi), ("eg", sharia.fetch_egypt), ("spus", sharia.fetch_spus)):
             try:
                 cache_put("sharia|" + key, fn())
                 res[key] = True
@@ -1273,7 +1273,7 @@ def sharia_refresh():
 
 def sharia_lists():
     out = {"ok": True, "busy": SHARIA_BUSY.is_set()}
-    for key in ("sa", "eg"):
+    for key in ("sa", "eg", "spus"):
         hit, _ = cache_get("sharia|" + key)
         out[key] = hit
     return out
@@ -2009,8 +2009,12 @@ def shutdown_app():
 def run_window(url, minimized):
     import webview  # pywebview
 
-    win = webview.create_window(APP_TITLE, url, width=1400, height=920, min_size=(900, 640),
-                                background_color="#eef1f3", text_select=True, minimized=minimized)
+    try:
+        win = webview.create_window(APP_TITLE, url, width=1400, height=920, min_size=(900, 640), background_color="#eef1f3",
+                                    text_select=True, minimized=minimized, maximized=not minimized)
+    except TypeError:  # older pywebview without "maximized"
+        win = webview.create_window(APP_TITLE, url, width=1400, height=920, min_size=(900, 640),
+                                    background_color="#eef1f3", text_select=True, minimized=minimized)
     WINDOW[0] = win
 
     def on_closing():

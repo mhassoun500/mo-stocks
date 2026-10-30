@@ -123,7 +123,12 @@ const SC={running:false,stop:false,rows:[],sector:null,sort:{k:'conf',dir:'desc'
 const SEG_AR={main:'الرئيسية',nomu:'نمو',reit:'ريت'};
 const scanExOf=v=>/^US/.test(v)?{ex:'US',size:v.slice(2)}:{ex:v,size:null};
 const rowSharia=r=>{const i=shariaInfo(r.code,SC.ex);if(i)return i;
-  return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy,label:r.shariaAuto==='ok'?'متوافق مبدئيًا':'غير متوافق مبدئيًا',title:_t(r.shariaWhy||'')}:null;};
+  return r.shariaAuto?{s:r.shariaAuto,src:'auto',why:r.shariaWhy,word:r.shariaAuto==='ok'?'متوافق مبدئيًا':'غير متوافق مبدئيًا',count:'',
+    head:'فحص مبدئي تلقائي',note:_t(r.shariaWhy||'')+' — لا يشمل نسبة الإيراد غير المباح.',refs:[]}:null;};
+const SH_RANK={ok:4,doubt:3,auto_ok:2,auto_no:1,no:0};
+function segChoice(){const on=$$('#scanSegDD input').filter(i=>i.checked).map(i=>i.value);return on.length?new Set(on):null;}
+const SEG_SHORT={main:'الرئيسية',nomu:'نمو',reit:'الريت'};
+function updateSegLabel(){const c=segChoice();$('#scanSegLbl').textContent=!c?'الكل':[...c].map(v=>SEG_SHORT[v]).join('، ');}
 function updateScanSeg(){$('#scanSegField').hidden=$('#scanEx').value!=='SR';$('#usShariaNote').hidden=!/^US/.test($('#scanEx').value);$$('#scanShariaDD [data-us]').forEach(l=>l.hidden=!/^US/.test($('#scanEx').value));$$('#scanShariaDD [data-ca]').forEach(l=>l.hidden=$('#scanEx').value!=='CA');updateShariaLabel();}
 const SH_SHORT={egx33:'EGX33',ok:'متوافق',doubt:'محل نظر / مختلف فيه',no:'غير متوافق',auto_ok:'متوافق مبدئيًا',auto_no:'غير متوافق مبدئيًا',none:'غير مصنّف'};
 function shariaChoice(){const on=$$('#scanShariaDD label:not([hidden]) input').filter(i=>i.checked).map(i=>i.value);return on.length?new Set(on):null;}  /* nothing ticked = all stocks */
@@ -148,7 +153,7 @@ async function runScan(){
   await Promise.all([worker(),worker(),worker(),worker()]);
   renderScan();
   if(!SC.stop&&!SC.rows.length){$('#scanMeta').textContent='لم تصل بيانات أسعار لأي شركة. غالبًا مصدر البيانات يرفض الطلبات مؤقتًا بسبب كثرتها؛ انتظر بضع دقائق ثم أعد الفحص.';
-    $('#scanBody').innerHTML='<tr><td colspan="10" class="status err">لم تصل بيانات أسعار. أعد المحاولة بعد بضع دقائق.</td></tr>';endScan();return;}
+    $('#scanBody').innerHTML='<tr><td colspan="11" class="status err">لم تصل بيانات أسعار. أعد المحاولة بعد بضع دقائق.</td></tr>';endScan();return;}
   if(!SC.stop&&SC.rows.some(r=>!r.sector)){$('#scanMeta').textContent='اكتمل فحص '+SC.rows.length+' شركة · '+fmtLocalTime.format(new Date())+' · جارٍ تصنيف القطاعات…';await loadSectors();}
   else $('#scanMeta').textContent='آخر فحص '+fmtLocalTime.format(new Date())+' · '+SC.rows.length+' شركة';
   renderHeat();
@@ -166,21 +171,24 @@ async function loadSectors(){
   $('#scanMeta').textContent='آخر فحص '+fmtLocalTime.format(new Date())+' · '+SC.rows.length+' شركة';
 }
 function scanFiltered(){
-  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=shariaChoice(),seg=SC.ex==='SR'?$('#scanSeg').value:'';
-  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||r.segment===seg)&&(!minC||(r.conf||0)>=minC)&&(!sh||sh.has(shariaCat(r))||(sh.has('egx33')&&SC.ex==='CA'&&(egSharia(r.code)||{}).egx33))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
+  const st=$('#scanStance').value,minC=+$('#scanConf').value||0,sh=shariaChoice(),seg=SC.ex==='SR'?segChoice():null;
+  return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||seg.has(r.segment))&&(!minC||(r.conf||0)>=minC)&&(!sh||sh.has(shariaCat(r))||(sh.has('egx33')&&SC.ex==='CA'&&(egSharia(r.code)||{}).egx33))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
 }
 function renderScan(){
+  for(const r of SC.rows){const c=shariaCat(r);r.shN=c==='none'?-1:SH_RANK[c];}
   const rows=scanFiltered().slice();const {k,dir}=SC.sort;const m=dir==='asc'?1:-1;
   rows.sort((a,b)=>{const x=a[k],y=b[k];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y,'ar'):x-y)*m;});
   $$('#scanTable th button').forEach(b=>{if(b.dataset.sort===k)b.dataset.dir=dir;else delete b.dataset.dir;});
-  $('#scanBody').innerHTML=rows.length?rows.slice(0,2000).map(r=>{const shr=rowSharia(r),sh=shr&&shr.s;
-    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+(sh?'<span class="tag '+(sh==='ok'?'b':sh==='doubt'?'in':'x')+'" title="'+esc(shr.title||'')+'">'+esc(shr.label||'')+'</span>':'')+(SC.ex==='CA'&&(egSharia(r.code)||{}).egx33?'<span class="tag v" title="ضمن مكونات مؤشر الشريعة EGX33">EGX33</span>':'')+'</td>'+
+  $('#scanBody').innerHTML=rows.length?rows.slice(0,2000).map(r=>{const shr=rowSharia(r);
+    const e33=SC.ex==='CA'&&(egSharia(r.code)||{}).egx33,spus=SC.ex==='US'&&shr&&shr.spus;
+    return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td class="nm"><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+'</td>'+
+      '<td class="sh">'+(shr?shariaTagHTML(shr):'<span class="muted small">—</span>')+(e33?'<span class="tag v" title="ضمن مكونات مؤشر الشريعة EGX33">EGX33</span>':'')+(spus?'<span class="tag v" title="ضمن مؤشر S&P 500 الشرعي">S&P</span>':'')+'</td>'+
       '<td>'+NUM(fp(r.price))+'</td><td>'+chgSpan(r.chg)+'</td><td><span class="kind '+stanceKind(r.stance)+'">'+STANCE_AR[r.stance]+'</span></td><td>'+(r.conf!=null?NUM(r.conf+'%'):'—')+'</td>'+
       '<td>'+(r.distBuy!=null?NUM(pct(r.distBuy)):'—')+'</td><td>'+(r.rsi!=null?NUM(r.rsi.toFixed(0)):'—')+'</td><td>'+r.trend+'</td><td>'+esc(r.notable||'')+'</td><td>'+esc(r.sector?sectorAr(r.sector):'')+'</td></tr>';}).join('')
-    :'<tr><td colspan="10" class="empty">'+(SC.rows.length?'لا توجد نتائج تطابق التصفية.':'اختر السوق واضغط «ابدأ الفحص».')+'</td></tr>';
+    :'<tr><td colspan="11" class="empty">'+(SC.rows.length?'لا توجد نتائج تطابق التصفية.':'اختر السوق واضغط «ابدأ الفحص».')+'</td></tr>';
 }
 function renderHeat(){
-  const g={};const seg=SC.ex==='SR'?$('#scanSeg').value:'';for(const r of SC.rows){if(r.sector==null||(seg&&r.segment!==seg))continue;const s=sectorAr(r.sector);(g[s]=g[s]||{n:0,chg:0,buy:0});g[s].n++;g[s].chg+=r.chg||0;if(r.stance==='buy')g[s].buy++;}
+  const g={};const seg=SC.ex==='SR'?segChoice():null;for(const r of SC.rows){if(r.sector==null||(seg&&!seg.has(r.segment)))continue;const s=sectorAr(r.sector);(g[s]=g[s]||{n:0,chg:0,buy:0});g[s].n++;g[s].chg+=r.chg||0;if(r.stance==='buy')g[s].buy++;}
   const list=Object.entries(g).map(([s,v])=>({s,n:v.n,chg:v.chg/v.n,buy:v.buy})).sort((a,b)=>b.chg-a.chg);
   if(!list.length){$('#heat').innerHTML='<p class="empty">شغّل الفحص لتظهر خريطة القطاعات.</p>';return;}
   $('#heat').innerHTML=list.map(x=>{const a=Math.min(60,Math.round(Math.abs(x.chg)*100*18));const col=x.chg>=0?'var(--buy)':'var(--sell)';
@@ -201,7 +209,10 @@ function setupWatchViews(){
   $('#reportSend').addEventListener('click',sendReport);
   $('#scanGo').addEventListener('click',runScan);
   $('#scanStop').addEventListener('click',()=>{SC.stop=true;});
-  ['scanStance','scanConf','scanSeg'].forEach(id=>$('#'+id).addEventListener('input',()=>{renderScan();renderHeat();}));
+  ['scanStance','scanConf'].forEach(id=>$('#'+id).addEventListener('input',()=>{renderScan();renderHeat();}));
+  $('#scanSegDD').addEventListener('change',()=>{updateSegLabel();renderScan();renderHeat();});
+  $('#scanSegDD').addEventListener('click',e=>{const b=e.target.closest('[data-dd]');if(!b)return;$$('#scanSegDD input').forEach(i=>i.checked=false);updateSegLabel();renderScan();renderHeat();});
+  document.addEventListener('click',e=>{const d=$('#scanSegDD');if(d.open&&!d.contains(e.target))d.open=false;});
   $('#scanShariaDD').addEventListener('change',()=>{updateShariaLabel();renderScan();renderHeat();});
   $('#scanShariaDD').addEventListener('click',e=>{const b=e.target.closest('[data-dd]');if(!b)return;
     $$('#scanShariaDD input').forEach(i=>i.checked=b.dataset.dd==='ok'&&i.value==='ok');updateShariaLabel();renderScan();renderHeat();});

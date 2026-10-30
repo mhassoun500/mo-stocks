@@ -50,11 +50,13 @@ function render(){
   const shI=S.ex!=='GOLD'&&S.ex!=='FUND'&&S.source!=='sample'?shariaInfo(S.code,S.ex):null,
     shA=!shI&&S.ex==='US'&&S.usSharia&&S.usSharia.status?S.usSharia:null,sb=$('#shariaBadge');
   sb.hidden=!(shI||shA);
-  if(shI){sb.textContent='شرعيًا: '+shI.label;sb.className='badge '+(shI.s==='doubt'?'off':shI.s);sb.title=shI.title||'';}
-  else if(shA){sb.textContent=shA.status==='ok'?'متوافق شرعيًا مبدئيًا':'غير متوافق شرعيًا مبدئيًا';sb.className='badge '+shA.status;
-    sb.title=_t(shA.why)+' — فحص مبدئي لا يشمل نسبة الإيراد غير المباح.';}
+  sb.removeAttribute('title');sb.tabIndex=-1;
+  if(shI){sb.innerHTML='شرعيًا: '+esc(shI.word)+(shI.count?' '+NUM(esc(shI.count)):'')+shariaPopHTML(shI);sb.className='badge sh-tag '+(shI.s==='doubt'?'off':shI.s);sb.tabIndex=0;}
+  else if(shA){sb.innerHTML=(shA.status==='ok'?'متوافق شرعيًا مبدئيًا':'غير متوافق شرعيًا مبدئيًا')+shariaPopHTML({head:'فحص مبدئي تلقائي',note:_t(shA.why)+' — لا يشمل نسبة الإيراد غير المباح.',refs:[]});
+    sb.className='badge sh-tag '+shA.status;sb.tabIndex=0;}
   const seg=S.source!=='sample'&&(S.ex==='SR'||/\.SR$/i.test(S.code))?saSegment(S.code):'',gb=$('#segBadge');
   gb.hidden=!seg;if(seg){gb.textContent=SEG_LABEL[seg];gb.className='badge seg-'+seg;gb.title=SEG_TIP[seg];}
+  if(S.ex==='US'&&S.source!=='sample'&&shI&&shI.spus){gb.hidden=false;gb.textContent='ضمن مؤشر S&P 500 الشرعي';gb.className='badge seg-main';gb.title='من مكونات مؤشر S&P 500 الشرعي (حسب حيازات صندوق SPUS).';}
   const e33=S.ex==='CA'&&S.source!=='sample'&&(egSharia(S.code)||{}).egx33;if(e33){gb.hidden=false;gb.textContent='ضمن مؤشر الشريعة EGX33';gb.className='badge seg-main';gb.title='من مكونات مؤشر الشريعة EGX33 للبورصة المصرية.';}
 
   const st=$('#stance');st.className='stance'+(A.stance==='neutral'?'':' '+A.stance);

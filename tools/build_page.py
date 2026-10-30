@@ -74,6 +74,8 @@ def build():
     eg = open(os.path.join(ROOT, "app", "data", "sharia_eg.json"), encoding="utf-8").read().strip()
     page = (head.rstrip() + "\n\n" + body.rstrip() + '\n\n<script type="application/json" id="sharia-sa">' + sa
             + '</script>\n<script type="application/json" id="sharia-eg">' + eg
+            + '</script>\n<script type="application/json" id="sharia-spus">'
+            + open(os.path.join(ROOT, "app", "data", "spus.json"), encoding="utf-8").read().strip()
             + '</script>\n<script type="application/json" id="sharia-us">' + yq
             + '</script>\n<script type="application/json" id="i18n-data">' + data
             + "</script>\n<script>\n(function(){\n'use strict';\n" + js + "\n})();\n</script>\n")

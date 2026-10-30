@@ -124,27 +124,49 @@ function yaaqenStatus(code){const c=String(code||'').toUpperCase();if(!c||/\.(SR
 const YQ_LABEL={ok:'شرعي (يقين)',no:'غير شرعي (يقين)',doubt:'محل نظر (يقين)'};
 /* Saudi lists (Argaam: Al Rajhi Capital, Dr. Al-Osaimi, Albilad Capital) and Egyptian lists
    (about ten sources aggregated by stocks.templatesnippet.com). Built into the page, refreshed weekly by the app. */
-const SHL={sa:null,eg:null};
-function loadShariaLists(sa,eg){if(sa&&sa.main)SHL.sa=sa;if(eg&&eg.rows)SHL.eg=eg;}
-try{loadShariaLists(JSON.parse($('#sharia-sa').textContent),JSON.parse($('#sharia-eg').textContent));}catch(e){}
+const SHL={sa:null,eg:null,spus:null};
+function loadShariaLists(sa,eg,spus){if(sa&&sa.main)SHL.sa=sa;if(eg&&eg.rows)SHL.eg=eg;if(spus&&spus.tickers)SHL.spus=Object.assign({},spus,{set:new Set(spus.tickers)});}
+try{loadShariaLists(JSON.parse($('#sharia-sa').textContent),JSON.parse($('#sharia-eg').textContent),JSON.parse($('#sharia-spus').textContent));}catch(e){}
 const VMARK={'1':'✔','0':'✘','2':'؟','-':'—'};
+const VWORD={'1':'أجاز','0':'لم يجز','2':'محل نظر','-':'لم يقيّم'};
+const SH_WORD={ok:'متوافق',doubt:'مختلف فيه',no:'غير متوافق'};
+/* every verdict carries: s (ok/doubt/no), word, count ("2/3"), head (source and date) and refs ([name, '1'|'0'|'2'|'-']) */
 function saSharia(code){const c=String(code||'').toUpperCase().replace(/\.SR$/,'');if(!SHL.sa||!/^\d{4}$/.test(c))return null;
   const r=SHL.sa.main[c]||SHL.sa.nomu[c];if(!r)return null;const yes=[...r.v].filter(x=>x==='1').length,n=r.v.length;
   if(!yes&&/^94/.test(c))return null;  /* exchange-traded funds are listed but not rated */
   const s=yes>=2?'ok':yes===1?'doubt':'no';
-  return{s,src:'argaam',label:(s==='ok'?'متوافق ':s==='doubt'?'مختلف فيه ':'غير متوافق ')+yes+'/'+n,
-    title:'حسب أرقام ('+SHL.sa.date+'): '+SHL.sa.refs.map((x,i)=>VMARK[r.v[i]||'-']+' '+x[0]).join(' · ')};}
+  return{s,src:'argaam',word:SH_WORD[s],count:yes+'/'+n,head:'أرقام · '+SHL.sa.date,refs:SHL.sa.refs.map((x,i)=>[x[0],r.v[i]||'-'])};}
 function egSharia(code){const c=String(code||'').toUpperCase().replace(/\.CA$/,'');const r=SHL.eg&&SHL.eg.rows[c];if(!r)return null;
   const votes=[...r.v].slice(1,-1).filter(x=>x!=='-'),yes=votes.filter(x=>x==='1').length,n=votes.length,egx33=r.v[0]==='1';
   const s=!n?null:yes===0?'no':yes/n>=0.5?'ok':'doubt';
-  return{s,src:'eg',egx33,label:s?(s==='ok'?'متوافق ':s==='doubt'?'مختلف فيه ':'غير متوافق ')+yes+'/'+n:'',
-    title:'حسب '+n+' مصادر مصرية ('+SHL.eg.date+'): '+SHL.eg.refs.map((x,i)=>VMARK[r.v[i]||'-']+' '+x).join(' · ')};}
-/* the verdict for one stock: your own pasted list first, then the market's built-in list */
-function shariaInfo(code,ex){const u=shariaStatus(code);if(u)return{s:u,src:'list',label:u==='ok'?'متوافق':'غير متوافق',title:P.sharia.asOf?'حسب قائمتك · '+P.sharia.asOf:'حسب قائمتك في الإعدادات'};
+  return{s,src:'eg',egx33,word:s?SH_WORD[s]:'',count:n?yes+'/'+n:'',head:'مصادر مصرية · '+SHL.eg.date,refs:SHL.eg.refs.map((x,i)=>[x,r.v[i]||'-'])};}
+function usSharia(code){const c=String(code||'').toUpperCase();const y=yaaqenStatus(c),sp=!!(SHL.spus&&SHL.spus.set.has(c));
+  if(!y&&!sp)return null;const s=y||'ok';
+  return{s,src:'us',spus:sp,word:y?YQ_LABEL[y]:'متوافق',count:'',head:'الأسهم الأمريكية',
+    refs:[['موقع يقين',y==='ok'?'1':y==='no'?'0':y==='doubt'?'2':'-'],['مؤشر S&P 500 الشرعي (SPUS)',sp?'1':'-']]};}
+/* the verdict for one stock: your own pasted list first, then the market's built-in lists */
+function shariaInfo(code,ex){const u=shariaStatus(code);
+  if(u)return{s:u,src:'list',word:SH_WORD[u],count:'',head:P.sharia.asOf?'قائمتك · '+P.sharia.asOf:'قائمتك في الإعدادات',refs:[['قائمتك',u==='ok'?'1':'0']]};
   if(ex==='SR'||/\.SR$/i.test(code))return saSharia(code);
   if(ex==='CA'||/\.CA$/i.test(code)){const e=egSharia(code);return e&&e.s?e:null;}
-  if(ex==='US'){const y=yaaqenStatus(code);if(y)return{s:y,src:'yaaqen',label:YQ_LABEL[y],title:'حسب تصنيف موقع يقين · '+YQ.date};}
+  if(ex==='US')return usSharia(code);
   return null;}
+/* a tag with the verdict; hovering it lists every reference and what it said */
+function shariaPopHTML(i){return '<span class="sh-pop" hidden><b class="sh-head">'+esc(i.head||'')+'</b>'+(i.note?'<span class="sh-note">'+esc(i.note)+'</span>':'')+
+  (i.refs&&i.refs.length?'<span class="sh-list">'+i.refs.map(([n,v])=>'<span class="sh-r v'+(v==='-'?'u':v)+'"><i>'+VMARK[v]+'</i><span>'+esc(n)+'</span><em>'+VWORD[v]+'</em></span>').join('')+'</span>':'')+'</span>';}
+function shariaTagHTML(i,cls){if(!i||!i.s)return'';const k=i.s==='ok'||i.s==='auto_ok'?'b':i.s==='doubt'?'in':'x';
+  return '<span class="tag sh-tag '+k+(cls?' '+cls:'')+'" tabindex="0">'+esc(i.word||'')+(i.count?' '+NUM(esc(i.count)):'')+shariaPopHTML(i)+'</span>';}
+function setupShariaPop(){
+  const pop=document.createElement('div');pop.id='shPop';pop.className='sh-float';pop.hidden=true;document.body.appendChild(pop);let cur=null;
+  const show=el=>{const src=el.querySelector('.sh-pop');if(!src)return;cur=el;pop.innerHTML=src.innerHTML;pop.hidden=false;
+    const r=el.getBoundingClientRect(),w=pop.offsetWidth,h=pop.offsetHeight,vw=innerWidth,vh=innerHeight;
+    let x=document.documentElement.dir==='ltr'?r.left:r.right-w;x=Math.max(8,Math.min(x,vw-w-8));let y=r.bottom+6;if(y+h>vh-8)y=Math.max(8,r.top-h-6);
+    pop.style.left=x+'px';pop.style.top=y+'px';};
+  const hide=()=>{cur=null;pop.hidden=true;};
+  document.addEventListener('mouseover',e=>{const el=e.target.closest&&e.target.closest('.sh-tag');if(el&&el!==cur)show(el);else if(!el&&cur)hide();});
+  document.addEventListener('focusin',e=>{const el=e.target.closest&&e.target.closest('.sh-tag');if(el)show(el);});
+  document.addEventListener('focusout',hide);window.addEventListener('scroll',hide,{passive:true});
+  document.addEventListener('click',e=>{const el=e.target.closest&&e.target.closest('.sh-tag');if(el){e.stopPropagation();if(cur===el)hide();else show(el);}},true);}
 
 /* ---------- markets ---------- */
 const EX={SR:{tv:'TADAWUL',ph:'مثال: 1120 أو 2222',idx:'مؤشر تاسي',region:'SR'},CA:{tv:'EGX',ph:'مثال: COMI أو TMGH',idx:'مؤشر إي جي إكس 30',region:'CA'},

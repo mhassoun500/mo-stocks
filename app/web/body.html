@@ -331,7 +331,16 @@
       <div class="panel-head"><h2>ماسح السوق</h2><span class="muted small" id="scanMeta"></span></div>
       <div class="form-grid">
         <label class="field" for="scanEx"><span>السوق</span><select id="scanEx"><option value="SR">السعودية — تداول</option><option value="CA">مصر — البورصة المصرية</option><option value="US100">أمريكا — أكبر 100 شركة</option><option value="US500">أمريكا — أكبر 500 شركة</option><option value="US1000">أمريكا — أكبر 1000 شركة</option><option value="UScap300">أمريكا — أكبر من 300 مليون دولار (≈3000)</option><option value="USall">أمريكا — كل الأسهم (≈5000، نحو 15 دقيقة)</option></select></label>
-        <label class="field" for="scanSeg" id="scanSegField"><span>السوق السعودي</span><select id="scanSeg"><option value="">الرئيسية ونمو</option><option value="main">السوق الرئيسية فقط</option><option value="nomu">نمو (السوق الموازية) فقط</option><option value="reit">صناديق الريت فقط</option></select></label>
+        <div class="field" id="scanSegField"><span>السوق السعودي</span>
+          <details class="dd" id="scanSegDD"><summary class="dd-btn"><span id="scanSegLbl">الكل</span></summary>
+            <div class="dd-menu" role="group" aria-label="السوق السعودي">
+              <label><input type="checkbox" value="main"><span>السوق الرئيسية</span></label>
+              <label><input type="checkbox" value="nomu"><span>نمو (السوق الموازية)</span></label>
+              <label><input type="checkbox" value="reit"><span>صناديق الريت</span></label>
+              <div class="dd-actions"><button class="btn xs ghost" type="button" data-dd="clear">مسح الاختيار</button></div>
+            </div>
+          </details>
+        </div>
         <label class="field" for="scanStance"><span>الحكم</span><select id="scanStance"><option value="">الكل</option><option value="buy">منطقة شراء</option><option value="sell">منطقة بيع</option><option value="neutral">انتظار</option></select></label>
         <label class="field" for="scanConf"><span>أدنى ثقة %</span><input id="scanConf" type="number" min="0" max="100" step="5" value="0"></label>
         <div class="field" id="scanShariaField"><span>التوافق الشرعي</span>
@@ -362,6 +371,7 @@
         <table id="scanTable">
           <thead><tr>
             <th><button type="button" data-sort="name">الشركة</button></th>
+            <th><button type="button" data-sort="shN" data-dir="desc">الشرعية</button></th>
             <th><button type="button" data-sort="price">السعر</button></th>
             <th><button type="button" data-sort="chg">تغير اليوم</button></th>
             <th><button type="button" data-sort="stanceN">الحكم</button></th>
@@ -372,7 +382,7 @@
             <th>إشارة بارزة</th>
             <th><button type="button" data-sort="sector">القطاع</button></th>
           </tr></thead>
-          <tbody id="scanBody"><tr><td colspan="10" class="empty">اختر السوق واضغط «ابدأ الفحص». يستغرق فحص السوق السعودي أو المصري دقيقة تقريبًا، وأكبر 500 شركة أمريكية دقيقتين.</td></tr></tbody>
+          <tbody id="scanBody"><tr><td colspan="11" class="empty">اختر السوق واضغط «ابدأ الفحص». يستغرق فحص السوق السعودي أو المصري دقيقة تقريبًا، وأكبر 500 شركة أمريكية دقيقتين.</td></tr></tbody>
         </table>
       </div>
     </section>
