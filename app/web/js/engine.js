@@ -270,10 +270,12 @@ function analyzeCore(D,I,o){
   else if(sell&&sell.inside)notable='داخل منطقة البيع';
   else if(pats.length)notable=pats[0].name;
 
-  let hi=-Infinity,lo=Infinity,vs=0;for(let i=start;i<N;i++){hi=Math.max(hi,D[i].h);lo=Math.min(lo,D[i].l);vs+=D[i].v||0;}
-  const base=start>0?D[start-1].c:D[start].o;
+  /* period figures cover what the user chose to view (a month can be shorter than the analysis window) */
+  const pv=o.view>0&&o.view<span?o.view:span,ps=N-pv;
+  let hi=-Infinity,lo=Infinity,vs=0;for(let i=ps;i<N;i++){hi=Math.max(hi,D[i].h);lo=Math.min(lo,D[i].l);vs+=D[i].v||0;}
+  const base=ps>0?D[ps-1].c:D[ps].o;
   return Object.assign(A,{sig,brk,tl,pats,gaps,stance,score,bull,dirStrength,reasons,trend,trendN,trendSub,rsi:r,notable,
-    perf:{ret:close/base-1,hi,lo,atrp:atrv/close,avgV:vs/span,days:span}});
+    perf:{ret:close/base-1,hi,lo,atrp:atrv/close,avgV:vs/pv,days:pv}});
 }
 
 /* walk-forward backtest on this asset's own history */

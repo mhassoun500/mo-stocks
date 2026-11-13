@@ -2,7 +2,7 @@
 const S={ex:'SR',code:'',name:'',source:'sample',fileName:'',meta:null,daily:null,hourly:null,data:[],ind:null,A:null,bt:null,
   tf:'D',range:{D:250,W:104,H:150},show:{zones:true,ma:true,bb:false,trend:true,pat:true,sig:true,vol:true,vp:false,gaps:true,events:true,cmp:false,fib:false,fair:true},
   pane:'rsi',sens:5,zoneCount:6,profile:null,cmp:null,cmpRaw:null,cmpLabel:'',drawings:[],confText:'',calcAuto:true,loadSeq:0};
-const RANGE_PRESETS={D:[['٣ أشهر',63],['٦ أشهر',126],['سنة',250],['الكل',0]],W:[['٦ أشهر',26],['سنة',52],['سنتان',104],['الكل',0]],H:[['أسبوع',35],['أسبوعان',70],['شهر',150],['الكل',0]]};
+const RANGE_PRESETS={D:[['شهر',21],['٣ أشهر',63],['٦ أشهر',126],['سنة',250],['الكل',0]],W:[['٣ أشهر',13],['٦ أشهر',26],['سنة',52],['سنتان',104],['الكل',0]],H:[['أسبوع',35],['أسبوعان',70],['شهر',150],['الكل',0]]};
 
 function setStatus(msg,err){const s=$('#status');s.textContent=msg||'';s.className='status'+(err?' err':'');}
 const isGold=()=>$('#ex').value==='GOLD';
@@ -29,7 +29,9 @@ function analyzeNow(reset){
   if(S.tf==='D'&&S.daily.length>=60){const w=aggregateWeekly(S.daily);if(w.length>=30){const Aw=analyzeCore(w,computeInd(w),{span:Math.min(w.length,104),sens:3,zoneCount:6,lite:true});htf=Aw&&Aw.zones;}}
   else if(S.tf==='H'&&S.daily&&S.daily.length>=30){const Ad=analyzeCore(S.daily,computeInd(S.daily),{span:Math.min(S.daily.length,250),sens:S.sens,zoneCount:6,lite:true});htf=Ad&&Ad.zones;}
   const r=S.range[S.tf];
-  S.A=analyzeCore(D,S.ind,{span:r>0?Math.min(r,D.length):D.length,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult,htf,noGaps:S.isFund});
+  /* short views still analyse at least 3 months (60 daily / 26 weekly bars) so zones stay meaningful */
+  const minSpan=S.tf==='W'?26:S.tf==='H'?35:63;
+  S.A=analyzeCore(D,S.ind,{span:r>0?Math.min(Math.max(r,minSpan),D.length):D.length,view:r>0?r:0,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult,htf,noGaps:S.isFund});
   S.bt=null;
   if(reset)resetView();
   render();

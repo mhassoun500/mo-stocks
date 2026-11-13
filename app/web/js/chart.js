@@ -14,8 +14,8 @@ function rrect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,
 function idxAtTime(t){const D=S.data;let lo=0,hi=D.length-1;if(!D.length)return -1;if(t<=D[0].t)return 0;if(t>=D[hi].t)return hi;
   while(hi-lo>1){const m=(lo+hi)>>1;if(D[m].t<=t)lo=m;else hi=m;}return lo;}
 
-function resetView(){const N=S.data.length;CH.to=N;CH.from=Math.max(0,N-(S.A?S.A.span:Math.min(N,250)));}
-function zoomBy(f,center){const N=S.data.length,n=CH.to-CH.from;const nn=clamp(Math.round(n*f),20,N);
+function resetView(){const N=S.data.length,r=S.range[S.tf];CH.to=N;CH.from=Math.max(0,N-(r>0?Math.min(r,N):S.A?S.A.span:Math.min(N,250)));}
+function zoomBy(f,center){const N=S.data.length,n=CH.to-CH.from;const nn=clamp(Math.round(n*f),Math.min(12,N),N);
   const c=center!=null&&center>=0?center:CH.from+n/2;const ratio=(c-CH.from)/n;const from=clamp(Math.round(c-ratio*nn),0,N-nn);
   CH.from=from;CH.to=from+nn;draw();}
 
@@ -36,7 +36,7 @@ function draw(){
   const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   canvasFonts();
   const A=S.A;if(!A||!S.data.length)return;const C=colors(),D=S.data,I=S.ind,show=S.show;
-  CH.to=clamp(CH.to,Math.min(20,D.length),D.length);CH.from=clamp(CH.from,0,CH.to-Math.min(20,D.length));
+  CH.to=clamp(CH.to,Math.min(12,D.length),D.length);CH.from=clamp(CH.from,0,CH.to-Math.min(12,D.length));
   const narrow=W<560;
   const padL=6,padR=narrow?56:68,padT=8,padB=24;
   const plotW=W-padL-padR,totalH=H-padT-padB;
@@ -229,7 +229,8 @@ function setupChartInteraction(){
   const endDrag=()=>{CH.drag=null;box.classList.remove('panning');};
   box.addEventListener('pointerup',endDrag);box.addEventListener('pointercancel',endDrag);
   box.addEventListener('pointerleave',()=>{if(CH.drag)return;CH.hover=-1;CH.hy=null;updateReadout(S.data.length-1);draw();});
-  box.addEventListener('wheel',e=>{if(!CH.L||!(LOCAL||e.ctrlKey))return;e.preventDefault();zoomBy(e.deltaY>0?1.15:0.87,CH.hover);},{passive:false});
+  box.addEventListener('wheel',e=>{if(!CH.L||!(e.ctrlKey||e.metaKey))return;  /* plain wheel scrolls the page; Ctrl+wheel or a trackpad pinch zooms */
+  e.preventDefault();zoomBy(e.deltaY>0?1.15:0.87,CH.hover);},{passive:false});
   box.addEventListener('dblclick',()=>{resetView();draw();});
   $('#zoomIn').addEventListener('click',()=>zoomBy(0.75));
   $('#zoomOut').addEventListener('click',()=>zoomBy(1.35));
