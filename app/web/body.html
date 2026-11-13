@@ -150,13 +150,24 @@
       <p class="edu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
       <div class="plan-grid">
         <div class="fair" id="fairBox"></div>
-        <div class="ai-box local-only" id="aiBox">
-          <div class="ai-head"><b>رأي Claude</b><span class="muted small" id="aiMeta"></span></div>
-          <div id="aiSetup" class="muted small" hidden>اربط حسابك في Claude من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع Claude</a> ليكتب تحليلًا مفصلًا لهذا السهم يجمع الأرقام الفنية والمالية وآخر الأخبار.</div>
-          <div id="aiControls" class="ai-controls" hidden>
-            <input id="aiQ" type="text" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
-            <label class="chip"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
-            <button class="btn sm primary" id="aiRun" type="button">حلّل مع Claude</button>
+        <div class="ai-box" id="aiBox">
+          <div class="ai-head"><b>رأي الذكاء الاصطناعي</b><span class="muted small" id="aiMeta"></span></div>
+          <input id="aiQ" type="text" class="ai-q" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
+          <div class="ai-way local-only">
+            <span class="ai-way-h">١. تحليل مباشر داخل البرنامج بمفتاحك</span>
+            <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
+            <div id="aiControls" class="ai-controls" hidden>
+              <select id="aiProv" aria-label="المساعد"></select>
+              <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
+              <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
+            </div>
+          </div>
+          <div class="ai-way">
+            <span class="ai-way-h"><span class="local-only">٢. </span>أو انسخ البرومبت والصقه في المساعد الذي تشترك فيه</span>
+            <div class="ai-controls"><button class="btn sm" id="aiCopy" type="button">نسخ البرومبت</button><span class="muted small">أو افتح مباشرة (يُنسخ تلقائيًا):</span></div>
+            <div class="ai-sites" id="aiSites"></div>
+            <p class="status" id="aiCopyNote" hidden></p>
+            <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
           </div>
           <div class="ai-out" id="aiOut" hidden></div>
         </div>
@@ -536,30 +547,37 @@
         <p class="small muted">موقع <bdi>Investing.com</bdi> يحجب أي جلب آلي لبياناته بحماية <bdi>Cloudflare</bdi> حتى مع تسجيل الدخول، لذلك لا يمكن ربطه بالبرنامج.</p>
       </section>
 
-      <section class="card panel local-only" id="claudePanel">
-        <h2>الربط مع <bdi>Claude</bdi> (اختياري)</h2>
-        <p class="small muted">عند الربط يظهر زر «حلّل مع <bdi>Claude</bdi>» في صفحة التحليل: يرسل البرنامج أرقام السهم (السعر والمناطق والأهداف والمؤشرات والبيانات المالية والحكم الشرعي) إلى <bdi>Claude</bdi>، فيكتب رأيًا ثانيًا مفصلًا، ويمكنه البحث في آخر الأخبار.</p>
-        <div class="tv-acct"><span class="tv-dot" id="clDot"></span><span id="clState">جارٍ التحقق…</span></div>
+      <section class="card panel local-only" id="aiPanel">
+        <h2>الربط مع مساعدي الذكاء الاصطناعي (اختياري)</h2>
+        <p class="small muted">عند ربط مساعد يظهر زر «حلّل الآن» في صفحة التحليل: يرسل البرنامج أرقام السهم (السعر والمناطق والأهداف والمؤشرات والبيانات المالية والحكم الشرعي) إلى المساعد، فيكتب رأيًا ثانيًا مفصلًا. يمكنك ربط أكثر من مساعد والاختيار بينها عند التحليل.</p>
+        <p class="small muted">بدون أي مفتاح: استخدم زر «نسخ البرومبت» في صفحة التحليل، والصقه في <bdi>claude.ai</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> باشتراكك العادي.</p>
+        <div class="ai-conn" id="aiConnList"></div>
         <div class="form-grid">
-          <label class="field wide" for="clKey"><span>مفتاح <bdi>API</bdi></span><input id="clKey" type="password" class="ltr" autocomplete="off" placeholder="sk-ant-api03-…"></label>
-          <label class="field" for="clModel"><span>النموذج</span><select id="clModel" data-pref="claude.model">
-            <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — متوازن (موصى به)</option>
-            <option value="claude-opus-5-5">Claude Opus 5.5 — الأدق والأعلى تكلفة</option>
-            <option value="claude-haiku-5-5">Claude Haiku 5.5 — الأسرع والأرخص</option></select></label>
-          <label class="field" for="clWebPref"><span>البحث في الأخبار</span><select id="clWebPref"><option value="1">مفعّل افتراضيًا</option><option value="0">متوقف افتراضيًا</option></select></label>
+          <label class="field" for="aiPSel"><span>المساعد</span><select id="aiPSel">
+            <option value="claude">Claude — Anthropic</option><option value="openai">ChatGPT — OpenAI</option><option value="gemini">Gemini — Google</option>
+            <option value="grok">Grok — xAI</option><option value="custom">خدمة أخرى متوافقة مع OpenAI (DeepSeek، OpenRouter، Ollama…)</option></select></label>
+          <label class="field" for="aiPWeb"><span>البحث في الأخبار</span><select id="aiPWeb"><option value="1">مفعّل افتراضيًا</option><option value="0">متوقف افتراضيًا</option></select></label>
         </div>
-        <div class="actions"><button class="btn sm" id="clSave" type="button">حفظ المفتاح واختبار الاتصال</button><button class="btn sm ghost" id="clTest" type="button" hidden>اختبار الاتصال</button><button class="btn sm ghost" id="clDelete" type="button" hidden>حذف المفتاح</button></div>
-        <p class="status" id="clStatus"></p>
+        <div class="tv-acct"><span class="tv-dot" id="aiPDot"></span><span id="aiPState">جارٍ التحقق…</span></div>
+        <div class="form-grid">
+          <label class="field wide" for="aiBase" id="aiBaseRow" hidden><span>عنوان الخدمة <bdi>Base URL</bdi></span><input id="aiBase" type="text" class="ltr" placeholder="https://api.deepseek.com/v1"></label>
+          <label class="field" for="aiKey"><span>مفتاح <bdi>API</bdi></span><input id="aiKey" type="password" class="ltr" autocomplete="off"></label>
+          <label class="field" for="aiModel"><span>النموذج</span><input id="aiModel" type="text" class="ltr" list="aiModelList" placeholder="يُختار تلقائيًا"><datalist id="aiModelList"></datalist></label>
+        </div>
+        <p class="small muted" id="aiWebNote"></p>
+        <div class="actions"><button class="btn sm" id="aiPSave" type="button">حفظ المفتاح واختبار الاتصال</button><button class="btn sm ghost" id="aiModelsBtn" type="button" hidden>تحديث قائمة النماذج</button><button class="btn sm ghost" id="aiPTest" type="button" hidden>اختبار الاتصال</button><button class="btn sm ghost" id="aiPDelete" type="button" hidden>حذف المفتاح</button></div>
+        <p class="status" id="aiPStatus"></p>
+        <p class="small"><a href="#" id="aiKeyLink">احصل على مفتاح</a></p>
         <details class="tv-manual">
-          <summary>كيف أحصل على المفتاح؟</summary>
-          <ol class="small muted" style="margin:6px 0;padding-inline-start:18px">
-            <li>افتح <a href="https://console.anthropic.com/settings/keys" class="ext" target="_blank" rel="noopener"><bdi>console.anthropic.com</bdi></a> وسجّل الدخول (أو أنشئ حسابًا).</li>
-            <li>من <bdi>Billing</bdi> اشحن رصيدًا صغيرًا، مثل 5 دولارات.</li>
-            <li>من <bdi>API Keys</bdi> اضغط <bdi>Create Key</bdi>، وانسخ المفتاح الذي يبدأ بـ <code>sk-ant-</code> والصقه هنا.</li>
-          </ol>
-          <p class="small muted">اشتراك <bdi>Claude Pro</bdi> أو <bdi>Max</bdi> في موقع <bdi>claude.ai</bdi> منفصل عن رصيد <bdi>API</bdi> ولا يمكن استخدامه داخل البرامج الأخرى. تكلفة التحليل الواحد عادة سنتات قليلة، وتزيد قليلًا مع البحث في الأخبار ومع نموذج <bdi>Opus</bdi>.</p>
+          <summary>ملاحظات عن المفاتيح والتكلفة</summary>
+          <ul class="small muted" style="margin:6px 0;padding-inline-start:18px">
+            <li>اشتراكات المواقع (<bdi>Claude Pro</bdi>، <bdi>ChatGPT Plus</bdi>، <bdi>Gemini Advanced</bdi>، <bdi>SuperGrok</bdi>) منفصلة عن مفاتيح <bdi>API</bdi> ولا تعمل داخل البرامج الأخرى؛ لها زر «نسخ البرومبت».</li>
+            <li>مفاتيح <bdi>API</bdi> تُدفع حسب الاستخدام برصيد تشحنه من موقع الشركة، والتحليل الواحد عادة سنتات قليلة.</li>
+            <li><bdi>Gemini</bdi> من <bdi>Google AI Studio</bdi> له حد استخدام مجاني يكفي لعدة تحليلات يوميًا.</li>
+            <li>البحث في الأخبار عبر الربط المباشر متاح مع <bdi>Claude</bdi> و<bdi>Gemini</bdi>.</li>
+          </ul>
         </details>
-        <p class="small muted">يُحفظ المفتاح مشفّرًا بنظام التشغيل على جهازك فقط، ولا يُرسل إلا إلى <bdi>api.anthropic.com</bdi>. لا يرسل البرنامج أي بيانات إلى <bdi>Claude</bdi> إلا عند ضغطك الزر.</p>
+        <p class="small muted">تُحفظ المفاتيح مشفّرة بنظام التشغيل على جهازك فقط، ولا يُرسل كل مفتاح إلا إلى شركته. لا يرسل البرنامج أي بيانات إلا عند ضغطك الزر.</p>
       </section>
 
       <section class="card panel local-only">

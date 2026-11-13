@@ -52,7 +52,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import funds  # noqa: E402  Egyptian mutual funds (Mubasher)
 import tvdata  # noqa: E402  TradingView data feed and account session
-import claude_ai
+import ai_providers
 import sharia  # noqa: E402  Saudi (Argaam) and Egyptian Sharia lists
 
 APP_NAME = "Mo Stocks"
@@ -428,7 +428,7 @@ TV_PREFIX = {"SR": "TADAWUL", "CA": "EGX"}
 TV_INDEX = {"^TASI.SR": "TADAWUL:TASI", "^CASE30": "EGX:EGX30", "^GSPC": "SP:SPX", "DX-Y.NYB": "TVC:DXY"}
 TV_METAL = {"GC=F": "TVC:GOLD", "SI=F": "TVC:SILVER", "SAR=X": "FX_IDC:USDSAR", "EGP=X": "FX_IDC:USDEGP"}
 ACCOUNT = tvdata.Account(os.path.join(DATA_DIR, "tv_session.bin"))
-CLAUDE = claude_ai.Claude(os.path.join(DATA_DIR, "claude_key.bin"))
+AI = ai_providers.AIHub(DATA_DIR)
 
 
 def prefer_tv():
@@ -1875,8 +1875,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(tv_account_status())
             if p == "/api/fundamentals":
                 return self._json(get_fundamentals(q.get("code", ""), q.get("ex", "SR")))
-            if p == "/api/claude":
-                return self._json(dict(CLAUDE.status(), ok=True))
+            if p == "/api/ai":
+                return self._json(AI.status())
             if p == "/api/update":
                 return self._json(check_update())
             if p == "/api/open":
@@ -1937,18 +1937,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "enabled": autostart_set(bool(b.get("enabled")))})
             if p == "/api/tvaccount":
                 return self._json(tv_account_action(b))
-            if p == "/api/claude":
-                act = b.get("action")
+            if p == "/api/ai":
+                act, prov = b.get("action"), b.get("provider") or "claude"
                 if act == "save":
-                    return self._json(CLAUDE.save(b.get("key")))
+                    return self._json(AI.save(prov, b.get("key")))
                 if act == "delete":
-                    return self._json(CLAUDE.delete())
+                    return self._json(AI.delete(prov))
+                if act == "models":
+                    return self._json(AI.models(prov, b.get("key") or None, b.get("base")))
                 if act == "test":
-                    return self._json(CLAUDE.test(b.get("model"), b.get("key") or None))
-                if act == "analyze":
-                    log("  claude analyze %s" % ((b.get("payload") or {}).get("symbol") or ""))
-                    return self._json(CLAUDE.analyze(b.get("payload") or {}, b.get("model"), bool(b.get("web")),
-                                                     b.get("lang") or "ar", b.get("question") or ""))
+                    return self._json(AI.test(prov, b.get("model"), b.get("key") or None, b.get("base")))
+                if act == "ask":
+                    log("  ai %s %s" % (prov, b.get("model") or ""))
+                    return self._json(AI.ask(prov, b.get("model"), str(b.get("system") or "")[:8000],
+                                             str(b.get("user") or "")[:60000], bool(b.get("web")), base=b.get("base")))
                 return self._json({"ok": False, "error": "إجراء غير معروف."})
             if p == "/api/save":
                 path = save_file(b.get("filename"), b.get("dataUrl"), b.get("text"))

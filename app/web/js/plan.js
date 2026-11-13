@@ -71,19 +71,60 @@ async function loadFundamentals(seq){
   S.fund=r&&r.ok?r:null;S.fv=fairValue(S.fund);renderPlan();draw();
 }
 
-/* ---------- Claude ---------- */
+/* ---------- AI assistants: direct link by API key, or a prompt to paste into any chat ---------- */
+const AI_SITES=[['Claude','https://claude.ai/new'],['ChatGPT','https://chatgpt.com/'],['Gemini','https://gemini.google.com/app'],['Grok','https://grok.com/'],
+  ['DeepSeek','https://chat.deepseek.com/'],['Copilot','https://copilot.microsoft.com/'],['Perplexity','https://www.perplexity.ai/']];
 const AI={status:null};
-async function loadClaudeStatus(){if(!LOCAL)return null;AI.status=await api('/api/claude').catch(()=>null);return AI.status;}
+const AI_SYS_AR=`أنت محلل أسهم خبير. تصلك بيانات سهم واحد محسوبة آليًا من برنامج «Mo Stocks»: السعر، مناطق الدعم والمقاومة، خطة التداول (الدخول والوقف والأهداف الثلاثة)، المؤشرات الفنية، النماذج، بيانات الشركة المالية، تقديرات السعر العادل، وحكم التوافق الشرعي.
+المطلوب: رأي ثانٍ مستقل ومختصر بالعربية الفصحى البسيطة، مرتب بهذه العناوين بالضبط (كل عنوان في سطر يبدأ بـ ## ):
+## الخلاصة
+جملتان: الوضع الآن، وما الأنسب لمن لا يملك السهم ولمن يملكه.
+## الوضع الفني
+## القيمة والأساسيات
+## خطة التداول
+اذكر الدخول والوقف والأهداف الثلاثة بالأرقام، وعدّلها إن رأيت أن الحساب الآلي أخطأ مع ذكر السبب.
+## المخاطر
+## ما يجب مراقبته
+قواعد: اعتمد على الأرقام المرسلة ولا تخترع أرقامًا. إذا بحثت في الإنترنت فاذكر الخبر وتاريخه باختصار. استخدم نقاطًا قصيرة تبدأ بـ - . لا تزد عن 400 كلمة.
+اختم بسطر واحد: «هذا رأي تحليلي وليس توصية استثمارية.»`;
+const AI_SYS_EN=`You are an expert equity analyst. You receive machine-computed data for one stock from the "Mo Stocks" app: price, support/resistance zones, the trading plan (entry, stop and three targets), technical indicators, chart patterns, company financials, fair-value estimates and the Sharia-compliance verdict.
+Give an independent, concise second opinion in plain English under exactly these headings (each on its own line starting with ## ):
+## Summary
+Two sentences: where it stands now, and what suits someone who doesn't own it and someone who does.
+## Technical picture
+## Value and fundamentals
+## Trading plan
+Give entry, stop and the three targets as numbers; adjust them if you think the machine got them wrong, and say why.
+## Risks
+## What to watch
+Rules: rely on the numbers given and never invent figures. If you search the web, cite the news item and its date briefly. Use short bullets starting with - . At most 400 words.
+End with one line: "This is analysis, not investment advice."`;
+function buildPrompt(forChat){
+  const en=LANG==='en',q=($('#aiQ')&&$('#aiQ').value||'').trim(),web=forChat||$('#aiWeb').checked;
+  let user=(en?'Analyse this stock. Data from the app (JSON):\n':'حلّل هذا السهم. بيانات البرنامج (JSON):\n')+JSON.stringify(aiPayload());
+  if(web)user+=en?'\n\nSearch the web for the latest news, results and analyst views on this company before you answer.':'\n\nابحث في الإنترنت عن آخر أخبار الشركة ونتائجها وآراء المحللين قبل أن تجيب.';
+  if(q)user+=(en?'\n\nThe user also asks: ':'\n\nويسأل المستخدم أيضًا: ')+q;
+  return{system:en?AI_SYS_EN:AI_SYS_AR,user};
+}
+function promptText(){const p=buildPrompt(true);return p.system+'\n\n---\n\n'+p.user;}
+async function copyText(t){
+  try{await navigator.clipboard.writeText(t);return true;}catch(e){}
+  try{const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();const ok=document.execCommand('copy');ta.remove();return ok;}catch(e){return false;}
+}
+const aiConnected=()=>AI.status?Object.entries(AI.status.providers).filter(([k,v])=>v.hasKey):[];
+async function loadAiStatus(){if(!LOCAL)return null;AI.status=await api('/api/ai').catch(()=>null);return AI.status;}
 function renderAiBox(){
-  if(!LOCAL)return;const has=AI.status&&AI.status.hasKey;
-  $('#aiSetup').hidden=!!has;$('#aiControls').hidden=!has;
-  const c=S.ai&&S.ai.code===S.code&&S.ai.ex===S.ex?S.ai:null,out=$('#aiOut');
-  if(!c){out.hidden=true;$('#aiMeta').textContent=has?(P.claude.model||AI.status.defaultModel):'';return;}
+  const conn=aiConnected(),c=S.ai&&S.ai.code===S.code&&S.ai.ex===S.ex?S.ai:null,out=$('#aiOut');
+  if(LOCAL){$('#aiSetup').hidden=conn.length>0;$('#aiControls').hidden=!conn.length;
+    const sel=$('#aiProv'),cur=conn.some(([k])=>k===P.ai.provider)?P.ai.provider:(conn[0]||[''])[0];
+    sel.innerHTML=conn.map(([k,v])=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+esc(v.name)+'</option>').join('');
+    const pv=conn.find(([k])=>k===cur);const canWeb=!!(pv&&pv[1].web);$('#aiWeb').disabled=!canWeb;$('#aiWebLbl').title=canWeb?'':_t('البحث في الأخبار متاح مع Claude وGemini فقط');}
+  if(!c){out.hidden=true;$('#aiMeta').textContent='';return;}
   out.hidden=false;
-  if(c.busy){out.innerHTML='<p class="muted">Claude يقرأ بيانات السهم'+($('#aiWeb').checked?' ويبحث في الأخبار':'')+'… قد يستغرق ذلك نصف دقيقة.</p>';return;}
+  if(c.busy){out.innerHTML='<p class="muted">'+esc(c.name||'')+' '+_t('يقرأ بيانات السهم… قد يستغرق ذلك نصف دقيقة.')+'</p>';return;}
   if(!c.ok){out.innerHTML='<p class="err">'+esc(c.error)+'</p>';return;}
-  out.innerHTML=mdLite(c.text);
-  $('#aiMeta').innerHTML=esc(c.model)+(c.searches?' · '+NUM(c.searches)+' بحث':'')+(c.noWeb?' · بدون بحث (غير مفعّل في حسابك)':'')+' · '+NUM(esc(c.at));
+  out.innerHTML=mdLite(c.text||_t('لا يوجد رد.'));
+  $('#aiMeta').innerHTML='<bdi>'+esc(c.name)+' · '+esc(c.model||'')+'</bdi>'+(c.searches?' · '+NUM(c.searches)+' بحث':'')+(c.noWeb?' · بدون بحث (غير مفعّل في حسابك)':'')+' · '+NUM(esc(c.at));
 }
 /* small, safe markdown: ## headings, - bullets, **bold** */
 function mdLite(t){
@@ -117,45 +158,80 @@ function aiPayload(){
     sharia:sh?{verdict:sh.s,count:sh.count||null,references:(sh.refs||[]).map(x=>x[0]+': '+x[1])}:null,
     last60Closes:last};
 }
-async function runClaude(){
-  if(!S.A)return;const code=S.code,ex=S.ex;S.ai={code,ex,busy:true};renderAiBox();$('#aiRun').disabled=true;
-  try{const r=await apiPost('/api/claude',{action:'analyze',payload:aiPayload(),model:P.claude.model||'',web:$('#aiWeb').checked,lang:LANG==='en'?'en':'ar',question:$('#aiQ').value});
+async function runAi(){
+  if(!S.A)return;const prov=$('#aiProv').value;if(!prov)return;const st=AI.status.providers[prov];
+  const code=S.code,ex=S.ex,pr=buildPrompt(false);S.ai={code,ex,busy:true,name:st.name};renderAiBox();$('#aiRun').disabled=true;
+  try{const r=await apiPost('/api/ai',{action:'ask',provider:prov,model:(P.ai.models||{})[prov]||'',base:prov==='custom'?P.ai.base:'',web:$('#aiWeb').checked&&st.web,system:pr.system,user:pr.user});
     if(S.code!==code||S.ex!==ex)return;
-    S.ai=Object.assign({code,ex,at:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})},r||{ok:false,error:'لا يوجد رد.'});}
+    S.ai=Object.assign({code,ex,name:st.name,at:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})},r||{ok:false,error:'لا يوجد رد.'});}
   catch(e){S.ai={code,ex,ok:false,error:'تعذّر الاتصال بالبرنامج.'};}
   finally{$('#aiRun').disabled=false;renderAiBox();}
 }
+function openExt(url){if(LOCAL)api('/api/open',{url}).catch(()=>{});else{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();}}
 function setupPlan(){
+  /* copy-a-prompt works everywhere, even without the installed app */
+  $('#aiSites').innerHTML=AI_SITES.map(([n,u])=>'<a class="btn xs ghost" href="'+u+'" target="_blank" rel="noopener" data-site="'+n+'"><bdi>'+n+'</bdi></a>').join('');
+  const flash=t=>{const el=$('#aiCopyNote');el.textContent=t;el.hidden=false;clearTimeout(flash.t);flash.t=setTimeout(()=>{el.hidden=true;},6000);};
+  $('#aiCopy').addEventListener('click',async()=>{if(!S.A)return;const t=promptText();$('#aiPrompt').value=t;flash(await copyText(t)?_t('نُسخ البرومبت. افتح موقع المساعد والصقه (Ctrl+V).'):_t('تعذّر النسخ التلقائي؛ افتح «عرض البرومبت» وانسخه يدويًا.'));});
+  $('#aiSites').addEventListener('click',async e=>{const a=e.target.closest('a[data-site]');if(!a||!S.A)return;e.preventDefault();const t=promptText();$('#aiPrompt').value=t;
+    const ok=await copyText(t);openExt(a.href);flash(ok?_t('نُسخ البرومبت. الصقه في صفحة المساعد التي فُتحت (Ctrl+V).'):_t('تعذّر النسخ التلقائي؛ افتح «عرض البرومبت» وانسخه يدويًا.'));});
+  $('#aiShow').addEventListener('toggle',()=>{if($('#aiShow').open&&S.A)$('#aiPrompt').value=promptText();});
   if(!LOCAL)return;
-  setupClaudePrefs();
-  $('#aiRun').addEventListener('click',runClaude);
-  $('#aiQ').addEventListener('keydown',e=>{if(e.key==='Enter')runClaude();});
-  $('#aiGoSettings').addEventListener('click',e=>{e.preventDefault();location.hash='#prefs';setTimeout(()=>{const el=$('#claudePanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);});
-  try{$('#aiWeb').checked=P.claude.web!==false;}catch(e){}
-  $('#aiWeb').addEventListener('change',()=>{P.claude.web=$('#aiWeb').checked;savePrefs();});
-  loadClaudeStatus().then(()=>{renderAiBox();renderClaudeState();});
+  setupAiPrefs();
+  $('#aiRun').addEventListener('click',runAi);
+  $('#aiQ').addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('#aiControls').hidden)runAi();});
+  $('#aiProv').addEventListener('change',()=>{P.ai.provider=$('#aiProv').value;savePrefs();renderAiBox();});
+  $('#aiGoSettings').addEventListener('click',e=>{e.preventDefault();location.hash='#prefs';setTimeout(()=>{const el=$('#aiPanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);});
+  $('#aiWeb').checked=P.ai.web!==false;
+  $('#aiWeb').addEventListener('change',()=>{P.ai.web=$('#aiWeb').checked;savePrefs();});
+  loadAiStatus().then(()=>{renderAiBox();renderAiPrefs();});
 }
 
 /* settings panel */
-function renderClaudeState(){
-  const st=AI.status,dot=$('#clDot'),tx=$('#clState');if(!dot)return;
-  if(!st){dot.className='tv-dot warn';tx.textContent='تعذّر قراءة حالة الربط.';return;}
-  dot.className='tv-dot'+(st.hasKey?' ok':'');
-  tx.innerHTML=st.hasKey?'مربوط بمفتاح ينتهي بـ <bdi>'+esc(st.hint)+'</bdi>'+(st.storage==='dpapi'?' · محفوظ بتشفير ويندوز':st.storage==='keychain'?' · محفوظ في سلسلة مفاتيح ماك':''):'غير مربوط';
-  $('#clTest').hidden=!st.hasKey;$('#clDelete').hidden=!st.hasKey;$('#clSave').textContent=st.hasKey?'استبدال المفتاح':'حفظ المفتاح واختبار الاتصال';
+function renderAiPrefs(){
+  const st=AI.status,prov=$('#aiPSel').value||'claude';if(!st||!$('#aiPanel'))return;
+  $('#aiConnList').innerHTML=Object.entries(st.providers).map(([k,v])=>'<span class="tag '+(v.hasKey?'b':'')+'"><bdi>'+esc(v.name)+'</bdi> '+(v.hasKey?'✓':'—')+'</span>').join(' ');
+  const v=st.providers[prov];
+  $('#aiPState').innerHTML=v.hasKey?_t('مربوط بمفتاح ينتهي بـ ')+'<bdi>'+esc(v.hint)+'</bdi>'+(v.storage==='dpapi'?_t(' · محفوظ بتشفير ويندوز'):v.storage==='keychain'?_t(' · محفوظ في سلسلة مفاتيح ماك'):''):_t('غير مربوط');
+  $('#aiPDot').className='tv-dot'+(v.hasKey?' ok':'');
+  $('#aiBaseRow').hidden=prov!=='custom';$('#aiBase').value=P.ai.base||'';
+  $('#aiKeyLink').hidden=!v.keysUrl;$('#aiKeyLink').href=v.keysUrl||'#';$('#aiKeyLink').innerHTML=_t('احصل على مفتاح من ')+'<bdi>'+esc((v.keysUrl||'').replace(/^https:\/\//,'').split('/')[0])+'</bdi>';
+  $('#aiModel').value=(P.ai.models||{})[prov]||'';
+  $('#aiPTest').hidden=!v.hasKey;$('#aiPDelete').hidden=!v.hasKey;$('#aiModelsBtn').hidden=!v.hasKey;
+  $('#aiPSave').textContent=v.hasKey?_t('استبدال المفتاح'):_t('حفظ المفتاح واختبار الاتصال');
+  $('#aiWebNote').textContent=v.web?_t('يستطيع البحث في الأخبار أثناء التحليل.'):_t('لا يبحث في الأخبار عبر الربط المباشر؛ يعتمد على بيانات البرنامج فقط.');
 }
-function setupClaudePrefs(){
-  const status=(t,bad)=>{const el=$('#clStatus');el.textContent=t;el.className='status'+(bad?' err':'');};
-  $('#clWebPref').value=P.claude.web===false?'0':'1';
-  $('#clWebPref').addEventListener('change',()=>{P.claude.web=$('#clWebPref').value==='1';$('#aiWeb').checked=P.claude.web;savePrefs();});
-  $('#clModel').addEventListener('change',()=>renderAiBox());
-  $('#clSave').addEventListener('click',async()=>{const key=$('#clKey').value.trim();if(!key){status('الصق المفتاح أولًا.',true);$('#clKey').focus();return;}
-    status('جارٍ اختبار المفتاح…');const t=await apiPost('/api/claude',{action:'test',key,model:P.claude.model}).catch(()=>null);
-    if(!t||!t.ok){status((t&&t.error)||'تعذّر الاتصال.',true);return;}
-    const r=await apiPost('/api/claude',{action:'save',key}).catch(()=>null);
-    if(!r||!r.ok){status((r&&r.error)||'تعذّر حفظ المفتاح.',true);return;}
-    $('#clKey').value='';AI.status=r;renderClaudeState();renderAiBox();status(t.text);});
-  $('#clTest').addEventListener('click',async()=>{status('جارٍ الاختبار…');const t=await apiPost('/api/claude',{action:'test',model:P.claude.model}).catch(()=>null);status(t&&t.ok?t.text:(t&&t.error)||'تعذّر الاتصال.',!(t&&t.ok));});
-  $('#clDelete').addEventListener('click',async()=>{const r=await apiPost('/api/claude',{action:'delete'}).catch(()=>null);if(r){AI.status=r;renderClaudeState();renderAiBox();status('حُذف المفتاح من جهازك.');}});
-  $$('a.ext').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();api('/api/open',{url:a.href}).catch(()=>{});}));
+async function fillModels(prov,key){
+  const r=await apiPost('/api/ai',{action:'models',provider:prov,key:key||'',base:prov==='custom'?P.ai.base:''}).catch(()=>null);
+  if(!r||!r.ok)return r;
+  $('#aiModelList').innerHTML=r.models.map(m=>'<option value="'+esc(m)+'">').join('');
+  P.ai.models=P.ai.models||{};if(!P.ai.models[prov]&&r.suggested){P.ai.models[prov]=r.suggested;savePrefs();$('#aiModel').value=r.suggested;}
+  return r;
+}
+function setupAiPrefs(){
+  const status=(t,bad)=>{const el=$('#aiPStatus');el.textContent=t;el.className='status'+(bad?' err':'');};
+  P.ai=Object.assign({provider:'claude',models:{},base:'',web:true},P.ai||{});
+  if(P.claude&&P.claude.model&&!P.ai.models.claude)P.ai.models.claude=P.claude.model;
+  $('#aiPSel').value=P.ai.provider||'claude';
+  $('#aiPSel').addEventListener('change',()=>{$('#aiModelList').innerHTML='';renderAiPrefs();status('');const p=$('#aiPSel').value;if(AI.status&&AI.status.providers[p].hasKey)fillModels(p);});
+  $('#aiModel').addEventListener('change',()=>{P.ai.models[$('#aiPSel').value]=$('#aiModel').value.trim();savePrefs();});
+  $('#aiBase').addEventListener('change',()=>{P.ai.base=$('#aiBase').value.trim();savePrefs();});
+  $('#aiPWeb').value=P.ai.web===false?'0':'1';
+  $('#aiPWeb').addEventListener('change',()=>{P.ai.web=$('#aiPWeb').value==='1';$('#aiWeb').checked=P.ai.web;savePrefs();});
+  $('#aiPSave').addEventListener('click',async()=>{const prov=$('#aiPSel').value,key=$('#aiKey').value.trim();if(!key){status(_t('الصق المفتاح أولًا.'),true);$('#aiKey').focus();return;}
+    if(prov==='custom'&&!P.ai.base){status(_t('اكتب عنوان الخدمة أولًا.'),true);$('#aiBase').focus();return;}
+    status(_t('جارٍ اختبار المفتاح…'));
+    if(!P.ai.models[prov]){const m=await fillModels(prov,key);if(m&&!m.ok){status(m.error,true);return;}}
+    const t=await apiPost('/api/ai',{action:'test',provider:prov,key,model:P.ai.models[prov]||'',base:prov==='custom'?P.ai.base:''}).catch(()=>null);
+    if(!t||!t.ok){status((t&&t.error)||_t('تعذّر الاتصال.'),true);return;}
+    const r=await apiPost('/api/ai',{action:'save',provider:prov,key}).catch(()=>null);
+    if(!r||!r.ok){status((r&&r.error)||_t('تعذّر حفظ المفتاح.'),true);return;}
+    $('#aiKey').value='';AI.status=r;if(!aiConnected().some(([k])=>k===P.ai.provider)||aiConnected().length===1){P.ai.provider=prov;savePrefs();}
+    renderAiPrefs();renderAiBox();status(t.text);});
+  $('#aiPTest').addEventListener('click',async()=>{const prov=$('#aiPSel').value;status(_t('جارٍ الاختبار…'));
+    const t=await apiPost('/api/ai',{action:'test',provider:prov,model:P.ai.models[prov]||'',base:prov==='custom'?P.ai.base:''}).catch(()=>null);status(t&&t.ok?t.text:(t&&t.error)||_t('تعذّر الاتصال.'),!(t&&t.ok));});
+  $('#aiModelsBtn').addEventListener('click',async()=>{const prov=$('#aiPSel').value;status(_t('جارٍ جلب قائمة النماذج…'));const r=await fillModels(prov);
+    status(r&&r.ok?_t('القائمة جاهزة: اختر من خانة النموذج.')+' ('+r.models.length+')':(r&&r.error)||_t('تعذّر الاتصال.'),!(r&&r.ok));});
+  $('#aiPDelete').addEventListener('click',async()=>{const r=await apiPost('/api/ai',{action:'delete',provider:$('#aiPSel').value}).catch(()=>null);if(r){AI.status=r;renderAiPrefs();renderAiBox();status(_t('حُذف المفتاح من جهازك.'));}});
+  $('#aiKeyLink').addEventListener('click',e=>{e.preventDefault();openExt($('#aiKeyLink').href);});
 }
