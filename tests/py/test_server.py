@@ -6,7 +6,10 @@ from http.server import ThreadingHTTPServer
 
 import pytest
 
+import core
 import main
+import markets
+import server as srvmod
 
 
 @pytest.fixture(scope="module")
@@ -140,7 +143,7 @@ def test_auto_backup_weekly_and_pruned(monkeypatch):
 
 # ---------------------------------------------------------------- error log
 def test_error_log_records_and_rotates(monkeypatch):
-    monkeypatch.setattr(main, "ERROR_MAX", 2000)
+    monkeypatch.setattr(core, "ERROR_MAX", 2000)
     for i in range(60):
         main.record("WARN", "test", "message %d" % i)
     assert os.path.exists(main.ERROR_LOG + ".1")
@@ -158,7 +161,7 @@ def test_errors_endpoint(server):
 def test_handler_error_is_logged(server, monkeypatch):
     def broken(*a, **k):
         raise RuntimeError("synthetic failure")
-    monkeypatch.setattr(main, "get_fundamentals", broken)
+    monkeypatch.setattr(srvmod, "get_fundamentals", broken)
     j = json.loads(call(server, "/api/fundamentals?code=X&ex=SR")[1])
     assert not j["ok"]
     assert "synthetic failure" in main.errors_text()
@@ -168,7 +171,7 @@ def test_handler_error_is_logged(server, monkeypatch):
 def test_fundamentals_picks_primary_listing(monkeypatch):
     rows = [{"d": [100, 20, 2, 5, 50, 6, 1, 120, 150, 90, 2, 10, "Finance", "OTC", "USD", 1e6, 1e6]},
             {"d": [101, 21, 2, 5, 50, 6, 1, 121, 150, 90, 2, 10, "Finance", "NYSE", "USD", 9e9, 1e6]}]
-    monkeypatch.setattr(main, "tv_scan", lambda market, body: {"data": rows})
-    monkeypatch.setattr(main, "sector_multiples", lambda m, s: {"pe": 12, "pb": 1.5, "n": 40})
+    monkeypatch.setattr(markets, "tv_scan", lambda market, body: {"data": rows})
+    monkeypatch.setattr(markets, "sector_multiples", lambda m, s: {"pe": 12, "pb": 1.5, "n": 40})
     r = main.get_fundamentals("ZZZT", "US")
     assert r["ok"] and r["f"]["exchange"] == "NYSE" and r["sectorPE"] == 12

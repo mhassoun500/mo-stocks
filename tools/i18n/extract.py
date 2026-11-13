@@ -61,7 +61,7 @@ PY_LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
 
 def server_strings():
     out = []
-    for f in ("main.py", "funds.py", "tvdata.py", "ai_providers.py"):
+    for f in sorted(os.path.basename(x) for x in glob.glob(os.path.join(ROOT, "app", "*.py"))):
         for line in open(os.path.join(ROOT, "app", f), encoding="utf-8"):
             if line.lstrip().startswith("#"):
                 continue

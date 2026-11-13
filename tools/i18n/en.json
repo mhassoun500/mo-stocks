@@ -1371,5 +1371,17 @@
 "سجل الأخطاء": "Error log",
 "يسجّل البرنامج هنا ما يتعثر فيه: مصدر بيانات لم يرد، أو خطأ داخلي. إذا واجهت مشكلة، اضغط «نسخ تقرير المشكلة» وأرسله مع وصف ما حدث.": "The app records what goes wrong here: a data source that didn't answer, or an internal error. If you hit a problem, press \"Copy problem report\" and send it with a description of what happened.",
 "نسخ تقرير المشكلة": "Copy problem report",
-"تحديث": "Refresh"
+"تحديث": "Refresh",
+"مؤشر الشريعة EGX33": "EGX33 Shariah index",
+"مصفاة": "Musaffa",
+"كاشف": "Kashif",
+"بورصة حلال": "Halal Bourse",
+"بنك فيصل الإسلامي": "Faisal Islamic Bank",
+"أسطول": "Osoul",
+"ثاندر / Islamicly": "Thndr / Islamicly",
+"حلال إنفست": "Halal Invest",
+"نور البورصة": "Nour Borsa",
+"قائمة محمد رمضان": "Mohamed Ramadan's list",
+"أرقام": "Argaam",
+"اسهم حلال (stocks.templatesnippet.com)": "Halal stocks (stocks.templatesnippet.com)"
 }
