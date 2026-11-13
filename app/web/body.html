@@ -602,10 +602,11 @@
         </ol>
         <label class="field row" for="pTg"><input id="pTg" type="checkbox" data-pref="telegram.enabled"><span>تفعيل الإرسال إلى تيليجرام</span></label>
         <div class="form-grid">
-          <label class="field wide" for="pTgToken"><span>رمز البوت</span><input id="pTgToken" type="password" class="ltr" autocomplete="off" data-pref="telegram.token"></label>
+          <label class="field wide" for="pTgToken"><span>رمز البوت</span><input id="pTgToken" type="password" class="ltr" autocomplete="off"></label>
           <label class="field" for="pTgChat"><span>معرّف المحادثة</span><input id="pTgChat" type="text" class="ltr" data-pref="telegram.chatId"></label>
         </div>
-        <div class="actions"><button class="btn sm" id="tgDetect" type="button">اكتشاف المعرّف</button><button class="btn sm" id="tgTest" type="button">إرسال رسالة تجريبية</button></div>
+        <div class="actions"><button class="btn sm" id="tgDetect" type="button">اكتشاف المعرّف</button><button class="btn sm" id="tgTest" type="button">إرسال رسالة تجريبية</button><button class="btn sm ghost" id="tgClear" type="button" hidden>حذف الرمز</button></div>
+        <p class="small muted">يُحفظ رمز البوت مشفّرًا بنظام التشغيل، لا داخل ملف الإعدادات.</p>
         <p class="status" id="tgStatus"></p>
       </section>
 
@@ -634,6 +635,31 @@
         <p class="small muted" id="yqInfo"></p>
         <div class="actions local-only"><button class="btn sm" id="yqRefresh" type="button">تحديث قائمة يقين الآن</button></div>
         <p class="status" id="yqStatus"></p>
+      </section>
+
+      <section class="card panel local-only" id="backupPanel">
+        <h2>النسخ الاحتياطي لبياناتك</h2>
+        <p class="small muted">يحفظ قائمة المراقبة والتنبيهات والصفقات والمحفظة والمفضلة والرسومات والإعدادات في ملف واحد. يأخذ البرنامج نسخة تلقائية كل أسبوع ويحتفظ بآخر 8 نسخ. المفاتيح وجلسات الدخول لا تدخل في النسخة لحمايتها.</p>
+        <div class="actions">
+          <button class="btn sm primary" id="bkExport" type="button">تصدير نسخة إلى التنزيلات</button>
+          <label class="btn sm" for="bkFile">استعادة من ملف…</label><input id="bkFile" type="file" accept=".json,application/json" hidden>
+          <button class="btn sm ghost" id="bkNow" type="button">نسخة الآن</button>
+          <button class="btn sm ghost" id="bkFolder" type="button">فتح مجلد النسخ</button>
+        </div>
+        <p class="status" id="bkStatus"></p>
+        <div class="tbl-wrap"><table id="bkTable"><thead><tr><th>التاريخ</th><th>النوع</th><th>الحجم</th><th></th></tr></thead><tbody id="bkList"></tbody></table></div>
+      </section>
+
+      <section class="card panel local-only" id="errPanel">
+        <h2>سجل الأخطاء</h2>
+        <p class="small muted">يسجّل البرنامج هنا ما يتعثر فيه: مصدر بيانات لم يرد، أو خطأ داخلي. إذا واجهت مشكلة، اضغط «نسخ تقرير المشكلة» وأرسله مع وصف ما حدث.</p>
+        <div class="actions">
+          <button class="btn sm" id="errCopy" type="button">نسخ تقرير المشكلة</button>
+          <button class="btn sm ghost" id="errReload" type="button">تحديث</button>
+          <button class="btn sm ghost" id="errClear" type="button">مسح السجل</button>
+        </div>
+        <p class="status" id="errStatus"></p>
+        <textarea id="errLog" class="ltr err-log" rows="10" readonly></textarea>
       </section>
 
       <section class="card panel local-only">

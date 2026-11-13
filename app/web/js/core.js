@@ -69,8 +69,15 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 function toast(msg,ms=4200){const t=document.createElement('div');t.className='toast';t.textContent=msg;$('#toasts').appendChild(t);setTimeout(()=>t.remove(),ms);}
 
 /* ---------- server API (desktop app only) ---------- */
-async function api(path,params){const r=await fetch(path+(params?'?'+new URLSearchParams(params):''));return r.json();}
-async function apiPost(path,body){const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})});return r.json();}
+const API_H=LOCAL&&LOCAL.token?{'X-Mo-Token':LOCAL.token}:{};
+async function api(path,params){const r=await fetch(path+(params?'?'+new URLSearchParams(params):''),{headers:API_H});return r.json();}
+async function apiPost(path,body){const r=await fetch(path,{method:'POST',headers:Object.assign({'Content-Type':'application/json'},API_H),body:JSON.stringify(body||{})});return r.json();}
+/* page errors go to the app's error log (at most 20 per session) */
+const ERR_SENT={n:0,seen:new Set()};
+function reportError(where,msg,stack){if(!LOCAL||ERR_SENT.n>=20)return;const k=where+'|'+msg;if(ERR_SENT.seen.has(k))return;ERR_SENT.seen.add(k);ERR_SENT.n++;
+  apiPost('/api/errors',{action:'client',where,msg:String(msg||''),stack:String(stack||'')}).catch(()=>{});}
+window.addEventListener('error',e=>reportError((e.filename||'').split('/').pop()+':'+(e.lineno||''),e.message,e.error&&e.error.stack));
+window.addEventListener('unhandledrejection',e=>{const r=e.reason;if(r instanceof TypeError&&/fetch|Failed|Load failed|NetworkError/i.test(r.message))return;reportError('promise',r&&r.message||r,r&&r.stack);});
 function openExternal(url){if(LOCAL)api('/api/open',{url}).catch(()=>{});else window.open(url,'_blank','noopener');}
 
 /* ---------- storage: server file in the app, browser storage on the web ---------- */
@@ -90,7 +97,7 @@ const PREF_DEFAULTS={
   theme:'system',edu:false,font:'Cairo',numFont:'same',background:false,dataSource:'tv',updateRepo:'mhassoun500/mo-stocks',
   ana:{maFast:20,maSlow:50,rsi:14,bb:20,stopMult:0.5,tf:'D'},
   alerts:{enabled:true,interval:15,desktop:true,telegram:true},
-  telegram:{enabled:false,token:'',chatId:''},
+  telegram:{enabled:false,chatId:''},
   report:{enabled:false,time:'09:30',days:[0,1,2,3,4]},
   sharia:{ok:'',no:'',asOf:''},
   calc:{capital:100000,risk:1,fee:0.15},

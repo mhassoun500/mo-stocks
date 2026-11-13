@@ -16,6 +16,8 @@ Everything fetched is cached on disk so the last data stays available offline.
 
 Run from source:  python app/main.py      Options: --browser  --minimized
 """
+import hmac
+import secrets
 import base64
 import bisect
 import calendar
@@ -30,6 +32,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -107,6 +110,46 @@ def log(*a):
         pass
 
 
+# ---------------------------------------------------------------- error log (shown in Settings)
+ERROR_LOG = os.path.join(DATA_DIR, "errors.log")
+ERROR_LOCK = threading.Lock()
+ERROR_MAX = 512 * 1024
+
+
+def record(level, where, msg, tb=None):
+    """Append one entry to errors.log; keeps one older file when it grows past 512 KB."""
+    line = "%s [%s] %s: %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), level, where, str(msg).replace("\n", " ")[:2000])
+    if tb:
+        line += "".join("    " + x + "\n" for x in tb.rstrip().splitlines()[-25:])
+    try:
+        with ERROR_LOCK:
+            if os.path.exists(ERROR_LOG) and os.path.getsize(ERROR_LOG) > ERROR_MAX:
+                os.replace(ERROR_LOG, ERROR_LOG + ".1")
+            with open(ERROR_LOG, "a", encoding="utf-8") as f:
+                f.write(line)
+    except OSError:
+        pass
+
+
+def warn(msg, where="server"):
+    log(msg)
+    record("WARN", where, str(msg).strip())
+
+
+def errors_text(limit=64 * 1024):
+    try:
+        with open(ERROR_LOG, encoding="utf-8", errors="replace") as f:
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(max(0, size - limit))
+            text = f.read()
+        if size > limit:
+            text = text[text.find("\n") + 1:]
+        return text
+    except OSError:
+        return ""
+
+
 # ================================================================ persistent store (prefs, watchlist, journal...)
 class Store:
     lock = threading.Lock()
@@ -126,6 +169,14 @@ class Store:
 
     @classmethod
     def set(cls, key, value):
+        if key == "prefs" and isinstance(value, dict) and isinstance(value.get("telegram"), dict):
+            value = dict(value, telegram=dict(value["telegram"]))
+            tok = value["telegram"].pop("token", "")  # secrets never go into the plain settings file
+            if tok:
+                try:
+                    tg_save(tok)
+                except Exception as e:
+                    warn("telegram token not saved: %s" % e)
         with cls.lock:
             d = cls._load()
             d[key] = value
@@ -400,7 +451,7 @@ def fetch_metal(code, rng, interval="1d"):
             if not base["rows"] or (fx_sym and not fx):
                 base = None
         except Exception as e:
-            log(" TradingView metal fetch failed (%s); using Yahoo." % e)
+            warn(" TradingView metal fetch failed (%s); using Yahoo." % e)
             base = None
     try:
         if base is None:
@@ -764,7 +815,7 @@ def _history_live(code, ex, rng, interval, lite=False):
         except NotFound as e:
             tv_err = e
         except Exception as e:
-            log(" TradingView failed for %s (%s); trying Yahoo." % (code, e))
+            warn(" TradingView failed for %s (%s); trying Yahoo." % (code, e))
 
     def tv_backup():
         if tv_first or not tvdata.CLIENT.available():
@@ -821,6 +872,8 @@ def get_history(code, ex, rng, interval="1d", lite=False):
     try:
         res = _history_live(code, ex, rng, interval, lite)
     except Exception as e:
+        if not isinstance(e, NotFound):
+            record("WARN", "history %s %s" % (ex, code), e)
         cached, t = cache_get(key)
         if cached:
             cached = dict(cached)
@@ -1152,7 +1205,7 @@ def get_fundamentals(code, ex):
             try:
                 sec = sector_multiples(market, f["sector"])
             except Exception as e:
-                log("  sector multiples failed: %s" % e)
+                warn("  sector multiples failed: %s" % e)
         res = {"ok": True, "code": c, "f": f, "sectorPE": sec.get("pe"), "sectorPB": sec.get("pb"), "sectorN": sec.get("n"),
                "sectorAr": TV_SECTOR_AR.get(f.get("sector") or "", f.get("sector") or ""), "date": time.strftime("%Y-%m-%d")}
     with MEM_LOCK:
@@ -1312,7 +1365,7 @@ def yaaqen_refresh():
                                 "no": sorted(t for t, c in d.items() if c == 0),
                                 "doubt": sorted(t for t, c in d.items() if c == 2)})
     except Exception as e:
-        log(" Yaqeen list refresh failed (%s)" % e)
+        warn(" Yaqeen list refresh failed (%s)" % e)
     finally:
         YAAQEN_BUSY.clear()
 
@@ -1332,7 +1385,7 @@ def sharia_refresh():
                 cache_put("sharia|" + key, fn())
                 res[key] = True
             except Exception as e:
-                log(" Sharia list (%s) refresh failed (%s)" % (key, e))
+                warn(" Sharia list (%s) refresh failed (%s)" % (key, e))
                 res[key] = False
     finally:
         SHARIA_BUSY.clear()
@@ -1401,7 +1454,7 @@ def get_universe(ex, size=None):
                 cache_put(key, out)
                 return out
         except Exception as e:
-            log(" TradingView market list failed (%s)" % e)
+            warn(" TradingView market list failed (%s)" % e)
         if ex == "US":
             stale, _ = cache_get(key)
             return stale or {"ok": False, "error": "تعذّر جلب قائمة الشركات الأمريكية من TradingView."}
@@ -1596,8 +1649,36 @@ def notify_desktop(title, body):
         return False
 
 
+TG_SECRET = os.path.join(DATA_DIR, "telegram_token.bin")
+TG_KEYCHAIN = "StockZones Telegram"
+
+
+def tg_token():
+    return tvdata.secret_load(TG_SECRET, TG_KEYCHAIN) or ""
+
+
+def tg_save(token):
+    token = (token or "").strip()
+    if token and token != tg_token():
+        tvdata.secret_save(TG_SECRET, token, TG_KEYCHAIN)
+
+
+def tg_status():
+    t = tg_token()
+    return {"ok": True, "hasToken": bool(t), "hint": ("…" + t[-4:]) if len(t) > 8 else "",
+            "storage": tvdata.secret_kind(TG_SECRET) if t else ""}
+
+
+def tg_migrate():
+    """Older versions kept the bot token in plain text inside the settings file: move it to encrypted storage."""
+    prefs = Store.get("prefs", {}) or {}
+    tg = prefs.get("telegram") if isinstance(prefs, dict) else None
+    if isinstance(tg, dict) and tg.get("token"):
+        Store.set("prefs", prefs)  # Store.set moves the token out
+
+
 def telegram_call(method, params=None, token=None):
-    token = token or pref("telegram.token", "")
+    token = token or tg_token()
     if not token:
         raise ValueError("أدخل رمز بوت تيليجرام أولًا في الإعدادات.")
     url = "https://api.telegram.org/bot%s/%s" % (token.strip(), method)
@@ -1746,6 +1827,112 @@ def save_file(name, data_url=None, text=None):
     return path
 
 
+# ================================================================ backup and restore
+BACKUP_DIR = os.path.join(DATA_DIR, "backups")
+BACKUP_KEEP = 8
+BACKUP_EVERY = 7 * 86400
+
+
+def backup_payload():
+    with Store.lock:
+        data = Store._load()
+    out = {"app": "Mo Stocks", "format": 1, "version": VERSION, "created": time.strftime("%Y-%m-%d %H:%M:%S"), "data": data}
+    try:
+        with open(SNAP_FILE, encoding="utf-8") as f:
+            out["fundPrices"] = json.load(f)
+    except (OSError, ValueError):
+        pass
+    return out
+
+
+def backup_write(folder, kind):
+    """kind: auto (weekly), manual (exported by the user), before-restore (safety copy)."""
+    os.makedirs(folder, exist_ok=True)
+    name = "mostocks-backup-%s-%s.json" % (kind, time.strftime("%Y-%m-%d-%H%M%S"))
+    path = os.path.join(folder, name)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(backup_payload(), f, ensure_ascii=False)
+    os.replace(tmp, path)
+    return path
+
+
+def backup_list():
+    out = []
+    try:
+        names = os.listdir(BACKUP_DIR)
+    except OSError:
+        return out
+    for n in names:
+        m = re.match(r"^mostocks-backup-(auto|manual|before-restore)-(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})\d{2}\.json$", n)
+        if m:
+            p = os.path.join(BACKUP_DIR, n)
+            out.append({"name": n, "kind": m.group(1), "date": "%s %s:%s" % (m.group(2), m.group(3), m.group(4)),
+                        "size": os.path.getsize(p), "t": os.path.getmtime(p)})
+    out.sort(key=lambda x: -x["t"])
+    return out
+
+
+def backup_prune():
+    for kind in ("auto", "before-restore"):
+        for b in [x for x in backup_list() if x["kind"] == kind][BACKUP_KEEP:]:
+            try:
+                os.remove(os.path.join(BACKUP_DIR, b["name"]))
+            except OSError:
+                pass
+
+
+def backup_auto():
+    """One automatic copy a week, the newest 8 kept."""
+    if not os.path.exists(STORE_FILE):
+        return None
+    autos = [b for b in backup_list() if b["kind"] == "auto"]
+    if autos and time.time() - autos[0]["t"] < BACKUP_EVERY:
+        return None
+    path = backup_write(BACKUP_DIR, "auto")
+    backup_prune()
+    return path
+
+
+def backup_validate(obj):
+    if not isinstance(obj, dict) or obj.get("app") != "Mo Stocks" or not isinstance(obj.get("data"), dict):
+        raise ValueError("هذا الملف ليس نسخة احتياطية من Mo Stocks.")
+    return obj
+
+
+def backup_restore(obj):
+    obj = backup_validate(obj)
+    backup_write(BACKUP_DIR, "before-restore")  # so a restore can always be undone
+    backup_prune()
+    data = dict(obj["data"])
+    prefs = data.pop("prefs", None)
+    with Store.lock:
+        tmp = STORE_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, STORE_FILE)
+    if prefs is not None:
+        Store.set("prefs", prefs)  # goes through the filter that keeps secrets out of the file
+    if isinstance(obj.get("fundPrices"), dict):
+        with SNAP_LOCK:
+            with open(SNAP_FILE + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(obj["fundPrices"], f)
+            os.replace(SNAP_FILE + ".tmp", SNAP_FILE)
+    with MEM_LOCK:
+        for k in [k for k in MEM if k.startswith("h|FUND|")]:
+            del MEM[k]
+    return {"ok": True, "keys": len(data) + (1 if prefs is not None else 0), "created": obj.get("created"), "version": obj.get("version")}
+
+
+def backup_refresher():
+    while not QUIT.is_set():
+        try:
+            backup_auto()
+        except Exception as e:
+            record("WARN", "backup", e)
+        QUIT.wait(6 * 3600)
+
+
 def reveal(path):
     if not os.path.exists(path):
         return
@@ -1763,11 +1950,15 @@ SKELETON = ('<!doctype html><html lang="ar"><head><meta charset="utf-8">'
             '<link rel="icon" href="/icon.png">'
             '<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
             'body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style>'
-            '<script>window.LOCAL_API={version:"@VER@",frozen:@FROZEN@,platform:"@PLAT@"};'
+            '<script>window.LOCAL_API={version:"@VER@",frozen:@FROZEN@,platform:"@PLAT@",token:"@TOKEN@"};'
             'document.documentElement.classList.add("local");</script>'
             '</head><body>')
 
 LAST_PING = [time.time()]
+# A new secret for every run. The page gets it inside its own HTML and sends it with every API call,
+# so another website open in the browser cannot use this local server.
+API_TOKEN = secrets.token_urlsafe(24)
+SERVER_PORT = [PREFERRED_PORT]
 WINDOW = [None]
 QUIT = threading.Event()
 
@@ -1779,7 +1970,7 @@ def load_page():
         html = re.sub(r'<link rel="stylesheet" href="https://fonts\.googleapis\.com/[^"]*">',
                       '<link rel="stylesheet" href="/fonts/fonts.css">', html)
         html = re.sub(r'<link rel="preconnect"[^>]*>\s*', "", html)
-    head = SKELETON.replace("@VER@", VERSION).replace("@FROZEN@", "true" if FROZEN else "false").replace("@PLAT@", sys.platform)
+    head = SKELETON.replace("@VER@", VERSION).replace("@FROZEN@", "true" if FROZEN else "false").replace("@PLAT@", sys.platform).replace("@TOKEN@", API_TOKEN)
     return head + html + "</body></html>"
 
 
@@ -1814,10 +2005,28 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return {}
 
+    def _allowed(self, path):
+        """Only this app's own page may talk to the server."""
+        port = SERVER_PORT[0]
+        hosts = ("127.0.0.1:%d" % port, "localhost:%d" % port)
+        if (self.headers.get("Host") or "").lower() not in hosts:  # blocks DNS-rebinding tricks
+            return False
+        origin = self.headers.get("Origin")
+        if origin and origin.lower() not in ("http://" + h for h in hosts):
+            return False
+        if path.startswith("/api/"):
+            return hmac.compare_digest(self.headers.get("X-Mo-Token") or "", API_TOKEN)
+        return True
+
+    def _deny(self):
+        self._send(403, json.dumps({"ok": False, "error": "forbidden"}), "application/json; charset=utf-8")
+
     # ------------------------------------------------------------ GET
     def do_GET(self):
-        LAST_PING[0] = time.time()
         url = urllib.parse.urlparse(self.path)
+        if not self._allowed(url.path):
+            return self._deny()
+        LAST_PING[0] = time.time()
         q = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}
         p = url.path
         try:
@@ -1877,6 +2086,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(get_fundamentals(q.get("code", ""), q.get("ex", "SR")))
             if p == "/api/ai":
                 return self._json(AI.status())
+            if p == "/api/backup":
+                return self._json({"ok": True, "list": backup_list(), "folder": BACKUP_DIR})
+            if p == "/api/errors":
+                return self._json({"ok": True, "text": errors_text(), "path": ERROR_LOG, "version": VERSION,
+                                   "platform": sys.platform, "python": sys.version.split()[0], "frozen": FROZEN})
             if p == "/api/update":
                 return self._json(check_update())
             if p == "/api/open":
@@ -1893,12 +2107,17 @@ class Handler(BaseHTTPRequestHandler):
                 return
             return self._send(404, "not found", "text/plain; charset=utf-8")
         except Exception as e:  # never crash the server thread
+            if isinstance(e, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+                return  # the page went away before the answer arrived
+            record("ERROR", "GET " + p, e, traceback.format_exc())
             return self._json({"ok": False, "error": str(e)})
 
     # ------------------------------------------------------------ POST
     def do_POST(self):
-        LAST_PING[0] = time.time()
         p = urllib.parse.urlparse(self.path).path
+        if not self._allowed(p):
+            return self._deny()
+        LAST_PING[0] = time.time()
         b = self._body()
         try:
             if p == "/api/store":
@@ -1927,11 +2146,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(res)
             if p == "/api/telegram":
                 act = b.get("action")
+                if act == "status":
+                    return self._json(tg_status())
+                if act == "clear":
+                    tvdata.secret_delete(TG_SECRET, TG_KEYCHAIN)
+                    return self._json(tg_status())
                 if act == "detect":
-                    return self._json({"ok": True, "chat": telegram_detect(b.get("token"))})
+                    chat = telegram_detect(b.get("token") or None)
+                    tg_save(b.get("token"))
+                    return self._json(dict(tg_status(), chat=chat))
                 if act == "test":
-                    telegram_send("✅ تم ربط Mo Stocks بتيليجرام بنجاح.", b.get("token"), b.get("chatId"))
-                    return self._json({"ok": True})
+                    telegram_send("✅ تم ربط Mo Stocks بتيليجرام بنجاح.", b.get("token") or None, b.get("chatId"))
+                    tg_save(b.get("token"))
+                    return self._json(tg_status())
                 return self._json({"ok": False, "error": "إجراء غير معروف."})
             if p == "/api/autostart":
                 return self._json({"ok": True, "enabled": autostart_set(bool(b.get("enabled")))})
@@ -1955,8 +2182,46 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/save":
                 path = save_file(b.get("filename"), b.get("dataUrl"), b.get("text"))
                 return self._json({"ok": True, "path": path})
+            if p == "/api/backup":
+                act = b.get("action")
+                if act == "export":
+                    path = backup_write(downloads_dir(), "manual")
+                    return self._json({"ok": True, "path": path})
+                if act == "now":
+                    path = backup_write(BACKUP_DIR, "manual")
+                    return self._json({"ok": True, "path": path, "list": backup_list()})
+                if act == "restore":
+                    if b.get("name"):
+                        name = os.path.basename(str(b["name"]))
+                        with open(os.path.join(BACKUP_DIR, name), encoding="utf-8-sig") as f:
+                            obj = json.load(f)
+                    else:
+                        obj = b.get("data")
+                    return self._json(backup_restore(obj))
+                if act == "folder":
+                    os.makedirs(BACKUP_DIR, exist_ok=True)
+                    lst = backup_list()
+                    reveal(os.path.join(BACKUP_DIR, lst[0]["name"]) if lst else BACKUP_DIR)
+                    return self._json({"ok": True})
+                return self._json({"ok": False, "error": "إجراء غير معروف."})
+            if p == "/api/errors":
+                act = b.get("action")
+                if act == "client":  # an error inside the page
+                    record("ERROR", "page " + str(b.get("where") or "")[:80], str(b.get("msg") or "")[:1000], str(b.get("stack") or "")[:4000])
+                    return self._json({"ok": True})
+                if act == "clear":
+                    for f in (ERROR_LOG, ERROR_LOG + ".1"):
+                        try:
+                            os.remove(f)
+                        except OSError:
+                            pass
+                    return self._json({"ok": True})
+                return self._json({"ok": False, "error": "إجراء غير معروف."})
             return self._send(404, "not found", "text/plain; charset=utf-8")
         except Exception as e:
+            if isinstance(e, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)):
+                return  # the page went away before the answer arrived
+            record("ERROR", "POST " + p, e, traceback.format_exc())
             return self._json({"ok": False, "error": str(e)})
 
 
@@ -2073,11 +2338,17 @@ def start_server():
             continue
     else:
         raise SystemExit("No free port found.")
+    try:
+        tg_migrate()
+    except Exception as e:
+        warn("telegram migrate: %s" % e)
     srv.daemon_threads = True
+    SERVER_PORT[0] = srv.server_address[1]
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     threading.Thread(target=fund_refresher, daemon=True).start()
     threading.Thread(target=yaaqen_refresher, daemon=True).start()
     threading.Thread(target=sharia_refresher, daemon=True).start()
+    threading.Thread(target=backup_refresher, daemon=True).start()
     return srv, "http://%s:%d/" % (HOST, srv.server_address[1])
 
 
@@ -2172,7 +2443,7 @@ def main():
         try:
             run_window(url, "--minimized" in sys.argv)
         except Exception as e:
-            log(" Native window unavailable (%s); using the browser instead." % e)
+            warn(" Native window unavailable (%s); using the browser instead." % e)
             run_browser(url)
     srv.shutdown()
 

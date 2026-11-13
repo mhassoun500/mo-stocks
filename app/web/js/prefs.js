@@ -43,13 +43,17 @@ function bindPrefs(){
     if(!j||!j.ok){e.target.checked=!e.target.checked;toast((j&&j.error)||'تعذّر تغيير الإعداد.');}else toast(j.enabled?'سيعمل البرنامج مصغّرًا عند بدء الجهاز.':'أُلغي التشغيل التلقائي.');});
   $('#tgDetect').addEventListener('click',async()=>{const st=$('#tgStatus');st.textContent='جارٍ البحث…';st.className='status';
     const j=await apiPost('/api/telegram',{action:'detect',token:$('#pTgToken').value.trim()}).catch(()=>null);
-    if(j&&j.ok){$('#pTgChat').value=j.chat.id;setPref('telegram.chatId',String(j.chat.id));setPref('telegram.token',$('#pTgToken').value.trim());st.textContent='وُجدت المحادثة: '+(j.chat.name||j.chat.id);}
+    if(j&&j.ok){$('#pTgChat').value=j.chat.id;setPref('telegram.chatId',String(j.chat.id));tgShow(j);st.textContent='وُجدت المحادثة: '+(j.chat.name||j.chat.id);}
     else{st.textContent=(j&&j.error)||'تعذّر الاتصال بتيليجرام.';st.className='status err';}});
   $('#tgTest').addEventListener('click',async()=>{const st=$('#tgStatus');st.textContent='جارٍ الإرسال…';st.className='status';
-    setPref('telegram.token',$('#pTgToken').value.trim());setPref('telegram.chatId',$('#pTgChat').value.trim());
+    setPref('telegram.chatId',$('#pTgChat').value.trim());
     const j=await apiPost('/api/telegram',{action:'test',token:$('#pTgToken').value.trim(),chatId:$('#pTgChat').value.trim()}).catch(()=>null);
-    if(j&&j.ok){st.textContent='وصلت الرسالة التجريبية إلى تيليجرام.';if(!P.telegram.enabled){setPref('telegram.enabled',true);$('#pTg').checked=true;}}
+    if(j&&j.ok){tgShow(j);st.textContent='وصلت الرسالة التجريبية إلى تيليجرام.';if(!P.telegram.enabled){setPref('telegram.enabled',true);$('#pTg').checked=true;}}
     else{st.textContent=(j&&j.error)||'تعذّر الإرسال.';st.className='status err';}});
+  const tgShow=j=>{if(!j||!j.ok)return;$('#pTgToken').value='';$('#pTgToken').placeholder=j.hasToken?_t('محفوظ ')+(j.hint||''):'';$('#tgClear').hidden=!j.hasToken;};
+  apiPost('/api/telegram',{action:'status'}).then(tgShow).catch(()=>{});
+  $('#tgClear').addEventListener('click',async()=>{const j=await apiPost('/api/telegram',{action:'clear'}).catch(()=>null);tgShow(j);$('#tgStatus').textContent=_t('حُذف رمز البوت من جهازك.');});
+  if(P.telegram&&P.telegram.token){delete P.telegram.token;savePrefs();}
   setupTvAccount();
   $('#quitBtn').addEventListener('click',()=>{api('/api/quit').catch(()=>{});document.body.innerHTML='<p style="padding:40px;text-align:center;font-family:sans-serif">أُغلق البرنامج.</p>';});
   $('#aboutText').innerHTML='الإصدار '+NUM(esc(LOCAL.version))+' · '+(LOCAL.platform==='win32'?'ويندوز':LOCAL.platform==='darwin'?'ماك':'لينكس')+(LOCAL.frozen?'':' · تشغيل من الكود');
