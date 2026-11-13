@@ -13,7 +13,7 @@ import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WEB = os.path.join(ROOT, "app", "web")
-JS_ORDER = ["core", "indicators", "engine", "chart", "views", "fundsui", "favs", "watch", "journal", "prefs", "boot"]
+JS_ORDER = ["core", "indicators", "engine", "chart", "views", "plan", "fundsui", "favs", "watch", "journal", "prefs", "boot"]
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 
 

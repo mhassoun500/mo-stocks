@@ -249,7 +249,7 @@ def _dpapi(data, protect):
 KEYCHAIN_SERVICE = "StockZones TradingView"
 
 
-def secret_save(path, text):
+def secret_save(path, text, service=KEYCHAIN_SERVICE):
     """Returns how it was stored: 'dpapi', 'keychain' or 'file'."""
     raw = text.encode("utf-8")
     if sys.platform == "win32":
@@ -261,7 +261,7 @@ def secret_save(path, text):
             pass
     if sys.platform == "darwin":
         try:
-            subprocess.run(["security", "add-generic-password", "-U", "-a", "StockZones", "-s", KEYCHAIN_SERVICE,
+            subprocess.run(["security", "add-generic-password", "-U", "-a", "StockZones", "-s", service,
                             "-w", text], check=True, capture_output=True, timeout=15)
             _write(path, b"KEYCHAIN:")
             return "keychain"
@@ -271,7 +271,7 @@ def secret_save(path, text):
     return "file"
 
 
-def secret_load(path):
+def secret_load(path, service=KEYCHAIN_SERVICE):
     try:
         with open(path, "rb") as f:
             data = f.read()
@@ -281,7 +281,7 @@ def secret_load(path):
         if data.startswith(b"DPAPI:"):
             return _dpapi(base64.b64decode(data[6:]), False).decode("utf-8")
         if data.startswith(b"KEYCHAIN:"):
-            r = subprocess.run(["security", "find-generic-password", "-a", "StockZones", "-s", KEYCHAIN_SERVICE, "-w"],
+            r = subprocess.run(["security", "find-generic-password", "-a", "StockZones", "-s", service, "-w"],
                                capture_output=True, timeout=15)
             if r.returncode != 0:
                 return None
@@ -302,10 +302,10 @@ def secret_kind(path):
     return "dpapi" if head.startswith(b"DPAPI:") else "keychain" if head.startswith(b"KEYCHAIN:") else "file"
 
 
-def secret_delete(path):
+def secret_delete(path, service=KEYCHAIN_SERVICE):
     if secret_kind(path) == "keychain":
         try:
-            subprocess.run(["security", "delete-generic-password", "-a", "StockZones", "-s", KEYCHAIN_SERVICE],
+            subprocess.run(["security", "delete-generic-password", "-a", "StockZones", "-s", service],
                            capture_output=True, timeout=15)
         except Exception:
             pass

@@ -14,7 +14,7 @@ function route(){
   await loadPrefs();
   applyTheme();applyEdu();applyFont();
   S.tf=P.ana.tf==='W'?'W':'D';
-  setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();
+  setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();setupPlan();
   window.addEventListener('hashchange',route);route();
   updateLinks();renderRecent();renderRangeSeg();
   setupShariaPop();

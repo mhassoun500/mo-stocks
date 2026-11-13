@@ -75,7 +75,16 @@ function draw(){
       labels.push({y:(y1+y2)/2,txt:name+'  \u2066'+fp(z.lo)+' – '+fp(z.hi)+'\u2069'+(z.touches?'  · '+z.touches+' لمسات':'')+tags,short:name+'  '+fp(z.mid),col:isS?C.buy:C.sell,strong});}
     const ys=Y(A.stop);ctx.setLineDash([6,4]);ctx.strokeStyle=C.sell;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(padL,Math.round(ys)+0.5);ctx.lineTo(W-padR,Math.round(ys)+0.5);ctx.stroke();ctx.setLineDash([]);
     labels.push({y:ys,txt:'وقف الخسارة  '+fp(A.stop),short:'الوقف  '+fp(A.stop),col:C.sell,strong:false});
+    /* the three sell targets */
+    [[A.t1,'الهدف الأول','ه1'],[A.t2,'الهدف الثاني','ه2'],[A.t3,'الهدف الثالث','ه3']].forEach(([v,n,sh])=>{if(v==null||v>mx||v<vis)return;const y=Math.round(Y(v))+0.5;
+      ctx.setLineDash([2,4]);ctx.strokeStyle=C.sell;ctx.globalAlpha=0.75;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;
+      labels.push({y,txt:n+'  '+fp(v),short:sh+'  '+fp(v),col:C.sell,strong:false});});
   }
+  /* fair value from the company's figures */
+  const FV=S.fv&&S.fv.fair;
+  if(show.fair&&FV&&FV<=mx&&FV>=vis){const y=Math.round(Y(FV))+0.5;ctx.setLineDash([8,3,2,3]);ctx.strokeStyle=C.accent;ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.setLineDash([]);
+    labels.push({y,txt:'السعر العادل  '+fp(FV),short:'العادل  '+fp(FV),col:C.accent,strong:true});}
   /* gaps */
   if(show.gaps)for(const g of A.gaps||[]){if(g.i>=end)continue;const x=Math.max(padL,X(g.i)-bw/2);
     ctx.fillStyle=C.neutral;ctx.globalAlpha=0.13;ctx.fillRect(x,Y(g.hi),W-padR-x,Y(g.lo)-Y(g.hi));ctx.globalAlpha=1;
@@ -176,7 +185,7 @@ function draw(){
     ctx.setLineDash([3,3]);for(const v of [30,70]){const y=Math.round(RY(v))+0.5;ctx.strokeStyle=v===70?C.sell:C.buy;ctx.globalAlpha=0.6;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.globalAlpha=1;}ctx.setLineDash([]);
     ctx.strokeStyle=C.ma1;ctx.lineWidth=1.4;ctx.beginPath();let on=false;
     for(let i=st;i<end;i++){const v=I.rsi[i];if(v==null){on=false;continue;}const x=X(i),y=RY(v);if(!on){ctx.moveTo(x,y);on=true;}else ctx.lineTo(x,y);}ctx.stroke();
-    paneLabel='القوة النسبية '+(I.rsi[end-1]!=null?I.rsi[end-1].toFixed(1):'');
+    paneLabel='RSI  '+(I.rsi[end-1]!=null?I.rsi[end-1].toFixed(1):'');
   }
   ctx.restore();
   if(S.pane!=='macd'){ctx.font=FN;ctx.fillStyle=C.muted;ctx.textAlign='left';const RY=v=>rTop+(100-v)/100*subH;for(const v of [30,70])ctx.fillText(String(v),W-padR+6,RY(v));}

@@ -95,6 +95,7 @@ const PREF_DEFAULTS={
   sharia:{ok:'',no:'',asOf:''},
   calc:{capital:100000,risk:1,fee:0.15},
   egpLocal:{},
+  claude:{model:'claude-sonnet-5-5',web:true},
 };
 let P=JSON.parse(JSON.stringify(PREF_DEFAULTS));
 function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))deepMerge(a[k],b[k]);else if(b[k]!==undefined)a[k]=b[k];}return a;}

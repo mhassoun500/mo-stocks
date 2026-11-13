@@ -171,10 +171,16 @@ function analyzeCore(D,I,o){
   if(buy)buy.role='buy';if(sell)sell.role='sell';
   const entry=buy?(close<=buy.hi?close:buy.mid):close;
   const stop=(buy?buy.lo:close-1.5*atrv)-stopMult*atrv;
-  const t1=sell?sell.lo:close+2*atrv;
-  const t2=sell2?sell2.lo:(sell?sell.hi+atrv:close+3.5*atrv);
+  /* a target is the bottom of a resistance zone; if the price is already inside that zone, its top */
+  const tgt=z=>z.lo>close*1.002?z.lo:Math.max(z.hi,close+0.5*atrv);
+  const t1=sell?tgt(sell):close+2*atrv;
+  const t2=Math.max(sell2?tgt(sell2):(sell?sell.hi+atrv:close+3.5*atrv),t1+0.25*atrv);
+  /* third target: the next resistance, else the highest price of the window if it is clearly above, else 1.5 ATR beyond the second */
+  const sell3=res[2]||null;let hiW=-Infinity;for(let j=start;j<N;j++)if(D[j].h>hiW)hiW=D[j].h;
+  const t3=Math.max(sell3?tgt(sell3):(hiW>t2+0.5*atrv?hiW:t2+1.5*atrv),t2+0.25*atrv);
+  const tSrc=[sell?'r':'atr',sell2?'r':'atr',sell3?'r':hiW>t2+0.5*atrv?'hi':'atr'];
   const rr=entry>stop?(t1-entry)/(entry-stop):null;
-  const A={start,N,span,close,atrv,zones:merged,buy,sell,sell2,entry,stop,t1,t2,rr,vp,piv};
+  const A={start,N,span,close,atrv,zones:merged,buy,sell,sell2,sell3,entry,stop,t1,t2,t3,tSrc,rr,vp,piv};
   if(o.lite)return A;
 
   /* 5) signals */

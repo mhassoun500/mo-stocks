@@ -126,7 +126,7 @@
           <p class="edu">السعر الذي تخرج عنده إذا كسر السعر منطقة الشراء، لتبقى الخسارة صغيرة ومحددة مسبقًا.</p></div>
         <div class="metric"><span class="k">العائد إلى المخاطرة</span><span class="v" id="mRR">—</span><span class="s" id="mRRSub"></span>
           <p class="edu">كم تربح مقابل كل ريال تخاطر به. 1 : 2 تعني ربحًا محتملًا ضعف الخسارة المحتملة.</p></div>
-        <div class="metric"><span class="k">مؤشر القوة النسبية</span><span class="v" id="mRsi">—</span><div class="gauge" aria-hidden="true"><b id="mRsiBar" style="left:50%"></b></div><span class="s" id="mRsiSub"></span>
+        <div class="metric"><span class="k">مؤشر القوة النسبية <bdi class="small ar-only">(RSI)</bdi></span><span class="v" id="mRsi">—</span><div class="gauge" aria-hidden="true"><b id="mRsiBar" style="left:50%"></b></div><span class="s" id="mRsiSub"></span>
           <p class="edu">يقيس سرعة الحركة من 0 إلى 100. فوق 70 تشبّع شرائي (ارتفع بسرعة)، وتحت 30 تشبّع بيعي (هبط بسرعة).</p></div>
         <div class="metric"><span class="k">الاتجاه العام</span><span class="v" id="mTrend" style="font-family:var(--f-display)">—</span><span class="s" id="mTrendSub"></span>
           <p class="edu">يُحكم عليه من موقع السعر بالنسبة للمتوسط المتحرك الطويل واتجاه ميله.</p></div>
@@ -140,6 +140,26 @@
           </details></div>
         <div class="metric local-only" id="mCmpCard"><span class="k" id="mCmpK">مقارنة بالمؤشر العام</span><span class="v" id="mCmp">—</span><span class="s" id="mCmpSub"></span>
           <p class="edu">الفرق بين أداء السهم وأداء السوق كله في نفس الفترة. الموجب يعني أن السهم أقوى من السوق.</p></div>
+      </div>
+    </section>
+
+    <section class="card plan-card" id="planCard" hidden>
+      <div class="plan-head"><h2>خطة السعر والقيمة العادلة</h2><span class="muted small" id="planNote"></span></div>
+      <div class="ladder" id="ladder"></div>
+      <div class="scale" id="planScale" aria-hidden="true"></div>
+      <p class="edu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
+      <div class="plan-grid">
+        <div class="fair" id="fairBox"></div>
+        <div class="ai-box local-only" id="aiBox">
+          <div class="ai-head"><b>رأي Claude</b><span class="muted small" id="aiMeta"></span></div>
+          <div id="aiSetup" class="muted small" hidden>اربط حسابك في Claude من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع Claude</a> ليكتب تحليلًا مفصلًا لهذا السهم يجمع الأرقام الفنية والمالية وآخر الأخبار.</div>
+          <div id="aiControls" class="ai-controls" hidden>
+            <input id="aiQ" type="text" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
+            <label class="chip"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
+            <button class="btn sm primary" id="aiRun" type="button">حلّل مع Claude</button>
+          </div>
+          <div class="ai-out" id="aiOut" hidden></div>
+        </div>
       </div>
     </section>
 
@@ -169,11 +189,12 @@
           <label class="chip"><input type="checkbox" data-show="events" checked><span>الأحداث</span></label>
           <label class="chip local-only"><input type="checkbox" data-show="cmp"><span id="cmpChipLabel">مقارنة بالمؤشر</span></label>
           <label class="chip"><input type="checkbox" data-show="fib"><span>فيبوناتشي</span></label>
+          <label class="chip local-only"><input type="checkbox" data-show="fair"><span>السعر العادل</span></label>
         </div>
       </div>
       <div class="toolbar">
         <div class="selects">
-          <label class="field" for="pane"><span>اللوحة السفلية</span><select id="pane"><option value="rsi">القوة النسبية</option><option value="macd">الماكد</option></select></label>
+          <label class="field" for="pane"><span>اللوحة السفلية</span><select id="pane"><option value="rsi">القوة النسبية (RSI)</option><option value="macd">الماكد</option></select></label>
           <label class="field" for="sens"><span>حساسية القمم والقيعان</span>
             <select id="sens"><option value="8">منخفضة</option><option value="5" selected>متوسطة</option><option value="3">عالية</option></select></label>
           <label class="field" for="zc"><span>عدد المناطق</span>
@@ -306,7 +327,7 @@
         <span class="actions"><span class="muted small" id="watchMeta"></span><button class="btn sm" id="watchRefresh" type="button">فحص الآن</button></span></div>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>الأصل</th><th>السعر</th><th>التغير</th><th>الحكم</th><th>الثقة</th><th>إلى منطقة الشراء</th><th>إلى منطقة البيع</th><th>القوة النسبية</th><th>تنبيه سعري (أعلى / أدنى)</th><th></th></tr></thead>
+          <thead><tr><th>الأصل</th><th>السعر</th><th>التغير</th><th>الحكم</th><th>الثقة</th><th>إلى منطقة الشراء</th><th>إلى منطقة البيع</th><th>القوة النسبية <bdi class="ar-only">RSI</bdi></th><th>تنبيه سعري (أعلى / أدنى)</th><th></th></tr></thead>
           <tbody id="watchBody"></tbody>
         </table>
       </div>
@@ -377,7 +398,7 @@
             <th><button type="button" data-sort="stanceN">الحكم</button></th>
             <th><button type="button" data-sort="conf" data-dir="desc">الثقة</button></th>
             <th><button type="button" data-sort="distBuy">إلى منطقة الشراء</button></th>
-            <th><button type="button" data-sort="rsi">القوة النسبية</button></th>
+            <th><button type="button" data-sort="rsi">القوة النسبية <bdi class="ar-only">RSI</bdi></button></th>
             <th><button type="button" data-sort="trendN">الاتجاه</button></th>
             <th>إشارة بارزة</th>
             <th><button type="button" data-sort="sector">القطاع</button></th>
@@ -480,7 +501,7 @@
         <div class="form-grid">
           <label class="field" for="pMaFast"><span>المتوسط القصير</span><input id="pMaFast" type="number" min="3" max="100" data-pref="ana.maFast"></label>
           <label class="field" for="pMaSlow"><span>المتوسط الطويل</span><input id="pMaSlow" type="number" min="10" max="300" data-pref="ana.maSlow"></label>
-          <label class="field" for="pRsi"><span>فترة القوة النسبية</span><input id="pRsi" type="number" min="5" max="50" data-pref="ana.rsi"></label>
+          <label class="field" for="pRsi"><span>فترة القوة النسبية <bdi class="ar-only">(RSI)</bdi></span><input id="pRsi" type="number" min="5" max="50" data-pref="ana.rsi"></label>
           <label class="field" for="pBb"><span>فترة بولنجر</span><input id="pBb" type="number" min="10" max="60" data-pref="ana.bb"></label>
           <label class="field" for="pStop"><span>مسافة الوقف (× متوسط المدى)</span><input id="pStop" type="number" min="0.1" max="3" step="0.1" data-pref="ana.stopMult"></label>
           <label class="field" for="pTf"><span>الإطار الافتراضي</span><select id="pTf" data-pref="ana.tf"><option value="D">يومي</option><option value="W">أسبوعي</option></select></label>
@@ -513,6 +534,32 @@
         </details>
         <p class="small muted">لا يحفظ البرنامج كلمة المرور أبدًا؛ تسجّل الدخول في صفحة <bdi>TradingView</bdi> نفسها، ويحتفظ البرنامج بجلسة الدخول فقط مشفّرة بنظام التشغيل.</p>
         <p class="small muted">موقع <bdi>Investing.com</bdi> يحجب أي جلب آلي لبياناته بحماية <bdi>Cloudflare</bdi> حتى مع تسجيل الدخول، لذلك لا يمكن ربطه بالبرنامج.</p>
+      </section>
+
+      <section class="card panel local-only" id="claudePanel">
+        <h2>الربط مع <bdi>Claude</bdi> (اختياري)</h2>
+        <p class="small muted">عند الربط يظهر زر «حلّل مع <bdi>Claude</bdi>» في صفحة التحليل: يرسل البرنامج أرقام السهم (السعر والمناطق والأهداف والمؤشرات والبيانات المالية والحكم الشرعي) إلى <bdi>Claude</bdi>، فيكتب رأيًا ثانيًا مفصلًا، ويمكنه البحث في آخر الأخبار.</p>
+        <div class="tv-acct"><span class="tv-dot" id="clDot"></span><span id="clState">جارٍ التحقق…</span></div>
+        <div class="form-grid">
+          <label class="field wide" for="clKey"><span>مفتاح <bdi>API</bdi></span><input id="clKey" type="password" class="ltr" autocomplete="off" placeholder="sk-ant-api03-…"></label>
+          <label class="field" for="clModel"><span>النموذج</span><select id="clModel" data-pref="claude.model">
+            <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — متوازن (موصى به)</option>
+            <option value="claude-opus-5-5">Claude Opus 5.5 — الأدق والأعلى تكلفة</option>
+            <option value="claude-haiku-5-5">Claude Haiku 5.5 — الأسرع والأرخص</option></select></label>
+          <label class="field" for="clWebPref"><span>البحث في الأخبار</span><select id="clWebPref"><option value="1">مفعّل افتراضيًا</option><option value="0">متوقف افتراضيًا</option></select></label>
+        </div>
+        <div class="actions"><button class="btn sm" id="clSave" type="button">حفظ المفتاح واختبار الاتصال</button><button class="btn sm ghost" id="clTest" type="button" hidden>اختبار الاتصال</button><button class="btn sm ghost" id="clDelete" type="button" hidden>حذف المفتاح</button></div>
+        <p class="status" id="clStatus"></p>
+        <details class="tv-manual">
+          <summary>كيف أحصل على المفتاح؟</summary>
+          <ol class="small muted" style="margin:6px 0;padding-inline-start:18px">
+            <li>افتح <a href="https://console.anthropic.com/settings/keys" class="ext" target="_blank" rel="noopener"><bdi>console.anthropic.com</bdi></a> وسجّل الدخول (أو أنشئ حسابًا).</li>
+            <li>من <bdi>Billing</bdi> اشحن رصيدًا صغيرًا، مثل 5 دولارات.</li>
+            <li>من <bdi>API Keys</bdi> اضغط <bdi>Create Key</bdi>، وانسخ المفتاح الذي يبدأ بـ <code>sk-ant-</code> والصقه هنا.</li>
+          </ol>
+          <p class="small muted">اشتراك <bdi>Claude Pro</bdi> أو <bdi>Max</bdi> في موقع <bdi>claude.ai</bdi> منفصل عن رصيد <bdi>API</bdi> ولا يمكن استخدامه داخل البرامج الأخرى. تكلفة التحليل الواحد عادة سنتات قليلة، وتزيد قليلًا مع البحث في الأخبار ومع نموذج <bdi>Opus</bdi>.</p>
+        </details>
+        <p class="small muted">يُحفظ المفتاح مشفّرًا بنظام التشغيل على جهازك فقط، ولا يُرسل إلا إلى <bdi>api.anthropic.com</bdi>. لا يرسل البرنامج أي بيانات إلى <bdi>Claude</bdi> إلا عند ضغطك الزر.</p>
       </section>
 
       <section class="card panel local-only">

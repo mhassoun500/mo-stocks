@@ -52,6 +52,7 @@ except Exception:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import funds  # noqa: E402  Egyptian mutual funds (Mubasher)
 import tvdata  # noqa: E402  TradingView data feed and account session
+import claude_ai
 import sharia  # noqa: E402  Saudi (Argaam) and Egyptian Sharia lists
 
 APP_NAME = "Mo Stocks"
@@ -427,6 +428,7 @@ TV_PREFIX = {"SR": "TADAWUL", "CA": "EGX"}
 TV_INDEX = {"^TASI.SR": "TADAWUL:TASI", "^CASE30": "EGX:EGX30", "^GSPC": "SP:SPX", "DX-Y.NYB": "TVC:DXY"}
 TV_METAL = {"GC=F": "TVC:GOLD", "SI=F": "TVC:SILVER", "SAR=X": "FX_IDC:USDSAR", "EGP=X": "FX_IDC:USDEGP"}
 ACCOUNT = tvdata.Account(os.path.join(DATA_DIR, "tv_session.bin"))
+CLAUDE = claude_ai.Claude(os.path.join(DATA_DIR, "claude_key.bin"))
 
 
 def prefer_tv():
@@ -1090,6 +1092,72 @@ def tv_scan(market, body, timeout=25):
                                           "Origin": "https://www.tradingview.com", "Referer": "https://www.tradingview.com/"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
+
+
+FUND_COLS = ["close", "price_earnings_ttm", "price_book_fq", "earnings_per_share_diluted_ttm", "book_value_per_share_fq",
+             "earnings_per_share_forecast_next_fy", "dividends_yield_current", "price_target_average", "price_target_high",
+             "price_target_low", "recommendation_mark", "return_on_equity_fq", "sector", "exchange", "currency",
+             "market_cap_basic", "net_income_ttm"]
+US_PRIMARY = ("NASDAQ", "NYSE", "AMEX", "NYSE ARCA", "CBOE")
+
+
+def _median(xs):
+    xs = sorted(x for x in xs if x is not None)
+    if not xs:
+        return None
+    m = len(xs) // 2
+    return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
+
+
+def sector_multiples(market, sector):
+    """Median P/E and P/B of profitable companies in one sector of one market (cached for a day)."""
+    key = "secm|%s|%s" % (market, sector)
+    hit, _ = cache_get(key, max_age=24 * 3600)
+    if hit:
+        return hit
+    body = {"filter": [{"left": "sector", "operation": "equal", "right": sector},
+                       {"left": "type", "operation": "in_range", "right": ["stock", "dr"]},
+                       {"left": "price_earnings_ttm", "operation": "in_range", "right": [0.5, 150]}],
+            "columns": ["price_earnings_ttm", "price_book_fq", "market_cap_basic"],
+            "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"}, "range": [0, 300]}
+    if market == "america":
+        body["filter"].append({"left": "market_cap_basic", "operation": "greater", "right": 3e8})
+    rows = [r["d"] for r in tv_scan(market, body).get("data") or []]
+    res = {"pe": _median([r[0] for r in rows]), "pb": _median([r[1] for r in rows if r[1] and 0 < r[1] < 60]), "n": len(rows)}
+    cache_put(key, res)
+    return res
+
+
+def get_fundamentals(code, ex):
+    """Company figures and analyst targets from TradingView's scanner, plus the sector's median multiples."""
+    market = TV_MARKET_OF.get(ex)
+    c = code.strip().upper().split(".")[0]
+    if not market or not c:
+        return {"ok": False, "error": "unsupported"}
+    key = "fund|%s|%s" % (ex, c)
+    with MEM_LOCK:
+        hit = MEM.get(key)
+    if hit and time.time() - hit[0] < 6 * 3600:
+        return hit[1]
+    body = {"filter": [{"left": "name", "operation": "equal", "right": c}], "columns": FUND_COLS, "range": [0, 10]}
+    rows = [dict(zip(FUND_COLS, r["d"])) for r in tv_scan(market, body).get("data") or []]
+    if ex == "US":
+        rows.sort(key=lambda r: (r.get("exchange") not in US_PRIMARY, -(r.get("market_cap_basic") or 0)))
+    if not rows:
+        res = {"ok": False, "error": "notfound"}
+    else:
+        f = rows[0]
+        sec = {}
+        if f.get("sector"):
+            try:
+                sec = sector_multiples(market, f["sector"])
+            except Exception as e:
+                log("  sector multiples failed: %s" % e)
+        res = {"ok": True, "code": c, "f": f, "sectorPE": sec.get("pe"), "sectorPB": sec.get("pb"), "sectorN": sec.get("n"),
+               "sectorAr": TV_SECTOR_AR.get(f.get("sector") or "", f.get("sector") or ""), "date": time.strftime("%Y-%m-%d")}
+    with MEM_LOCK:
+        MEM[key] = (time.time(), res)
+    return res
 
 
 def sa_segment(code):
@@ -1805,6 +1873,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "enabled": autostart_state(), "available": FROZEN})
             if p == "/api/tvaccount":
                 return self._json(tv_account_status())
+            if p == "/api/fundamentals":
+                return self._json(get_fundamentals(q.get("code", ""), q.get("ex", "SR")))
+            if p == "/api/claude":
+                return self._json(dict(CLAUDE.status(), ok=True))
             if p == "/api/update":
                 return self._json(check_update())
             if p == "/api/open":
@@ -1865,6 +1937,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "enabled": autostart_set(bool(b.get("enabled")))})
             if p == "/api/tvaccount":
                 return self._json(tv_account_action(b))
+            if p == "/api/claude":
+                act = b.get("action")
+                if act == "save":
+                    return self._json(CLAUDE.save(b.get("key")))
+                if act == "delete":
+                    return self._json(CLAUDE.delete())
+                if act == "test":
+                    return self._json(CLAUDE.test(b.get("model"), b.get("key") or None))
+                if act == "analyze":
+                    log("  claude analyze %s" % ((b.get("payload") or {}).get("symbol") or ""))
+                    return self._json(CLAUDE.analyze(b.get("payload") or {}, b.get("model"), bool(b.get("web")),
+                                                     b.get("lang") or "ar", b.get("question") or ""))
+                return self._json({"ok": False, "error": "إجراء غير معروف."})
             if p == "/api/save":
                 path = save_file(b.get("filename"), b.get("dataUrl"), b.get("text"))
                 return self._json({"ok": True, "path": path})

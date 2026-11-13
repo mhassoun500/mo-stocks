@@ -1,6 +1,6 @@
 /* ================= analysis view: state, loading, rendering ================= */
 const S={ex:'SR',code:'',name:'',source:'sample',fileName:'',meta:null,daily:null,hourly:null,data:[],ind:null,A:null,bt:null,
-  tf:'D',range:{D:250,W:104,H:150},show:{zones:true,ma:true,bb:false,trend:true,pat:true,sig:true,vol:true,vp:false,gaps:true,events:true,cmp:false,fib:false},
+  tf:'D',range:{D:250,W:104,H:150},show:{zones:true,ma:true,bb:false,trend:true,pat:true,sig:true,vol:true,vp:false,gaps:true,events:true,cmp:false,fib:false,fair:true},
   pane:'rsi',sens:5,zoneCount:6,profile:null,cmp:null,cmpRaw:null,cmpLabel:'',drawings:[],confText:'',calcAuto:true,loadSeq:0};
 const RANGE_PRESETS={D:[['٣ أشهر',63],['٦ أشهر',126],['سنة',250],['الكل',0]],W:[['٦ أشهر',26],['سنة',52],['سنتان',104],['الكل',0]],H:[['أسبوع',35],['أسبوعان',70],['شهر',150],['الكل',0]]};
 
@@ -73,7 +73,7 @@ function render(){
   if(A.buy){$('#mBuy').innerHTML=RANGE(A.buy.lo,A.buy.hi);
     $('#mBuySub').innerHTML=(A.buy.inside?'السعر داخل المنطقة الآن':'الدخول المرجعي '+NUM(fp(A.entry)))+(A.buy.touches?' · '+A.buy.touches+' لمسات':'')+(A.buy.htf?' · أسبوعي':'');}
   else{$('#mBuy').textContent='—';$('#mBuySub').textContent='لا يوجد دعم واضح أسفل السعر';}
-  if(A.sell){$('#mSell').innerHTML=RANGE(A.sell.lo,A.sell.hi);$('#mSellSub').innerHTML='الهدف الأول '+NUM(fp(A.t1))+' · الثاني '+NUM(fp(A.t2));}
+  if(A.sell){$('#mSell').innerHTML=RANGE(A.sell.lo,A.sell.hi);$('#mSellSub').innerHTML='الأهداف '+NUM(fp(A.t1))+' · '+NUM(fp(A.t2))+' · '+NUM(fp(A.t3));}
   else{$('#mSell').innerHTML=NUM(fp(A.t1));$('#mSellSub').innerHTML='هدف تقديري، لا توجد مقاومة أعلى السعر';}
   $('#mStop').innerHTML=fp(A.stop);$('#mStopSub').innerHTML='يبعد '+NUM(pct((A.stop-A.close)/A.close))+' عن آخر سعر';
   if(A.rr!=null){$('#mRR').innerHTML=NUM('1 : '+A.rr.toFixed(2));$('#mRRSub').textContent=A.rr>=2?'نسبة جيدة للدخول':A.rr>=1?'نسبة مقبولة':'المخاطرة أعلى من العائد';}
@@ -84,6 +84,7 @@ function render(){
   if(mh!=null){$('#mMacd').textContent=mh>=0?'زخم صاعد':'زخم هابط';$('#mMacd').style.color=mh>=0?'var(--up)':'var(--down)';$('#mMacd').style.fontFamily='var(--f-display)';
     $('#mMacdSub').innerHTML='الفرق عن خط الإشارة '+NUM(mh.toFixed(3))+(I.macdHist[N-2]!=null?(Math.abs(mh)>Math.abs(I.macdHist[N-2])?(mh<0?' · الهبوط يقوى':' · الصعود يقوى'):(mh<0?' · الهبوط يضعف':' · الصعود يضعف')):'');}
   renderCompareMetric();
+  renderPlan();
 
   const P2=A.perf,tfUnit=S.tf==='W'?'أسبوع':S.tf==='H'?'ساعة':'يوم';
   $('#perf').innerHTML='<span>أداء الفترة: <b>'+chgSpan(P2.ret,1)+'</b></span>'+
@@ -309,6 +310,7 @@ async function fetchSymbol(code,ex){
     applyTF();
     setStatus('تم جلب '+S.daily.length+(S.isFund?' سعرًا للصندوق من ':' يوم تداول من ')+j.source+(j.live||j.source==='TradingView'?'، وآخر سعر من جلسة '+fmtDate.format(S.daily[S.daily.length-1].t)+' ('+priceQual(j)+(marketOpen(ex)?' ويتحدث تلقائيًا كل دقيقتين':'')+').':'، وآخر إغلاق بتاريخ '+fmtDate.format(S.daily[S.daily.length-1].t)+'.')+(j.note?' '+j.note:''),!!j.offline);
     addRecent({ex,code:S.code,name:S.name,short:j.short||''});
+    S.ai=null;loadFundamentals(seq);
     loadProfile(seq);if(S.isFund)loadFundCompare(seq);else loadCompare(seq);loadGoldExtras(seq);
     S.usSharia=null;if(LOCAL&&ex==='US')api('/api/ussharia',{code:S.code}).then(r=>{if(seq===S.loadSeq&&r&&r.ok){S.usSharia=r;if(S.A)render();}}).catch(()=>{});
   }catch(e){setStatus(e instanceof TypeError||e instanceof SyntaxError?'تعذّر الاتصال بالبرنامج. أعد تشغيله إذا استمرت المشكلة.':(e.message||'تعذّر جلب البيانات.'),true);}
@@ -354,7 +356,7 @@ async function runSearch(q,ex,err){
     else setStatus((err||'لم أجد هذا الرمز.')+' تأكد من السوق والرمز، أو اكتب اسم الشركة بالإنجليزية.',true);
   }catch(e){setStatus(err||'لم أجد هذا الرمز.',true);}
 }
-function useStatic(D,meta){
+function useStatic(D,meta){S.fund=undefined;S.fv=null;S.ai=null;
   S.loadSeq++;S.isFund=false;S.fundCat='';S.fundCmp=null;S.daily=D;S.hourly=null;S.meta=null;S.profile=null;S.cmpRaw=null;S.cmp=null;S.gold=null;S.source=meta.source;S.fileName=meta.fileName||'';S.name=meta.name;
   S.ex=$('#ex').value;S.code=meta.code||'';S.calcAuto=true;$('#results').hidden=true;
   if(S.tf==='H')S.tf='D';
