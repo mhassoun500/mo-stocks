@@ -1383,5 +1383,12 @@
 "نور البورصة": "Nour Borsa",
 "قائمة محمد رمضان": "Mohamed Ramadan's list",
 "أرقام": "Argaam",
-"اسهم حلال (stocks.templatesnippet.com)": "Halal stocks (stocks.templatesnippet.com)"
+"اسهم حلال (stocks.templatesnippet.com)": "Halal stocks (stocks.templatesnippet.com)",
+"أداء الصندوق ورأي الذكاء الاصطناعي": "Fund performance and AI opinion",
+"سعر الوحدة": "Unit price",
+"منخفض": "Low",
+"متوسط": "Medium",
+"مرتفع": "High",
+"القيمة العادلة": "Fair value",
+"سعر الصندوق هو قيمة أصوله الصافية، فهو سعره العادل. لا توجد أهداف بيع ولا وقف خسارة للصناديق؛ قارن أداءها وتذبذبها بصناديق مشابهة.": "A fund's price is its net asset value, which is its fair value. Funds have no sell targets or stop-loss; compare their returns and volatility with similar funds."
 }

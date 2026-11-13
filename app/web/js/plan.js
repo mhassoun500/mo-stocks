@@ -45,8 +45,27 @@ function renderFair(){
   box.innerHTML=h;
 }
 
+/* funds: no targets or stop (one price a day, bought at NAV); show performance instead */
+function fundSummary(){
+  if(!S.isFund||!S.daily||!S.daily.length||typeof fundStats!=='function')return null;
+  return fundStats(S.daily.map(d=>[d.t,d.c,d.c,d.c,d.c,0]));
+}
+function renderFundPlan(){
+  $('#planTitle').textContent=_t('أداء الصندوق ورأي الذكاء الاصطناعي');$('#planNote').textContent='';
+  const st=fundSummary()||{n:0},D=S.daily||[],px=D.length?D[D.length-1].c:null,j=S.meta||{};
+  const cell=(k,v,note,cls)=>'<div class="lad '+(cls||'')+'"><span class="k">'+k+'</span><span class="v">'+v+'</span><span class="p">&nbsp;</span><span class="n">'+(note||'&nbsp;')+'</span></div>';
+  const rv=x=>x==null?'—':chgSpan(x,1);
+  $('#ladder').innerHTML=cell('سعر الوحدة',NUM(fp(px)),esc(j.currency||''),'cur')+cell('شهر',rv(st.r1m))+cell('3 أشهر',rv(st.r3m))+cell('سنة',rv(st.r1y))+
+    cell('أقصى تراجع خلال سنة',st.dd==null?'—':NUM(pct(st.dd)),'','stop')+cell('التذبذب السنوي',st.vol==null?'—':NUM((st.vol*100).toFixed(1)+'%'),st.vol==null?'':st.vol<0.05?'منخفض':st.vol<0.15?'متوسط':'مرتفع');
+  $('#planScale').innerHTML='';$('#planScale').hidden=true;$('#planEdu').hidden=true;
+  $('#fairBox').innerHTML='<b>'+_t('القيمة العادلة')+'</b><p class="muted small">'+_t('سعر الصندوق هو قيمة أصوله الصافية، فهو سعره العادل. لا توجد أهداف بيع ولا وقف خسارة للصناديق؛ قارن أداءها وتذبذبها بصناديق مشابهة.')+'</p>';
+  renderAiBox();
+}
 function renderPlan(){
-  const card=$('#planCard');const A=S.A;if(!card)return;card.hidden=!A;if(!A)return;
+  const card=$('#planCard');const A=S.A;if(!card)return;
+  if(S.isFund&&S.source==='live'&&S.daily&&S.daily.length){card.hidden=false;renderFundPlan();return;}
+  $('#planTitle').textContent=_t('خطة السعر والقيمة العادلة');$('#planScale').hidden=false;$('#planEdu').hidden=false;
+  card.hidden=!A;if(!A){S.ai=null;return;}
   const px=A.close,risk=A.entry-A.stop,R=v=>risk>0?((v-A.entry)/risk).toFixed(1)+'R':'';
   const src={r:'منطقة مقاومة',hi:'أعلى سعر في الفترة',atr:'تقدير من متوسط المدى'};
   const cell=(cls,k,v,note)=>'<div class="lad '+cls+'"><span class="k">'+k+'</span><span class="v">'+NUM(fp(v))+'</span><span class="p">'+(cls==='cur'?'&nbsp;':chgSpan(v/px-1,1))+'</span><span class="n">'+(note||'&nbsp;')+'</span></div>';
@@ -99,7 +118,30 @@ Give entry, stop and the three targets as numbers; adjust them if you think the 
 ## What to watch
 Rules: rely on the numbers given and never invent figures. If you search the web, cite the news item and its date briefly. Use short bullets starting with - . At most 400 words.
 End with one line: "This is analysis, not investment advice."`;
+const AI_FUND_AR=`أنت مستشار استثمار خبير. تصلك بيانات صندوق استثمار واحد من برنامج «Mo Stocks»: سعر الوحدة، العوائد على فترات مختلفة، أقصى تراجع، التذبذب، الفئة، المدير، والتوافق الشرعي. الصناديق تُشترى وتُسترد بسعر الوحدة، فلا توجد أهداف بيع ولا وقف خسارة.
+المطلوب رأي مختصر بالعربية البسيطة بهذه العناوين بالضبط (كل عنوان في سطر يبدأ بـ ## ):
+## الخلاصة
+## الأداء
+## المخاطر والتذبذب
+## لمن يناسب
+## ما يجب مراقبته
+قواعد: اعتمد على الأرقام المرسلة ولا تخترع أرقامًا. قارن بالصناديق المشابهة أو بالسوق إن عرفت. نقاط قصيرة تبدأ بـ - . لا تزد عن 350 كلمة.
+اختم بسطر: «هذا رأي تحليلي وليس توصية استثمارية.»`;
+const AI_FUND_EN=`You are an expert investment adviser. You receive data for one mutual fund from the "Mo Stocks" app: unit price, returns over several periods, maximum drawdown, volatility, category, manager and Sharia compliance. Funds are bought and redeemed at the unit price, so there are no sell targets or stop-loss.
+Give a short opinion in plain English under exactly these headings (each on its own line starting with ## ):
+## Summary
+## Performance
+## Risk and volatility
+## Who it suits
+## What to watch
+Rules: rely on the numbers given and never invent figures. Compare with similar funds or the market if you know them. Short bullets starting with - . At most 350 words.
+End with one line: "This is analysis, not investment advice."`;
 function buildPrompt(forChat){
+  if(S.isFund){const en=LANG==='en',q=($('#aiQ').value||'').trim();
+    let user=(en?'Analyse this fund. Data from the app (JSON):\n':'حلّل هذا الصندوق. بيانات البرنامج (JSON):\n')+JSON.stringify(aiPayloadFund());
+    if(forChat||$('#aiWeb').checked)user+=en?'\n\nSearch the web for recent news about this fund and its manager before you answer.':'\n\nابحث في الإنترنت عن آخر أخبار هذا الصندوق ومديره قبل أن تجيب.';
+    if(q)user+=(en?'\n\nThe user also asks: ':'\n\nويسأل المستخدم أيضًا: ')+q;
+    return{system:en?AI_FUND_EN:AI_FUND_AR,user};}
   const en=LANG==='en',q=($('#aiQ')&&$('#aiQ').value||'').trim(),web=forChat||$('#aiWeb').checked;
   let user=(en?'Analyse this stock. Data from the app (JSON):\n':'حلّل هذا السهم. بيانات البرنامج (JSON):\n')+JSON.stringify(aiPayload());
   if(web)user+=en?'\n\nSearch the web for the latest news, results and analyst views on this company before you answer.':'\n\nابحث في الإنترنت عن آخر أخبار الشركة ونتائجها وآراء المحللين قبل أن تجيب.';
@@ -138,7 +180,15 @@ function mdLite(t){
     if(hd)h+='<h4>'+inl(hd[1])+'</h4>';else if(ln.trim())h+='<p>'+inl(ln)+'</p>';}
   return h+(inUl?'</ul>':'');
 }
+function aiPayloadFund(){
+  const j=S.meta||{},st=fundSummary()||{},D=S.daily||[],r=v=>v==null||!isFinite(v)?null:+(+v).toPrecision(6);
+  return{type:'mutual fund',name:S.name,fundId:S.code,country:j.country||null,manager:j.manager||null,category:(typeof FCAT!=='undefined'&&FCAT[S.fundCat])||S.fundCat,currency:j.currency||null,
+    shariaCompliant:!!j.sharia,unitPrice:D.length?r(D[D.length-1].c):null,lastDate:D.length?new Date(D[D.length-1].t).toISOString().slice(0,10):null,ytd:j.ytd||null,
+    returns:{w1:r(st.r1w),m1:r(st.r1m),m3:r(st.r3m),m6:r(st.r6m),y1:r(st.r1y),y3Annual:r(st.r3y),sinceStartAnnual:r(st.since)},maxDrawdown1y:r(st.dd),volatility1y:r(st.vol),
+    comparison:S.fundCmp||null,history:D.length,last60Prices:D.slice(-60).map(d=>[new Date(d.t).toISOString().slice(0,10),r(d.c)])};
+}
 function aiPayload(){
+  if(S.isFund)return aiPayloadFund();
   const A=S.A,D=S.data,N=D.length,I=S.ind,f=S.fund&&S.fund.f,fv=S.fv,r=v=>v==null||!isFinite(v)?null:+(+v).toPrecision(6);
   const sh=S.ex!=='GOLD'?shariaInfo(S.code,S.ex):null;
   const last=D.slice(-60).map(d=>[new Date(d.t).toISOString().slice(0,10),r(d.c)]);
@@ -159,7 +209,7 @@ function aiPayload(){
     last60Closes:last};
 }
 async function runAi(){
-  if(!S.A)return;const prov=$('#aiProv').value;if(!prov)return;const st=AI.status.providers[prov];
+  if(!S.A&&!S.isFund)return;const prov=$('#aiProv').value;if(!prov)return;const st=AI.status.providers[prov];
   const code=S.code,ex=S.ex,pr=buildPrompt(false);S.ai={code,ex,busy:true,name:st.name};renderAiBox();$('#aiRun').disabled=true;
   try{const r=await apiPost('/api/ai',{action:'ask',provider:prov,model:(P.ai.models||{})[prov]||'',base:prov==='custom'?P.ai.base:'',web:$('#aiWeb').checked&&st.web,system:pr.system,user:pr.user});
     if(S.code!==code||S.ex!==ex)return;
@@ -172,10 +222,10 @@ function setupPlan(){
   /* copy-a-prompt works everywhere, even without the installed app */
   $('#aiSites').innerHTML=AI_SITES.map(([n,u])=>'<a class="btn xs ghost" href="'+u+'" target="_blank" rel="noopener" data-site="'+n+'"><bdi>'+n+'</bdi></a>').join('');
   const flash=t=>{const el=$('#aiCopyNote');el.textContent=t;el.hidden=false;clearTimeout(flash.t);flash.t=setTimeout(()=>{el.hidden=true;},6000);};
-  $('#aiCopy').addEventListener('click',async()=>{if(!S.A)return;const t=promptText();$('#aiPrompt').value=t;flash(await copyText(t)?_t('نُسخ البرومبت. افتح موقع المساعد والصقه (Ctrl+V).'):_t('تعذّر النسخ التلقائي؛ افتح «عرض البرومبت» وانسخه يدويًا.'));});
-  $('#aiSites').addEventListener('click',async e=>{const a=e.target.closest('a[data-site]');if(!a||!S.A)return;e.preventDefault();const t=promptText();$('#aiPrompt').value=t;
+  $('#aiCopy').addEventListener('click',async()=>{if(!S.A&&!S.isFund)return;const t=promptText();$('#aiPrompt').value=t;flash(await copyText(t)?_t('نُسخ البرومبت. افتح موقع المساعد والصقه (Ctrl+V).'):_t('تعذّر النسخ التلقائي؛ افتح «عرض البرومبت» وانسخه يدويًا.'));});
+  $('#aiSites').addEventListener('click',async e=>{const a=e.target.closest('a[data-site]');if(!a||(!S.A&&!S.isFund))return;e.preventDefault();const t=promptText();$('#aiPrompt').value=t;
     const ok=await copyText(t);openExt(a.href);flash(ok?_t('نُسخ البرومبت. الصقه في صفحة المساعد التي فُتحت (Ctrl+V).'):_t('تعذّر النسخ التلقائي؛ افتح «عرض البرومبت» وانسخه يدويًا.'));});
-  $('#aiShow').addEventListener('toggle',()=>{if($('#aiShow').open&&S.A)$('#aiPrompt').value=promptText();});
+  $('#aiShow').addEventListener('toggle',()=>{if($('#aiShow').open&&(S.A||S.isFund))$('#aiPrompt').value=promptText();});
   if(!LOCAL)return;
   setupAiPrefs();
   $('#aiRun').addEventListener('click',runAi);

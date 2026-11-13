@@ -297,11 +297,11 @@ async function fetchSymbol(code,ex){
     const [j,h]=await Promise.all([api('/api/history',{code,ex,range:rng}),S.tf==='H'?api('/api/history',{code,ex,range:'2y',interval:'60m'}).catch(()=>null):Promise.resolve(null)]);
     if(seq!==S.loadSeq)return;
     if(!j.ok){if(j.notFound&&ex!=='FUND')await runSearch(code,ex,j.error);else setStatus(j.error||'تعذّر جلب البيانات.',true);return;}
-    S.isFund=!!j.isFund;S.fundCat=j.category||'';S.fundCmp=null;S.cmpRaw=null;S.cmp=null;
+    S.isFund=!!j.isFund;S.fundCat=j.category||'';S.fundCmp=null;S.cmpRaw=null;S.cmp=null;S.ai=null;S.fund=undefined;S.fv=null;
     if(S.isFund&&j.rows.length<30){
       S.ex=ex;S.code=String(code);S.name=j.name;S.source='live';S.meta=j;S.fileName='';S.A=null;
       S.daily=j.rows.map(r=>({t:r[0],o:r[4],h:r[4],l:r[4],c:r[4],v:0}));S.hourly=null;
-      $('#chartName').textContent=S.name;$('#companyRow').hidden=true;renderFundCard();updateFavBtn();
+      $('#chartName').textContent=S.name;$('#companyRow').hidden=true;renderFundCard();renderPlan();updateFavBtn();
       setStatus('سجل هذا الصندوق قصير ('+(j.rows.length===1?'سعر واحد':j.rows.length+' سعرًا')+')، فيظهر أداؤه فقط حتى يكتمل السجل.');
       addRecent({ex,code:S.code,name:S.name,short:j.short||''});return;}
     S.ex=ex;S.code=ex==='GOLD'?code:code.toUpperCase();S.name=j.name||j.symbol;S.source='live';S.meta=j;S.fileName='';
@@ -310,7 +310,7 @@ async function fetchSymbol(code,ex){
     applyTF();
     setStatus('تم جلب '+S.daily.length+(S.isFund?' سعرًا للصندوق من ':' يوم تداول من ')+j.source+(j.live||j.source==='TradingView'?'، وآخر سعر من جلسة '+fmtDate.format(S.daily[S.daily.length-1].t)+' ('+priceQual(j)+(marketOpen(ex)?' ويتحدث تلقائيًا كل دقيقتين':'')+').':'، وآخر إغلاق بتاريخ '+fmtDate.format(S.daily[S.daily.length-1].t)+'.')+(j.note?' '+j.note:''),!!j.offline);
     addRecent({ex,code:S.code,name:S.name,short:j.short||''});
-    S.ai=null;loadFundamentals(seq);
+    loadFundamentals(seq);
     loadProfile(seq);if(S.isFund)loadFundCompare(seq);else loadCompare(seq);loadGoldExtras(seq);
     S.usSharia=null;if(LOCAL&&ex==='US')api('/api/ussharia',{code:S.code}).then(r=>{if(seq===S.loadSeq&&r&&r.ok){S.usSharia=r;if(S.A)render();}}).catch(()=>{});
   }catch(e){setStatus(e instanceof TypeError||e instanceof SyntaxError?'تعذّر الاتصال بالبرنامج. أعد تشغيله إذا استمرت المشكلة.':(e.message||'تعذّر جلب البيانات.'),true);}
