@@ -1,8 +1,10 @@
-build/
-dist/
-dist-installer/
 *.spec
+.pytest_cache/
 __pycache__/
 assets/icon.icns
-icon.iconset/
+build/
+dist-installer/
+dist/
 dmg/
+icon.iconset/
+missing.txt
