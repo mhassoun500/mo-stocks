@@ -73,7 +73,9 @@ def get_profile(symbol):
         "revenueGrowth": _raw(fd.get("revenueGrowth")), "earningsGrowth": _raw(fd.get("earningsGrowth")),
         "fiftyTwoWeekHigh": _raw(sd.get("fiftyTwoWeekHigh")), "fiftyTwoWeekLow": _raw(sd.get("fiftyTwoWeekLow")),
         "recommendation": fd.get("recommendationKey") or "",
-        "targetMeanPrice": _raw(fd.get("targetMeanPrice")),
+        "targetMeanPrice": _raw(fd.get("targetMeanPrice")), "targetHighPrice": _raw(fd.get("targetHighPrice")),
+        "targetLowPrice": _raw(fd.get("targetLowPrice")), "recommendationMean": _raw(fd.get("recommendationMean")),
+        "price": _raw(pr.get("regularMarketPrice")),
         "analysts": _raw(fd.get("numberOfAnalystOpinions")),
         "earningsDates": [_raw(x) for x in (earn.get("earningsDate") or []) if _raw(x)],
         "exDividendDate": _raw(ce.get("exDividendDate")), "dividendDate": _raw(ce.get("dividendDate")),
@@ -261,7 +263,11 @@ def tv_scan(market, body, timeout=25):
 FUND_COLS = ["close", "price_earnings_ttm", "price_book_fq", "earnings_per_share_diluted_ttm", "book_value_per_share_fq",
              "earnings_per_share_forecast_next_fy", "dividends_yield_current", "price_target_average", "price_target_high",
              "price_target_low", "recommendation_mark", "return_on_equity_fq", "sector", "exchange", "currency",
-             "market_cap_basic", "net_income_ttm"]
+             "market_cap_basic", "net_income_ttm",
+             # raw figures, used when TradingView has no ready ratio for the stock
+             "earnings_per_share_basic_ttm", "last_annual_eps", "earnings_per_share_fy", "net_income_fy",
+             "total_shares_outstanding_fundamental", "book_value_per_share_fy", "total_equity_fq", "total_equity_fy",
+             "dps_common_stock_prim_issue_fy"]
 US_PRIMARY = ("NASDAQ", "NYSE", "AMEX", "NYSE ARCA", "CBOE")
 
 
@@ -273,23 +279,45 @@ def _median(xs):
     return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
 
 
-def sector_multiples(market, sector):
-    """Median P/E and P/B of profitable companies in one sector of one market (cached for a day)."""
-    key = "secm|%s|%s" % (market, sector)
+def _multiples(market, filters, key):
     hit, _ = cache_get(key, max_age=24 * 3600)
     if hit:
         return hit
-    body = {"filter": [{"left": "sector", "operation": "equal", "right": sector},
-                       {"left": "type", "operation": "in_range", "right": ["stock", "dr"]},
-                       {"left": "price_earnings_ttm", "operation": "in_range", "right": [0.5, 150]}],
-            "columns": ["price_earnings_ttm", "price_book_fq", "market_cap_basic"],
-            "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"}, "range": [0, 300]}
+    body = {"filter": filters + [{"left": "type", "operation": "in_range", "right": ["stock", "dr"]},
+                                 {"left": "price_earnings_ttm", "operation": "in_range", "right": [0.5, 150]}],
+            "columns": ["price_earnings_ttm", "price_book_fq", "dividends_yield_current", "market_cap_basic"],
+            "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"}, "range": [0, 400]}
     if market == "america":
         body["filter"].append({"left": "market_cap_basic", "operation": "greater", "right": 3e8})
     rows = [r["d"] for r in tv_scan(market, body).get("data") or []]
-    res = {"pe": _median([r[0] for r in rows]), "pb": _median([r[1] for r in rows if r[1] and 0 < r[1] < 60]), "n": len(rows)}
+    res = {"pe": _median([r[0] for r in rows]), "pb": _median([r[1] for r in rows if r[1] and 0 < r[1] < 60]),
+           "dy": _median([r[2] for r in rows if r[2] and 0 < r[2] < 25]), "n": len(rows),
+           "ndy": sum(1 for r in rows if r[2] and 0 < r[2] < 25)}
     cache_put(key, res)
     return res
+
+
+def sector_multiples(market, sector):
+    """Median P/E, P/B and dividend yield of profitable companies in one sector of one market (cached for a day)."""
+    return _multiples(market, [{"left": "sector", "operation": "equal", "right": sector}], "secm2|%s|%s" % (market, sector))
+
+
+def market_multiples(market):
+    """The same medians for the whole market, used when a sector has too few companies."""
+    return _multiples(market, [], "mktm2|%s" % market)
+
+
+def _fundamentals_yahoo(code, ex):
+    """Fallback when TradingView has nothing for the stock: analysts' target and ratios from Yahoo Finance."""
+    p = get_profile(yahoo_symbol(code, ex))
+    if not p.get("ok") or not p.get("price"):
+        return None
+    f = {"close": p["price"], "price_earnings_ttm": p.get("trailingPE"), "price_book_fq": p.get("priceToBook"),
+         "price_target_average": p.get("targetMeanPrice"), "price_target_high": p.get("targetHighPrice"),
+         "price_target_low": p.get("targetLowPrice"), "recommendation_mark": p.get("recommendationMean"),
+         "dividends_yield_current": (p.get("dividendYield") or 0) * 100 or None,
+         "return_on_equity_fq": (p.get("returnOnEquity") or 0) * 100 or None, "sector": "", "net_income_ttm": None}
+    return f
 
 
 def get_fundamentals(code, ex):
@@ -304,21 +332,38 @@ def get_fundamentals(code, ex):
     if hit and time.time() - hit[0] < 6 * 3600:
         return hit[1]
     body = {"filter": [{"left": "name", "operation": "equal", "right": c}], "columns": FUND_COLS, "range": [0, 10]}
-    rows = [dict(zip(FUND_COLS, r["d"])) for r in tv_scan(market, body).get("data") or []]
+    rows, source = [], "TradingView"
+    for attempt in range(2):
+        try:
+            rows = [dict(zip(FUND_COLS, r["d"])) for r in tv_scan(market, body).get("data") or []]
+            break
+        except Exception as e:
+            if attempt:
+                record("WARN", "fundamentals %s %s" % (ex, c), e)
+            else:
+                time.sleep(1)
     if ex == "US":
         rows.sort(key=lambda r: (r.get("exchange") not in US_PRIMARY, -(r.get("market_cap_basic") or 0)))
-    if not rows:
-        res = {"ok": False, "error": "notfound"}
-    else:
-        f = rows[0]
-        sec = {}
+    f = rows[0] if rows else None
+    if not f:
+        try:
+            f, source = _fundamentals_yahoo(c, ex), "Yahoo Finance"
+        except Exception as e:
+            record("WARN", "fundamentals yahoo %s %s" % (ex, c), e)
+    if not f:
+        return {"ok": False, "error": "لم أجد بيانات مالية لهذه الشركة في TradingView ولا Yahoo Finance."}  # not cached: try again next time
+    sec, mkt = {}, {}
+    try:
         if f.get("sector"):
-            try:
-                sec = sector_multiples(market, f["sector"])
-            except Exception as e:
-                warn("  sector multiples failed: %s" % e)
-        res = {"ok": True, "code": c, "f": f, "sectorPE": sec.get("pe"), "sectorPB": sec.get("pb"), "sectorN": sec.get("n"),
-               "sectorAr": TV_SECTOR_AR.get(f.get("sector") or "", f.get("sector") or ""), "date": time.strftime("%Y-%m-%d")}
+            sec = sector_multiples(market, f["sector"])
+        if (sec.get("n") or 0) < 5 or (sec.get("ndy") or 0) < 5:
+            mkt = market_multiples(market)
+    except Exception as e:
+        warn("  sector multiples failed: %s" % e)
+    res = {"ok": True, "code": c, "f": f, "source": source, "date": time.strftime("%Y-%m-%d"),
+           "sectorPE": sec.get("pe"), "sectorPB": sec.get("pb"), "sectorDY": sec.get("dy"), "sectorN": sec.get("n"), "sectorNDY": sec.get("ndy"),
+           "marketPE": mkt.get("pe"), "marketPB": mkt.get("pb"), "marketDY": mkt.get("dy"), "marketN": mkt.get("n"),
+           "sectorAr": TV_SECTOR_AR.get(f.get("sector") or "", f.get("sector") or "")}
     with MEM_LOCK:
         MEM[key] = (time.time(), res)
     return res

@@ -1,26 +1,50 @@
 /* ---------- price plan (stop, entry, three targets), fair value and Claude's opinion ---------- */
 const REC_WORD=m=>m==null?'':m<1.5?'شراء قوي':m<2.5?'شراء':m<3.5?'محايد':m<4.5?'بيع':'بيع قوي';
 
-/* fair value from the company's own figures; every method is listed so the user can see where the number comes from */
+/* fair value from the company's own figures; every method is listed so the user can see where the number comes from.
+   When TradingView has no ready ratio, per-share figures are rebuilt from the raw ones (profit, shares, equity). */
 function fairValue(r){
   if(!r||!r.ok||!r.f)return null;const F=r.f,px=F.close;if(!px)return null;
-  const pe=F.price_earnings_ttm,pb=F.price_book_fq;
-  /* derive per-share figures from TradingView's own ratios so they are in the trading currency */
-  const eps=pe>0?px/pe:null,bvps=pb>0?px/pb:null,fin=F.sector==='Finance',sane=v=>v&&isFinite(v)&&v>px*0.2&&v<px*5;
-  const m=[];
+  const pos=v=>v!=null&&isFinite(v)&&v>0,sh=F.total_shares_outstanding_fundamental;
+  const pe=pos(F.price_earnings_ttm)?F.price_earnings_ttm:null,pb=pos(F.price_book_fq)?F.price_book_fq:null;
+  /* earnings per share: ready ratio first, then the raw figures; the last annual figure is the last resort */
+  let eps=null,epsNote='';
+  if(pe)eps=px/pe;
+  else if(pos(F.earnings_per_share_basic_ttm))eps=F.earnings_per_share_basic_ttm;
+  else if(pos(F.net_income_ttm)&&pos(sh))eps=F.net_income_ttm/sh;
+  else if(pos(F.last_annual_eps)||pos(F.earnings_per_share_fy)){eps=F.last_annual_eps>0?F.last_annual_eps:F.earnings_per_share_fy;epsNote=' (آخر سنة مالية)';}
+  else if(pos(F.net_income_fy)&&pos(sh)){eps=F.net_income_fy/sh;epsNote=' (آخر سنة مالية)';}
+  let bvps=null;
+  if(pb)bvps=px/pb;
+  else if(pos(F.book_value_per_share_fy))bvps=F.book_value_per_share_fy;
+  else if(pos(F.total_equity_fq)&&pos(sh))bvps=F.total_equity_fq/sh;
+  else if(pos(F.total_equity_fy)&&pos(sh))bvps=F.total_equity_fy/sh;
+  const dps=pos(F.dps_common_stock_prim_issue_fy)?F.dps_common_stock_prim_issue_fy:null;
+  const ePE=eps?px/eps:null,ePB=bvps?px/bvps:null,fin=F.sector==='Finance',sane=v=>v&&isFinite(v)&&v>px*0.2&&v<px*5;
+  /* the sector's medians when it has at least 5 profitable companies, else the whole market's */
+  const secOK=(r.sectorN||0)>=5,refPE=secOK?r.sectorPE:r.marketPE,refPB=secOK?r.sectorPB:r.marketPB;
+  const dyOK=(r.sectorNDY||0)>=5,refDY=dyOK?r.sectorDY:r.marketDY;
+  const refName=secOK?'قطاع '+(r.sectorAr||''):'السوق كله';
+  const m=[],why=[];
   if(sane(F.price_target_average))m.push({k:'an',name:'متوسط أسعار المحللين المستهدفة (12 شهرًا)',v:F.price_target_average,
     note:(F.price_target_low&&F.price_target_high?'أدنى تقدير '+fp(F.price_target_low)+' وأعلاه '+fp(F.price_target_high):'')+(F.recommendation_mark?' · توصية المحللين: '+REC_WORD(F.recommendation_mark):''),use:true});
-  if(eps&&r.sectorPE&&(r.sectorN||0)>=5){const v=eps*r.sectorPE;if(sane(v))m.push({k:'pe',name:'مكرر ربحية القطاع',v,
-    note:'ربحية السهم '+fp(eps)+' × متوسط مكرر قطاع '+(r.sectorAr||'')+' '+r.sectorPE.toFixed(1)+' (مكرر السهم '+pe.toFixed(1)+')',use:true});}
-  if(fin&&bvps&&r.sectorPB&&(r.sectorN||0)>=5){const v=bvps*r.sectorPB;if(sane(v))m.push({k:'pb',name:'مضاعف القيمة الدفترية للقطاع',v,
-    note:'القيمة الدفترية للسهم '+fp(bvps)+' × متوسط القطاع '+r.sectorPB.toFixed(2)+' — الطريقة الأنسب للبنوك',use:true});}
+  else why.push('لا يغطي المحللون هذا السهم');
+  if(eps&&refPE){const v=eps*refPE;if(sane(v))m.push({k:'pe',name:secOK?'مكرر ربحية القطاع':'مكرر ربحية السوق',v,
+    note:'ربحية السهم '+fp(eps)+epsNote+' × متوسط مكرر '+refName+' '+refPE.toFixed(1)+(ePE?' (مكرر السهم '+ePE.toFixed(1)+')':''),use:true});}
+  if(!eps)why.push(F.net_income_ttm!=null&&F.net_income_ttm<0?'الشركة خاسرة في آخر 12 شهرًا':'لا تتوفر أرباح السهم');
+  if(bvps&&refPB&&(fin||!eps)){const v=bvps*refPB;if(sane(v))m.push({k:'pb',name:fin?'مضاعف القيمة الدفترية للقطاع':'مضاعف القيمة الدفترية (تقريبي)',v,
+    note:'القيمة الدفترية للسهم '+fp(bvps)+' × متوسط '+refName+' '+refPB.toFixed(2)+(fin?' — الطريقة الأنسب للبنوك':' — بديل تقريبي لعدم توفر أرباح السهم'),use:true});}
+  if(dps&&refDY){const v=dps/(refDY/100),own=dps/px*100,div=own>=refDY*0.5;  /* only for real dividend payers: a token payout would drag the value down */
+    if(sane(v)||!div)m.push({k:'dy',name:'عائد التوزيعات مقارنة بـ'+(dyOK?'القطاع':'السوق'),v,
+    note:'التوزيع السنوي '+fp(dps)+' ÷ متوسط عائد '+(dyOK?'قطاع '+(r.sectorAr||''):'السوق كله')+' '+refDY.toFixed(2)+'%'+(div?'':' — لا تُحتسب لأن توزيعات السهم صغيرة مقارنة بأرباحه'),use:div&&sane(v)});}
   if(eps&&bvps){const v=Math.sqrt(22.5*eps*bvps);if(v&&isFinite(v))m.push({k:'gr',name:'معادلة جراهام (تقدير متحفظ)',v,
-    note:'الجذر التربيعي لـ 22.5 × الربحية × القيمة الدفترية'+(pb>6?' — لا تُحتسب هنا لأن السعر يزيد كثيرًا عن القيمة الدفترية':''),use:pb<=6}); }
+    note:'الجذر التربيعي لـ 22.5 × الربحية × القيمة الدفترية'+(ePB>6?' — لا تُحتسب هنا لأن السعر يزيد كثيرًا عن القيمة الدفترية':''),use:ePB<=6&&sane(v)});}
   /* the analysts' average counts twice: it already folds in growth, guidance and news that ratios can't see */
   const used=m.filter(x=>x.use).flatMap(x=>x.k==='an'?[x.v,x.v]:[x.v]).sort((a,b)=>a-b);
-  if(!used.length)return{methods:m,fair:null,loss:!(pe>0)&&F.net_income_ttm!=null&&F.net_income_ttm<0,r};
+  const base={methods:m,r,eps,bvps,pe:ePE,pb:ePB,why,loss:F.net_income_ttm!=null&&F.net_income_ttm<0&&!eps};
+  if(!used.length)return Object.assign(base,{fair:null});
   const mid=used.length>>1,fair=used.length%2?used[mid]:(used[mid-1]+used[mid])/2;
-  return{methods:m,fair,lo:used[0],hi:used[used.length-1],r,eps,bvps,pe,pb,anW:m.some(x=>x.k==='an')};
+  return Object.assign(base,{fair,lo:used[0],hi:used[used.length-1],anW:m.some(x=>x.k==='an'&&x.use),n:m.filter(x=>x.use).length});
 }
 
 function renderFair(){
@@ -29,19 +53,20 @@ function renderFair(){
     (S.ex==='GOLD'?'الذهب سلعة لا أرباح لها، فلا يُحسب له سعر عادل؛ استخدم الأهداف الفنية.':S.isFund?'سعر الصندوق هو قيمة أصوله الصافية، فهو سعره العادل.':!LOCAL?'يُحسب السعر العادل في نسخة البرنامج المثبتة.':'يتوفر للأسهم السعودية والمصرية والأمريكية.')+'</p>';return;}
   if(f===undefined||f==='loading'){box.innerHTML='<b>السعر العادل</b><p class="muted small">جارٍ جلب بيانات الشركة المالية…</p>';return;}
   const fv=S.fv;
-  if(!fv){box.innerHTML='<b>السعر العادل</b><p class="muted small">لا تتوفر بيانات مالية كافية لهذه الشركة.</p>';return;}
+  if(!fv){box.innerHTML='<b>السعر العادل</b><p class="muted small">'+esc(f&&f.error||_t('تعذّر جلب بيانات الشركة المالية.'))+'</p><button class="btn xs" type="button" id="fvRetry">'+_t('إعادة المحاولة')+'</button>';
+    $('#fvRetry').addEventListener('click',()=>loadFundamentals(S.loadSeq));return;}
   const F=fv.r.f,px=A?A.close:F.close;
   let h='<div class="fv-top"><b>السعر العادل</b>';
   if(fv.fair){const d=px/fv.fair-1,k=d<-0.1?'b':d>0.1?'x':'n';
     h+='<span class="fv-v">'+NUM(fp(fv.fair))+'</span><span class="fv-verdict '+k+'">'+(k==='b'?'السهم أقل من قيمته العادلة بـ '+NUM(((1-px/fv.fair)*100).toFixed(1)+'%')+' (مساحة صعود '+NUM(pct(fv.fair/px-1))+')':
       k==='x'?'السهم أعلى من قيمته العادلة بـ '+NUM((d*100).toFixed(1)+'%'):'السعر قريب من قيمته العادلة')+'</span></div>'+
-      (fv.lo!==fv.hi?'<p class="muted small">نطاق التقديرات من '+RANGE(fv.lo,fv.hi)+(fv.anW?'، والسعر العادل هو الوسيط بينها (متوسط المحللين بوزن مضاعف).</p>':'، والسعر العادل هو الوسيط بينها.</p>'):'');}
-  else h+='</div><p class="muted small">'+(fv.loss?'الشركة خاسرة في آخر 12 شهرًا، فلا يصلح تقييمها بالأرباح.':'لا تكفي البيانات لحساب سعر عادل موثوق.')+'</p>';
+      (fv.lo!==fv.hi?'<p class="muted small">نطاق التقديرات من '+RANGE(fv.lo,fv.hi)+(fv.anW?'، والسعر العادل هو الوسيط بينها (متوسط المحللين بوزن مضاعف).</p>':'، والسعر العادل هو الوسيط بينها.</p>'):'')+(fv.n===1?'<p class="muted small">'+_t('تقدير ضعيف: مبني على طريقة واحدة فقط.')+'</p>':'');}
+  else h+='</div><p class="muted small">'+(fv.loss?'الشركة خاسرة في آخر 12 شهرًا، فلا يصلح تقييمها بالأرباح.':'لا تكفي البيانات لحساب سعر عادل موثوق.')+(fv.why.length?' '+_t('السبب:')+' '+fv.why.map(x=>_t(x)).join('، ')+'.':'')+'</p>';
   h+='<ul>'+fv.methods.map(x=>'<li class="'+(x.use?'':'off')+'"><span>'+esc(x.name)+'</span><b>'+NUM(fp(x.v))+'</b><span class="n">'+x.note+'</span></li>').join('')+'</ul>';
   const fx=[];if(fv.pe)fx.push('مكرر الربحية <b>'+NUM(fv.pe.toFixed(1))+'</b>');if(fv.r.sectorPE)fx.push('مكرر القطاع <b>'+NUM(fv.r.sectorPE.toFixed(1))+'</b>');
   if(fv.pb)fx.push('السعر إلى القيمة الدفترية <b>'+NUM(fv.pb.toFixed(2))+'</b>');if(F.dividends_yield_current)fx.push('عائد التوزيعات <b>'+NUM(F.dividends_yield_current.toFixed(2)+'%')+'</b>');
   if(F.return_on_equity_fq!=null)fx.push('العائد على حقوق المساهمين <b>'+NUM(F.return_on_equity_fq.toFixed(1)+'%')+'</b>');
-  h+='<div class="facts">'+fx.map(x=>'<span>'+x+'</span>').join('')+'</div><p class="muted small">المصدر: TradingView · '+NUM(esc(fv.r.date||''))+'. السعر العادل تقدير تقريبي وليس ضمانًا.</p>';
+  h+='<div class="facts">'+fx.map(x=>'<span>'+x+'</span>').join('')+'</div><p class="muted small">المصدر: '+esc(fv.r.source||'TradingView')+' · '+NUM(esc(fv.r.date||''))+'. السعر العادل تقدير تقريبي وليس ضمانًا.</p>';
   box.innerHTML=h;
 }
 
@@ -87,7 +112,7 @@ async function loadFundamentals(seq){
   if(!LOCAL||!['SR','CA','US'].includes(S.ex)||S.isFund)return;
   S.fund='loading';renderFair();
   const r=await api('/api/fundamentals',{code:S.code,ex:S.ex}).catch(()=>null);if(seq!==S.loadSeq)return;
-  S.fund=r&&r.ok?r:null;S.fv=fairValue(S.fund);renderPlan();draw();
+  S.fund=r&&r.ok?r:(r||{ok:false});S.fv=fairValue(S.fund);renderPlan();draw();
 }
 
 /* ---------- AI assistants: direct link by API key, or a prompt to paste into any chat ---------- */
@@ -201,7 +226,7 @@ function aiPayload(){
       periodReturn:A.perf?r(A.perf.ret):null,periodHigh:A.perf?r(A.perf.hi):null,periodLow:A.perf?r(A.perf.lo):null},
     patterns:(A.pats||[]).map(p=>({name:p.name,confirmed:p.confirmed,target:r(p.target)})),
     backtest:S.bt?Object.fromEntries(Object.entries(S.bt).filter(([k,v])=>v&&v.n>0).map(([k,v])=>[k,{signals:v.n,winRate:+(v.w/v.n).toFixed(2)}])):null,
-    fundamentals:f?{pe:r(f.price_earnings_ttm),sectorPE:r(S.fund.sectorPE),pb:r(f.price_book_fq),dividendYield:r(f.dividends_yield_current),roe:r(f.return_on_equity_fq),
+    fundamentals:f?{pe:r(f.price_earnings_ttm||(fv&&fv.pe)),sectorPE:r(S.fund.sectorPE),pb:r(f.price_book_fq),dividendYield:r(f.dividends_yield_current),roe:r(f.return_on_equity_fq),
       epsNextYearForecast:r(f.earnings_per_share_forecast_next_fy),analystTarget:{avg:r(f.price_target_average),low:r(f.price_target_low),high:r(f.price_target_high)},
       analystRating:f.recommendation_mark?REC_WORD(f.recommendation_mark):null,sector:f.sector,marketCap:r(f.market_cap_basic)}:null,
     fairValue:fv&&fv.fair?{value:r(fv.fair),methods:fv.methods.map(m=>({method:m.k,value:r(m.v),used:m.use}))}:null,

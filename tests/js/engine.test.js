@@ -65,12 +65,28 @@ test('results match the saved snapshot (catches unintended changes)', () => {
 
 test('fair value: methods and median', () => {
   const fv = T.fairValue(fixture('COMI_fund'));
-  assert.equal(fv.methods.length, 4);
+  assert.ok(fv.methods.length >= 4);
   assert.ok(fv.lo <= fv.fair && fv.fair <= fv.hi);
   const a = T.fairValue(fixture('AAPL_fund'));
   const gr = a.methods.find(m => m.k === 'gr');
   assert.equal(gr.use, false, 'Graham is skipped when price/book is very high');
   assert.ok(!a.methods.some(m => m.k === 'pb'), 'book-value method is only for banks');
+});
+test('fair value: rebuilt from raw figures when there is no ready P/E', () => {
+  const r = fixture('4014_fund');
+  assert.equal(r.f.price_earnings_ttm, null);
+  const fv = T.fairValue(r);
+  assert.ok(fv.fair > 0 && fv.eps > 0, 'earnings per share comes from the raw figures');
+  assert.ok(fv.why.includes('لا يغطي المحللون هذا السهم'));
+});
+test('fair value: book value stands in when there are no earnings', () => {
+  const fv = T.fairValue(fixture('AMII_fund'));
+  assert.ok(fv.fair > 0);
+  assert.equal(fv.n, 1, 'flagged as a one-method estimate');
+});
+test('fair value: token dividends are not counted', () => {
+  const dy = T.fairValue(fixture('AAPL_fund')).methods.find(m => m.k === 'dy');
+  assert.ok(!dy || dy.use === false);
 });
 test('fair value: missing or loss-making data', () => {
   assert.equal(T.fairValue(null), null);

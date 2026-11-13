@@ -175,3 +175,16 @@ def test_fundamentals_picks_primary_listing(monkeypatch):
     monkeypatch.setattr(markets, "sector_multiples", lambda m, s: {"pe": 12, "pb": 1.5, "n": 40})
     r = main.get_fundamentals("ZZZT", "US")
     assert r["ok"] and r["f"]["exchange"] == "NYSE" and r["sectorPE"] == 12
+
+
+def test_fundamentals_falls_back_to_yahoo_and_never_caches_failures(monkeypatch):
+    def down(market, body):
+        raise OSError("scanner down")
+    monkeypatch.setattr(markets, "tv_scan", down)
+    monkeypatch.setattr(markets.time, "sleep", lambda s: None)
+    monkeypatch.setattr(markets, "get_profile", lambda sym: {"ok": False})
+    r = main.get_fundamentals("NOPE1", "SR")
+    assert not r["ok"] and "Yahoo" in r["error"]
+    monkeypatch.setattr(markets, "get_profile", lambda sym: {"ok": True, "price": 50, "trailingPE": 10, "targetMeanPrice": 60})
+    r = main.get_fundamentals("NOPE1", "SR")  # the earlier failure was not cached
+    assert r["ok"] and r["source"] == "Yahoo Finance" and r["f"]["price_target_average"] == 60
