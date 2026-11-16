@@ -102,3 +102,43 @@ test('AI answer rendering escapes HTML', () => {
   assert.ok(!h.includes('<script>'));
   assert.ok(h.includes('&lt;script&gt;'));
 });
+
+/* ---------- advanced tools ---------- */
+for (const name of ASSETS) {
+  test(name + ': advanced tools are consistent', () => {
+    const D = T.rowsToData(fixture(name).rows), r = T.advCompute(D), N = D.length - 1;
+    assert.equal(r.st.line.length, D.length);
+    for (let i = 0; i <= N; i++) {
+      if (r.st.line[i] == null) continue;
+      if (r.st.dir[i] > 0) assert.ok(r.st.line[i] <= D[i].h + 1e-9, 'up-trend line sits under the bar');
+      else assert.ok(r.st.line[i] >= D[i].l - 1e-9, 'down-trend line sits over the bar');
+    }
+    for (const f of r.st.flips) assert.equal(r.st.dir[f.i], f.dir);
+    for (const e of r.smc.events) { assert.ok(e.from < e.i); assert.ok(['BOS', 'CHoCH'].includes(e.type)); assert.ok(e.dir > 0 ? D[e.i].c > e.p : D[e.i].c < e.p); }
+    for (const g of r.smc.fvgs) assert.ok(g.lo < g.hi);
+    for (const o of r.smc.obs) assert.ok(o.lo <= o.hi && o.i >= 0);
+    for (let j = 1; j < r.zz.length; j++) assert.notEqual(r.zz[j].hi, r.zz[j - 1].hi, 'zigzag alternates highs and lows');
+    for (let i = 0; i <= N; i++) if (r.nw.up[i] != null) assert.ok(r.nw.up[i] >= r.nw.lo[i]);
+    const s = T.advSummary(D);
+    assert.ok([1, -1].includes(s.st) && [1, -1, 0].includes(s.ichi));
+    const f = T.yearFib(D, 'ytd');
+    assert.ok(f && f.hi >= f.lo && D[f.hiI].t >= Date.UTC(new Date(D[N].t).getUTCFullYear(), 0, 1));
+  });
+}
+test('advanced tools do not repaint: adding a bar never changes earlier values', () => {
+  const D = T.rowsToData(fixture('1120').rows), A = T.advCompute(D.slice(0, -20)), B = T.advCompute(D);
+  const n = D.length - 20;
+  for (const k of ['cf', 'cs', 'e200']) for (let i = 0; i < n; i++) assert.equal(A[k][i], B[k][i]);
+  for (let i = 0; i < n; i++) { assert.equal(A.st.line[i], B.st.line[i]); assert.equal(A.nw.mid[i], B.nw.mid[i]); assert.equal(A.ichi.sa[i], B.ichi.sa[i]); }
+  const evA = A.smc.events.map(e => e.i + e.type), evB = B.smc.events.filter(e => e.i < n).map(e => e.i + e.type);
+  assert.deepEqual(evA, evB, 'structure breaks already found stay the same');
+});
+test('supertrend on a clean up-trend then a crash', () => {
+  const D = []; let p = 100;
+  for (let i = 0; i < 80; i++) { p *= 1.01; D.push({ t: i * 864e5, o: p * 0.995, h: p * 1.005, l: p * 0.99, c: p, v: 1 }); }
+  for (let i = 80; i < 100; i++) { p *= 0.95; D.push({ t: i * 864e5, o: p * 1.02, h: p * 1.03, l: p * 0.99, c: p, v: 1 }); }
+  const st = T.supertrendCalc(D, 10, 3);
+  assert.equal(st.dir[79], 1);
+  assert.equal(st.dir[99], -1);
+  assert.ok(st.flips.some(f => f.dir === -1 && f.i >= 80));
+});

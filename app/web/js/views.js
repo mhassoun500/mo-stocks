@@ -1,6 +1,6 @@
 /* ================= analysis view: state, loading, rendering ================= */
 const S={ex:'SR',code:'',name:'',source:'sample',fileName:'',meta:null,daily:null,hourly:null,data:[],ind:null,A:null,bt:null,
-  tf:'D',range:{D:250,W:104,H:150},show:{zones:true,ma:true,bb:false,trend:true,pat:true,sig:true,vol:true,vp:false,gaps:true,events:true,cmp:false,fib:false,fair:true},
+  tf:'D',range:{D:250,W:104,H:150},show:{zones:true,ma:true,bb:false,trend:true,pat:true,sig:true,vol:true,vp:false,gaps:true,events:true,cmp:false,fib:false,fair:true,cloud:false,ema3:false,super:false,buyz:false,yfib:false,smc:false,zz:false,ichi:false,nw:false},
   pane:'rsi',sens:5,zoneCount:6,profile:null,cmp:null,cmpRaw:null,cmpLabel:'',drawings:[],confText:'',calcAuto:true,loadSeq:0};
 const RANGE_PRESETS={D:[['شهر',21],['٣ أشهر',63],['٦ أشهر',126],['سنة',250],['الكل',0]],W:[['٣ أشهر',13],['٦ أشهر',26],['سنة',52],['سنتان',104],['الكل',0]],H:[['أسبوع',35],['أسبوعان',70],['شهر',150],['الكل',0]]};
 
@@ -86,7 +86,7 @@ function render(){
   if(mh!=null){$('#mMacd').textContent=mh>=0?'زخم صاعد':'زخم هابط';$('#mMacd').style.color=mh>=0?'var(--up)':'var(--down)';$('#mMacd').style.fontFamily='var(--f-display)';
     $('#mMacdSub').innerHTML='الفرق عن خط الإشارة '+NUM(mh.toFixed(3))+(I.macdHist[N-2]!=null?(Math.abs(mh)>Math.abs(I.macdHist[N-2])?(mh<0?' · الهبوط يقوى':' · الصعود يقوى'):(mh<0?' · الهبوط يضعف':' · الصعود يضعف')):'');}
   renderCompareMetric();
-  renderPlan();
+  renderPlan();renderAdvSummary();
 
   const P2=A.perf,tfUnit=S.tf==='W'?'أسبوع':S.tf==='H'?'ساعة':'يوم';
   $('#perf').innerHTML='<span>أداء الفترة: <b>'+chgSpan(P2.ret,1)+'</b></span>'+
@@ -395,7 +395,13 @@ function setupAnalysisView(){
   $('#tfSeg').addEventListener('click',async e=>{const b=e.target.closest('button[data-tf]');if(!b||b.dataset.tf===S.tf)return;
     if(b.dataset.tf==='H'&&!(await ensureHourly()))return;S.tf=b.dataset.tf;applyTF();});
   $('#rangeSeg').addEventListener('click',e=>{const b=e.target.closest('button[data-range]');if(!b)return;S.range[S.tf]=+b.dataset.range;renderRangeSeg();CH.hover=-1;analyzeNow(true);});
-  $$('[data-show]').forEach(c=>{c.checked=!!S.show[c.dataset.show];c.addEventListener('change',()=>{S.show[c.dataset.show]=c.checked;draw();});});
+  try{const sv=P.advShow||{};for(const k of Object.keys(sv))if(k in S.show)S.show[k]=!!sv[k];}catch(e){}
+  $$('[data-show]').forEach(c=>{c.checked=!!S.show[c.dataset.show];c.addEventListener('change',()=>{S.show[c.dataset.show]=c.checked;
+    if(c.closest('#advDD')){P.advShow=P.advShow||{};P.advShow[c.dataset.show]=c.checked;savePrefs();updateAdvLabel();}draw();});});
+  const fm=$('#advFibMode');if(fm){fm.value=(P.adv&&P.adv.fibMode)||'365';fm.addEventListener('change',()=>{P.adv=Object.assign({},P.adv||{},{fibMode:fm.value});savePrefs();draw();});}
+  $('#advDD').addEventListener('click',e=>{const b=e.target.closest('[data-adv]');if(!b)return;const on=b.dataset.adv==='all';
+    $$('#advDD [data-show]').forEach(c=>{c.checked=on&&!['zz','nw','ichi'].includes(c.dataset.show);S.show[c.dataset.show]=c.checked;P.advShow=P.advShow||{};P.advShow[c.dataset.show]=c.checked;});savePrefs();updateAdvLabel();draw();});
+  updateAdvLabel();
   $('#pane').addEventListener('change',e=>{S.pane=e.target.value;draw();});
   $('#sens').addEventListener('change',e=>{S.sens=+e.target.value;analyzeNow(false);});
   $('#zc').addEventListener('change',e=>{S.zoneCount=+e.target.value;analyzeNow(false);});
@@ -417,3 +423,5 @@ function setupAnalysisView(){
   document.addEventListener('dragover',e=>e.preventDefault());
   document.addEventListener('drop',e=>{e.preventDefault();dragDepth=0;$('#dropHint').hidden=true;const f=e.dataTransfer&&e.dataTransfer.files[0];if(f){location.hash='#analysis';readFile(f);}});
 }
+
+function updateAdvLabel(){const n=$$('#advDD [data-show]').filter(c=>c.checked).length;$('#advLbl').textContent=_t('أدوات متقدمة')+(n?' ('+n+')':'');}

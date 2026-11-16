@@ -102,6 +102,7 @@ function draw(){
   if(show.vol){let mv=0;for(let i=st;i<end;i++)mv=Math.max(mv,D[i].v||0);
     if(mv>0){const vh=priceH*0.15;for(let i=st;i<end;i++){const h=(D[i].v||0)/mv*vh;ctx.fillStyle=D[i].c>=D[i].o?C.volUp:C.volDown;
       ctx.fillRect(X(i)-Math.max(0.5,bw*0.35),pBot-h,Math.max(1,bw*0.7),h);}}}
+  drawAdvanced(ctx,CH.L,C,labels);
   /* candles */
   const bodyW=Math.max(1,bw*0.66);
   if(S.isFund){ /* funds have one price per day: draw a line with a soft area */

@@ -25,6 +25,7 @@ function bindPrefs(){
       if(path==='edu')applyEdu();
       if(path==='font'||path==='numFont')applyFont();
       if(path.startsWith('ana.')&&path!=='ana.tf'&&S.daily){S.ind=computeInd(S.data);analyzeNow(false);}
+      if(path.startsWith('adv.')&&S.A){renderAdvSummary();draw();}
       if(path.startsWith('sharia.')){if(S.A)render();if(typeof renderScan==='function'&&LOCAL)renderScan();}
       if(path==='alerts.enabled'&&val&&LOCAL)checkWatchlist(false);
     });

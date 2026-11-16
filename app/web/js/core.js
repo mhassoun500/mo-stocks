@@ -96,6 +96,7 @@ const Store={
 const PREF_DEFAULTS={
   theme:'system',edu:false,font:'Cairo',numFont:'same',background:false,dataSource:'tv',updateRepo:'mhassoun500/mo-stocks',
   ana:{maFast:20,maSlow:50,rsi:14,bb:20,stopMult:0.5,tf:'D'},
+  adv:{cloudFast:9,cloudSlow:21,stLen:10,stMult:3,swing:5,nwBand:8,nwMult:2.5,fibMode:'365'},advShow:{},
   alerts:{enabled:true,interval:15,desktop:true,telegram:true},
   telegram:{enabled:false,chatId:''},
   report:{enabled:false,time:'09:30',days:[0,1,2,3,4]},

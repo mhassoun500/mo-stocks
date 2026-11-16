@@ -201,7 +201,24 @@
           <label class="chip local-only"><input type="checkbox" data-show="cmp"><span id="cmpChipLabel">مقارنة بالمؤشر</span></label>
           <label class="chip"><input type="checkbox" data-show="fib"><span>فيبوناتشي</span></label>
           <label class="chip local-only"><input type="checkbox" data-show="fair"><span>السعر العادل</span></label>
+          <details class="dd adv-dd" id="advDD"><summary class="dd-btn"><span id="advLbl">أدوات متقدمة</span></summary>
+            <div class="dd-menu" role="group" aria-label="أدوات متقدمة">
+              <label><input type="checkbox" data-show="super"><span>Supertrend مع إشارات الشراء والبيع وتحذير الاتجاه الهابط</span></label>
+              <label><input type="checkbox" data-show="cloud"><span>سحابة المتوسطات الأسية (9 و21)</span></label>
+              <label><input type="checkbox" data-show="ema3"><span>المتوسطات الأسية 50 و100 و200</span></label>
+              <label><input type="checkbox" data-show="buyz"><span>منطقة الشراء الديناميكية (حسب المدى اليومي ATR)</span></label>
+              <label><input type="checkbox" data-show="smc"><span>مفاهيم الأموال الذكية: كسر وتغيّر الهيكل، مناطق الطلبات، فجوات القيمة العادلة</span></label>
+              <label><input type="checkbox" data-show="yfib"><span>فيبوناتشي السنوي</span></label>
+              <label class="adv-sub"><span>نطاقه:</span><select id="advFibMode"><option value="365">آخر 365 يومًا</option><option value="ytd">منذ بداية السنة</option></select></label>
+              <label><input type="checkbox" data-show="ichi"><span>سحابة إيشيموكو</span></label>
+              <label><input type="checkbox" data-show="zz"><span>زيج زاج (قمم وقيعان مع نسب الحركة)</span></label>
+              <label><input type="checkbox" data-show="nw"><span>غلاف ناداريا-واتسون</span></label>
+              <div class="dd-actions"><button class="btn xs ghost" type="button" data-adv="all">تشغيل الأساسية</button><button class="btn xs ghost" type="button" data-adv="none">إخفاء الكل</button></div>
+              <p class="muted small adv-note">أدوات مستوحاة من مؤشر «HoBs All in One»، مبنية داخل البرنامج بحسابات قياسية لا تعيد الرسم.</p>
+            </div>
+          </details>
         </div>
+        <div class="adv-sum" id="advSum" hidden></div>
       </div>
       <div class="toolbar">
         <div class="selects">
@@ -514,6 +531,11 @@
           <label class="field" for="pMaSlow"><span>المتوسط الطويل</span><input id="pMaSlow" type="number" min="10" max="300" data-pref="ana.maSlow"></label>
           <label class="field" for="pRsi"><span>فترة القوة النسبية <bdi class="ar-only">(RSI)</bdi></span><input id="pRsi" type="number" min="5" max="50" data-pref="ana.rsi"></label>
           <label class="field" for="pBb"><span>فترة بولنجر</span><input id="pBb" type="number" min="10" max="60" data-pref="ana.bb"></label>
+          <label class="field" for="pStLen"><span>فترة <bdi>Supertrend</bdi></span><input id="pStLen" type="number" min="5" max="50" data-pref="adv.stLen"></label>
+          <label class="field" for="pStMult"><span>مضاعف <bdi>Supertrend</bdi></span><input id="pStMult" type="number" min="1" max="6" step="0.5" data-pref="adv.stMult"></label>
+          <label class="field" for="pCloudF"><span>سحابة المتوسطات: القصير</span><input id="pCloudF" type="number" min="3" max="50" data-pref="adv.cloudFast"></label>
+          <label class="field" for="pCloudS"><span>سحابة المتوسطات: الطويل</span><input id="pCloudS" type="number" min="5" max="100" data-pref="adv.cloudSlow"></label>
+          <label class="field" for="pSwing"><span>حساسية القمم والقيعان (الأموال الذكية)</span><input id="pSwing" type="number" min="2" max="15" data-pref="adv.swing"></label>
           <label class="field" for="pStop"><span>مسافة الوقف (× متوسط المدى)</span><input id="pStop" type="number" min="0.1" max="3" step="0.1" data-pref="ana.stopMult"></label>
           <label class="field" for="pTf"><span>الإطار الافتراضي</span><select id="pTf" data-pref="ana.tf"><option value="D">يومي</option><option value="W">أسبوعي</option></select></label>
         </div>

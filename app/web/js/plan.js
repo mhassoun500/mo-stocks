@@ -230,6 +230,11 @@ function aiPayload(){
       epsNextYearForecast:r(f.earnings_per_share_forecast_next_fy),analystTarget:{avg:r(f.price_target_average),low:r(f.price_target_low),high:r(f.price_target_high)},
       analystRating:f.recommendation_mark?REC_WORD(f.recommendation_mark):null,sector:f.sector,marketCap:r(f.market_cap_basic)}:null,
     fairValue:fv&&fv.fair?{value:r(fv.fair),methods:fv.methods.map(m=>({method:m.k,value:r(m.v),used:m.use}))}:null,
+    advancedTools:(()=>{const a=advSummary(D);if(!a)return null;return{supertrend:a.st>0?'up':'down',supertrendLevel:r(a.stLine),barsSinceSupertrendFlip:a.stSince,
+      ema9vs21:a.cloud>0?'bullish':'bearish',priceVsEma200:a.e200>0?'above':'below',ema200:r(a.e200v),ema50vs200:a.golden>0?'golden cross':a.golden<0?'death cross':null,
+      ichimoku:a.ichi>0?'above cloud':a.ichi<0?'below cloud':'inside cloud',lastStructureBreak:a.struct?{type:a.struct.type,dir:a.struct.dir>0?'bullish':'bearish',barsAgo:a.struct.ago,level:r(a.struct.p)}:null,
+      inDynamicBuyZone:a.inBuy,dynamicBuyZone:a.buy?[r(a.buy.lo),r(a.buy.hi)]:null,openBullishFVG:a.fvUp,openBearishFVG:a.fvDn,validBullishOrderBlocksBelow:a.obBelow,validBearishOrderBlocksAbove:a.obAbove,
+      nadarayaWatson:a.nw>0?'above upper band':a.nw<0?'below lower band':'inside',downtrendWarning:a.down};})(),
     sharia:sh?{verdict:sh.s,count:sh.count||null,references:(sh.refs||[]).map(x=>x[0]+': '+x[1])}:null,
     last60Closes:last};
 }
