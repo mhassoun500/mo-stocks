@@ -114,6 +114,13 @@
           <ul class="qual-parts" id="qualParts"></ul>
           <p class="small muted" id="qualNote"></p>
         </div>
+        <div class="mtf" id="mtfBox" hidden>
+          <h4>توافق الأطر الزمنية</h4>
+          <div id="mtfRows"></div>
+          <p class="mtf-verdict" id="mtfVerdict"></p>
+          <button class="btn xs" type="button" id="mtfHourly" hidden>حمّل الإطار الساعي</button>
+          <details class="xi" id="xiBox"><summary>مؤشرات إضافية (اختيارية)</summary><ul id="xiList"></ul><p class="small muted" id="xiNote"></p></details>
+        </div>
         <p class="edu">درجة الثقة تجمع قوة الأسباب المؤيدة والمعارضة، ونسبة نجاح نفس الإعداد على تاريخ السهم نفسه. أقل من 55% تعني إشارة ضعيفة.</p>
         <ul class="reasons" id="reasons"></ul>
         <div class="actions">
@@ -330,6 +337,7 @@
         <h3 class="sub-h">مقارنة طرق الخروج (نفس شرط الدخول)</h3>
         <div class="tbl-wrap"><table><thead><tr><th>طريقة الخروج</th><th>الصفقات</th><th>نسبة النجاح</th><th>العائد المتوقع للصفقة</th><th>عائد الاستراتيجية</th><th>أقصى تراجع</th></tr></thead><tbody id="btModes"></tbody></table></div>
         <p class="small muted" id="btScoreNote"></p>
+        <p class="small muted" id="btAlignNote"></p>
         <canvas id="btEq" height="200" aria-label="منحنى رأس المال مقارنة بالشراء والاحتفاظ"></canvas>
         <p class="small muted" id="btEqNote"></p>
         <p class="edu">يحاكي الاختبار ما كانت الأداة ستقوله في كل يوم من الماضي باستخدام البيانات المتاحة حتى ذلك اليوم فقط، ثم يقيس ماذا حدث بعدها.</p>

@@ -391,7 +391,7 @@ function pickTrades(D,I,o){
       const x=resolveStaged(D,j0,e+H,open,g.stop,[g.t1,g.t2,g.t3],g.atr,mode.trail);if(!x)continue;fills=x.fills;exit=x.exit;
     }else{const x=resolveExit(D,j0,e+H,g.stop,g.t1);if(!x)continue;fills=[{j:x.exit,px:x.px,frac:1,why:x.why}];exit=x.exit;}
     const px=fills.reduce((a,f)=>a+f.px*f.frac,0);
-    raw.push({e,j0,exit,open,px,why:fills[fills.length-1].why,stop:g.stop,target:g.t1,fills,score:g.score});busy=exit;
+    raw.push({e,j0,exit,open,px,why:fills[fills.length-1].why,stop:g.stop,target:g.t1,fills,score:g.score,al:alignAt(D,I,e)});busy=exit;
   }
   return{raw,first};
 }
@@ -432,6 +432,43 @@ function scoreSplit(trades,cut){
   const g=a=>({n:a.length,avg:a.length?a.reduce((s,t)=>s+t.ret,0)/a.length:null,win:a.length?a.filter(t=>t.ret>0).length/a.length:null});
   const sc=trades.filter(t=>t.score!=null);return{cut,hi:g(sc.filter(t=>t.score>=cut)),lo:g(sc.filter(t=>t.score<cut))};
 }
+
+/* ---------- several timeframes, one verdict (Phase 2, step 4) ---------- */
+/* direction of one timeframe at candle i from four plain readings: price against the slow average, fast against slow average,
+   MACD histogram and RSI against 50. Needs the slow average; otherwise the direction is unknown (null). */
+function tfBias(D,I,i){
+  if(i==null)i=D.length-1;const c=D[i]&&D[i].c,f=I.ma1[i],sl=I.ma2[i],h=I.macdHist[i],r=I.rsi[i];
+  if(c==null||f==null||sl==null||h==null||r==null)return null;
+  const parts=[{k:'السعر فوق المتوسط البطيء',v:c>sl?1:-1},{k:'المتوسط السريع فوق البطيء',v:f>sl?1:-1},{k:'ماكد فوق خطه',v:h>c*1e-6?1:h<-c*1e-6?-1:0},{k:'القوة النسبية فوق 50',v:r>50?1:-1}];
+  const score=parts.reduce((a,p)=>a+p.v,0);
+  return{score,dir:score>=3?1:score<=-3?-1:0,parts};
+}
+/* frames: {W,D,H} each a bias or null. One verdict: do the available timeframes point the same way? */
+function mtfVerdict(fr){
+  const have=['W','D','H'].filter(k=>fr[k]&&fr[k].dir!=null),dirs=have.map(k=>fr[k].dir);
+  if(have.length<2)return{state:'few',have,text:'لا تكفي أطر زمنية لحكم موحّد'};
+  const up=dirs.filter(d=>d>0).length,dn=dirs.filter(d=>d<0).length;
+  if(up===have.length)return{state:'up',have,text:'كل الأطر صاعدة: الاتجاه يدعم الشراء'};
+  if(dn===have.length)return{state:'down',have,text:'كل الأطر هابطة: الاتجاه لا يدعم الشراء'};
+  if(up&&dn)return{state:'conflict',have,text:'الأطر متعارضة: لا يوجد اتجاه واضح مشترك'};
+  return{state:up?'partial-up':'partial-down',have,text:up?'ميل صاعد جزئي: بعض الأطر صاعدة والباقي محايد':'ميل هابط جزئي: بعض الأطر هابطة والباقي محايد'};
+}
+/* the same two-frame reading at the moment of a past signal, using only candles up to it (daily, and the weekly bar built from them) */
+function alignAt(D,I,e){
+  const d=tfBias(D,I,e);const w=aggregateWeekly(D.slice(0,e+1));let wb=null;
+  if(w.length>=P.ana.maSlow+5){const Iw=computeInd(w);wb=tfBias(w,Iw,w.length-1);}
+  return{d:d?d.dir:null,w:wb?wb.dir:null};
+}
+/* average result of trades by the timeframes' direction at entry: daily and weekly both up against the rest, and (because this strategy
+   buys pullbacks, so both-up is rare) weekly not down against weekly down */
+function alignSplit(trades){
+  const g=a=>({n:a.length,avg:a.length?a.reduce((s,t)=>s+t.ret,0)/a.length:null,win:a.length?a.filter(t=>t.ret>0).length/a.length:null});
+  const ok=trades.filter(t=>t.al&&t.al.d!=null&&t.al.w!=null);
+  const wk=trades.filter(t=>t.al&&t.al.w!=null);
+  return{up:g(ok.filter(t=>t.al.d>0&&t.al.w>0)),other:g(ok.filter(t=>!(t.al.d>0&&t.al.w>0))),unknown:trades.length-ok.length,
+    wkOk:g(wk.filter(t=>t.al.w>=0)),wkDown:g(wk.filter(t=>t.al.w<0)),wkUnknown:trades.length-wk.length};
+}
+
 function blendConfidence(A,bt){
   if(!A||A.dirStrength==null)return null;
   const ref=A.stance==='buy'&&bt&&bt.zone.n>=5?bt.zone:null;

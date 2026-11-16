@@ -390,3 +390,89 @@ test('fair value: old saved data without the new fields still works', () => {
   const fv = T.fairValue(fixture('4014_fund'), { ex: 'SR' });
   assert.ok(fv.fair > 0 && fv.conf && fv.buy < fv.fair);
 });
+
+/* ---------- Phase 2, step 4: extra indicators and the timeframe verdict ---------- */
+const mk = (closes, vol = 1000, wig = 0.005) => closes.map((c, i) => ({ t: Date.UTC(2024, 0, 1) + i * 864e5, o: c, h: c * (1 + wig), l: c * (1 - wig), c, v: typeof vol === 'function' ? vol(i) : vol }));
+const trend = (n, a, b) => Array.from({ length: n }, (_, i) => a + (b - a) * i / (n - 1));
+const zig = n => Array.from({ length: n }, (_, i) => 100 + (i % 2 ? 1 : -1));
+
+test('ADX: high in a steady trend with +DI above -DI, low in a sideways chop, empty when data is short', () => {
+  const up = T.adxCalc(mk(trend(120, 100, 200)), 14), ch = T.adxCalc(mk(zig(120)), 14);
+  assert.ok(up.adx[119] > 40 && up.pdi[119] > up.mdi[119]);
+  assert.ok(ch.adx[119] < 20);
+  assert.ok(up.adx.every(v => v === null || (v >= 0 && v <= 100)));
+  assert.ok(T.adxCalc(mk(trend(20, 1, 2)), 14).adx.every(v => v === null));
+  const dn = T.adxCalc(mk(trend(120, 200, 100)), 14);
+  assert.ok(dn.mdi[119] > dn.pdi[119]);
+});
+test('ADX: later candles never change earlier values', () => {
+  const D = mk(trend(150, 100, 160).map((c, i) => c + Math.sin(i / 3) * 3));
+  const a = T.adxCalc(D.slice(0, 100), 14).adx, b = T.adxCalc(D, 14).adx;
+  for (let i = 0; i < 100; i++) assert.equal(a[i], b[i]);
+});
+test('OBV: volume added on up days, subtracted on down days, and read against price', () => {
+  const D = mk([10, 11, 10, 12], i => [0, 100, 50, 200][i]);
+  assert.deepEqual(Array.from(T.obvCalc(D)), [0, 100, 50, 250]);
+  const up = T.obvRead(mk(trend(60, 100, 130)), 20); assert.equal(up.state, 'confirm');
+  const falseRally = T.obvRead(mk(Array.from({ length: 60 }, (_, i) => i < 40 ? 100 : 100 + (i - 39) * 0.2), i => i < 40 ? 1000 : (i % 3 ? 100 : 5000)), 20);
+  assert.ok(falseRally === null || ['bear', 'confirm', 'mixed', 'flat', 'bull'].includes(falseRally.state));
+  assert.equal(T.obvRead(mk(trend(60, 1, 2), 0), 20), null, 'no volume (gold), no reading');
+});
+test('OBV: price rising while volume flows out is called a bearish divergence', () => {
+  const closes = Array.from({ length: 60 }, (_, i) => 100 + i * 0.3 * (i % 2 ? 1 : 0.5));
+  const D = mk(closes, i => (i > 30 && i % 2 === 1 ? 10 : 1000));
+  const r = T.obvRead(D, 20);
+  assert.ok(r.pd > 0 && r.fd < 0 && r.state === 'bear');
+});
+test('RSI divergence: lower low in price with a higher low in RSI is found; a clean trend has none; only confirmed points are used', () => {
+  const seg = (a, b, n) => trend(n, a, b);
+  const closes = [].concat(seg(120, 100, 25), seg(100, 112, 12).slice(1), seg(112, 99, 25).slice(1), seg(99, 106, 12).slice(1));
+  const D = mk(closes, 1000, 0.002), rsi = T.rsiCalc(D.map(d => d.c), 14);
+  const dv = T.rsiDivergence(D, rsi);
+  assert.ok(dv && dv.type === 'bull' && D[dv.i2].l < D[dv.i1].l && rsi[dv.i2] > rsi[dv.i1]);
+  const clean = mk(trend(120, 100, 200), 1000, 0.002);
+  assert.equal(T.rsiDivergence(clean, T.rsiCalc(clean.map(d => d.c), 14)), null);
+  /* a swing point needs k candles after it: it cannot sit among the last k candles */
+  assert.ok(dv.i2 <= D.length - 1 - 3);
+  /* candles after the second point do not move the points already found */
+  const more = mk(closes.concat(seg(106, 108, 6).slice(1)), 1000, 0.002), d2 = T.rsiDivergence(more, T.rsiCalc(more.map(d => d.c), 14));
+  assert.ok(d2 && d2.i1 === dv.i1 && d2.i2 === dv.i2);
+});
+test('relative volume: multiple of the previous 20-candle average, null without volume or history', () => {
+  const D = mk(trend(40, 10, 11), i => i === 39 ? 3000 : 1000);
+  assert.ok(Math.abs(T.relVol(D, 39) - 3) < 1e-9);
+  assert.equal(T.relVol(mk(trend(40, 10, 11), 0), 39), null);
+  assert.equal(T.relVol(D, 5), null);
+});
+test('timeframe bias: four readings, uptrend up, downtrend down, unknown without the slow average', () => {
+  const U = mk(trend(150, 100, 200)), Dn = mk(trend(150, 200, 100));
+  const bu = T.tfBias(U, T.computeInd(U)), bd = T.tfBias(Dn, T.computeInd(Dn));
+  assert.equal(bu.dir, 1); assert.equal(bd.dir, -1); assert.equal(bu.parts.length, 4);
+  assert.equal(bu.score, bu.parts.reduce((s, p) => s + p.v, 0));
+  const S2 = mk(trend(30, 100, 110)); assert.equal(T.tfBias(S2, T.computeInd(S2)), null);
+});
+test('timeframe verdict: agreement, partial, conflict and too few frames', () => {
+  const f = (w, d, h) => ({ W: w == null ? null : { dir: w }, D: d == null ? null : { dir: d }, H: h == null ? null : { dir: h } });
+  assert.equal(T.mtfVerdict(f(1, 1, 1)).state, 'up');
+  assert.equal(T.mtfVerdict(f(-1, -1, -1)).state, 'down');
+  assert.equal(T.mtfVerdict(f(1, -1, 1)).state, 'conflict');
+  assert.equal(T.mtfVerdict(f(1, 0, 1)).state, 'partial-up');
+  assert.equal(T.mtfVerdict(f(-1, 0, 0)).state, 'partial-down');
+  assert.equal(T.mtfVerdict(f(1, null, null)).state, 'few');
+  assert.equal(T.mtfVerdict(f(1, 1, null)).state, 'up', 'works with two frames when hourly data is missing');
+});
+test('alignment at a past signal uses only candles up to it', () => {
+  const { D, I } = run('AAPL'), e = D.length - 120, a = J(T.alignAt(D, I, e));
+  const D2 = D.slice(0, e + 1).concat(D.slice(e + 1).map(d => ({ t: d.t, o: 1, h: 2, l: 0.5, c: 1.5, v: 1 })));
+  assert.deepEqual(J(T.alignAt(D2, T.computeInd(D2), e)), a);
+});
+test('trades carry their alignment, and the split groups them without losing any', () => {
+  const { D, I } = run('1120'), pm = T.pickModes(D, I, SIM), R = T.priceTrades(D, pm.modes.single, pm.first, 0.15, 0.05);
+  assert.ok(R.trades.every(t => t.al && 'd' in t.al && 'w' in t.al));
+  const sp = T.alignSplit(R.trades);
+  assert.equal(sp.up.n + sp.other.n + sp.unknown, R.trades.length);
+  const fake = T.alignSplit([{ ret: 0.04, al: { d: 1, w: 1 } }, { ret: -0.02, al: { d: 1, w: -1 } }, { ret: 0.01, al: { d: null, w: 1 } }]);
+  assert.equal(fake.wkOk.n, 2); assert.equal(fake.wkDown.n, 1); assert.equal(fake.wkUnknown, 0);
+  assert.equal(sp.wkOk.n + sp.wkDown.n + sp.wkUnknown, R.trades.length);
+  assert.equal(fake.up.n, 1); assert.equal(fake.other.n, 1); assert.equal(fake.unknown, 1); assert.equal(fake.up.avg, 0.04);
+});

@@ -14,7 +14,7 @@ function route(){
   await loadPrefs();
   applyTheme();applyEdu();applyFont();
   S.tf=P.ana.tf==='W'?'W':'D';
-  setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();setupPlan();setupMaint();setupSources();setupSim();
+  setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();setupPlan();setupMaint();setupSources();setupSim();$('#mtfHourly').addEventListener('click',async()=>{if(await ensureHourly())renderMtf();});
   window.addEventListener('hashchange',route);route();
   updateLinks();renderRecent();renderRangeSeg();
   setupShariaPop();

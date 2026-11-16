@@ -89,7 +89,7 @@ function render(){
     neutral:['انتظار حتى تتضح الإشارة','السعر بين الدعم والمقاومة. راقب منطقة الشراء قبل الدخول.']};
   $('#stanceText').textContent=T[A.stance][0];$('#stanceSub').textContent=T[A.stance][1];
   $('#reasons').innerHTML=A.reasons.map(r=>'<li class="'+r[0]+'"><span class="dot"></span><span>'+r[1]+'</span></li>').join('');
-  renderConfidence();renderQuality();renderExitPlan();
+  renderConfidence();renderQuality();renderMtf();renderExitPlan();
 
   const tfTxt=S.tf==='H'?fmtDateTime.format(last.t):fmtDate.format(last.t);
   $('#mPrice').innerHTML=fp(last.c);
@@ -171,11 +171,40 @@ function priceAllModes(fee,slip){
   S.sim=S.modes.single;}
 const MODE_NAME={single:'بيع كامل عند الهدف الأول (30 شمعة)',staged:'بيع ثلث عند كل هدف من الثلاثة (60 شمعة)',trail:'بيع ثلث عند كل هدف + وقف متحرك'};
 function renderModes(){
-  const M=S.modes,b=$('#btModes');if(!M){b.innerHTML='';$('#btScoreNote').textContent='';return;}
+  const M=S.modes,b=$('#btModes');if(!M){b.innerHTML='';$('#btScoreNote').textContent='';$('#btAlignNote').textContent='';return;}
+  {const as=alignSplit(M.single.trades),f=g=>g.n?NUM(g.n)+' '+_t('صفقة')+'، '+_t('متوسط العائد')+' '+pctTxt(g.avg,true):_t('لا صفقات');
+   $('#btAlignNote').innerHTML=_t('بحسب الاتجاه الأسبوعي عند الدخول: غير هابط')+' — '+f(as.wkOk)+' · '+_t('هابط')+' — '+f(as.wkDown)+'. '+_t('اليومي والأسبوعي معًا صاعدان')+' — '+f(as.up)+'. '
+    +((as.wkOk.n<10||as.wkDown.n<10)?_t('العينة صغيرة جدًا للحكم على فائدة التوافق.'):(as.wkOk.avg>as.wkDown.avg?_t('التوافق أفضل في هذا التاريخ.'):_t('التوافق لم يتفوق في هذا التاريخ.')));}
   b.innerHTML=Object.keys(MODE_NAME).map(k=>{const st=M[k].stats;return '<tr><td>'+_t(MODE_NAME[k])+'</td><td>'+NUM(st.n)+'</td><td>'+pctTxt(st.winRate)+'</td><td>'+pctTxt(st.expectancy,true)+'</td><td>'+pctTxt(st.total,true)+'</td><td>'+pctTxt(st.maxDD)+'</td></tr>';}).join('');
   const sp=scoreSplit(M.single.trades,60),f=g=>g.n?NUM(g.n)+' '+_t('صفقة')+'، '+_t('متوسط العائد')+' '+pctTxt(g.avg,true):_t('لا صفقات');
   $('#btScoreNote').innerHTML=_t('بحسب درجة الجودة: صفقات درجتها 60 فأكثر')+' — '+f(sp.hi)+' · '+_t('وصفقات درجتها أقل من 60')+' — '+f(sp.lo)+'. '
     +((sp.hi.n<10||sp.lo.n<10)?_t('العينة صغيرة جدًا للحكم على فائدة الدرجة.'):(sp.hi.avg>sp.lo.avg?_t('الدرجة المرتفعة أفضل في هذا التاريخ.'):_t('الدرجة المرتفعة لم تتفوق في هذا التاريخ.')));}
+const DIR_TXT={1:'صاعد',0:'محايد','-1':'هابط'};
+function frameBias(k){
+  const D=S.daily;if(!D||D.length<80)return null;
+  if(k==='D')return tfBias(D,S.tf==='D'&&S.ind?S.ind:computeInd(D));
+  if(k==='W'){const w=aggregateWeekly(D);return w.length>=P.ana.maSlow+5?tfBias(w,computeInd(w)):null;}
+  const h=S.hourly;return h&&h.length>=P.ana.maSlow+5?tfBias(h,computeInd(h)):null;}
+function renderMtf(){
+  const box=$('#mtfBox');if(!box)return;
+  if(S.isFund||!S.daily||S.daily.length<80||S.ex==='XX'){box.hidden=true;return;}box.hidden=false;
+  const fr={W:frameBias('W'),D:frameBias('D'),H:frameBias('H')},NAMES={W:'الأسبوعي (الاتجاه العام)',D:'اليومي (الإعداد)',H:'الساعي (التوقيت)'};
+  $('#mtfRows').innerHTML=['W','D','H'].map(k=>{const b=fr[k];
+    const t=b?'<span class="mtf-dir '+(b.dir>0?'u':b.dir<0?'d':'n')+'">'+_t(DIR_TXT[b.dir])+'</span> <small>('+NUM(b.score)+' / 4)</small>':'<span class="muted">'+_t(k==='H'&&!S.hourly?'غير محمّل':'بيانات غير كافية')+'</span>';
+    return '<div class="mtf-row" title="'+esc(b?b.parts.map(p=>_t(p.k)+': '+(p.v>0?'+':p.v<0?'−':'0')).join(' · '):'')+'"><span>'+_t(NAMES[k])+'</span><span>'+t+'</span></div>';}).join('');
+  const v=mtfVerdict(fr);$('#mtfVerdict').innerHTML=_t(v.text)+(v.have.length<3?' ('+_t('اعتمادًا على')+' '+NUM(v.have.length)+' '+_t('أطر')+')':'');
+  const hb=$('#mtfHourly');hb.hidden=!!S.hourly||!LOCAL||S.source!=='live';
+  const A=S.daily,I=computeInd(A),n=A.length-1,li=[],ax=adxCalc(A,14),ad=ax.adx[n];
+  if(ad!=null){const dirTxt=ax.pdi[n]>ax.mdi[n]?_t('صاعد'):_t('هابط');
+    li.push('<li><b>ADX</b> '+NUM(ad.toFixed(0))+' — '+_t(ad>=40?'اتجاه قوي جدًا':ad>=25?'اتجاه قوي':ad>=20?'اتجاه يتكوّن':'لا اتجاه واضح (سوق عرضي)')+(ad>=20?' ('+dirTxt+')':'')+'</li>');}
+  const ob=obvRead(A,20);
+  li.push('<li><b>OBV</b> '+(ob?_t(ob.state==='confirm'?(ob.fd>0?'تدفق الحجم يؤكد الصعود':'تدفق الحجم يؤكد الهبوط'):ob.state==='bear'?'السعر يصعد وتدفق الحجم يخرج (تحذير)':ob.state==='bull'?'السعر يهبط وتدفق الحجم يدخل (إشارة ارتداد محتملة)':ob.state==='flat'?'لا اتجاه واضح في تدفق الحجم':'تدفق الحجم لا يوافق السعر بوضوح'):_t('لا تتوفر بيانات حجم'))+'</li>');
+  const dv=rsiDivergence(A,I.rsi);
+  li.push('<li><b>'+_t('انحراف القوة النسبية')+'</b> '+(dv?_t(dv.type==='bull'?'انحراف صاعد: قاع أدنى في السعر وقاع أعلى في المؤشر':'انحراف هابط: قمة أعلى في السعر وقمة أدنى في المؤشر')+' · '+_t('قبل')+' '+NUM(dv.ago)+' '+_t('شمعة'):_t('لا يوجد انحراف'))+'</li>');
+  const rv=relVol(A,n);
+  li.push('<li><b>'+_t('الحجم النسبي')+'</b> '+(rv==null?_t('لا تتوفر بيانات حجم'):NUM(rv.toFixed(1))+'× '+_t('متوسط 20 يومًا')+' — '+_t(rv>=1.5?'نشاط مرتفع':rv<0.7?'نشاط ضعيف':'نشاط عادي'))+'</li>');
+  $('#xiList').innerHTML=li.join('');
+  $('#xiNote').textContent=_t('مؤشرات على الإطار اليومي للقراءة فقط ولا تدخل في درجة الجودة. الانحراف يُعتمد بعد ثلاث شموع من تكوّن القمة أو القاع، فهو يتأخر عن السعر.');}
 function renderQuality(){
   const box=$('#qualBox'),A=S.A;if(!box)return;
   const q=A&&!S.isFund?setupScore(S.data,S.ind,A,S.data.length-1):null;

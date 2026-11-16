@@ -36,7 +36,7 @@ function load(files = ['core', 'indicators', 'advanced', 'engine', 'plan']) {
   vm.createContext(ctx);
   let src = (files.includes('views') ? '' : 'const S={};\n') + files.map(n => fs.readFileSync(path.join(ROOT, 'app', 'web', 'js', n + '.js'), 'utf8')).join('\n');
   /* expose the functions the tests need (they are top-level declarations inside the page's closure) */
-  src += '\n;globalThis.__T={rowsToData,computeInd,aggregateWeekly,analyzeCore,runBacktest,runTradeSim,pickTrades,resolveExit,resolveStaged,pickModes,scoreSplit,setupScore,signalAt,priceTrades,blendConfidence,fairValue,dcfPerShare,fvParams,FV_DEF,medianOf,mdLite,fp,pct,P,S,advCompute,advSummary,supertrendCalc,smcCalc,zigzagCalc,yearFib,ichimokuCalc,nwCalc};';
+  src += '\n;globalThis.__T={rowsToData,computeInd,aggregateWeekly,analyzeCore,runBacktest,runTradeSim,pickTrades,resolveExit,resolveStaged,pickModes,scoreSplit,setupScore,signalAt,priceTrades,blendConfidence,adxCalc,obvCalc,obvRead,rsiDivergence,relVol,rsiCalc,tfBias,mtfVerdict,alignAt,alignSplit,fairValue,dcfPerShare,fvParams,FV_DEF,medianOf,mdLite,fp,pct,P,S,advCompute,advSummary,supertrendCalc,smcCalc,zigzagCalc,yearFib,ichimokuCalc,nwCalc};';
   vm.runInContext(src, ctx, { filename: 'page.js' });
   return ctx.__T;
 }
