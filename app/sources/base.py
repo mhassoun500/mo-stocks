@@ -28,6 +28,21 @@ class SourcesFailed(Exception):
         self.tried = tried or []
 
 
+class FormatChanged(Exception):
+    """A source answered, but the page or file no longer looks the way the reader expects (the site changed its layout)."""
+
+
+def format_changed(source, why, sample=""):
+    """Log the problem once a minute with the start of the response, and return the exception to raise."""
+    sample = " ".join(str(sample or "").split())[:400]
+    msg = "%s: %s" % (source, why)
+    try:
+        _core().record("WARN", "format." + source, msg + (" | sample: " + sample if sample else ""))
+    except Exception:
+        pass
+    return FormatChanged("تغيّر شكل صفحة المصدر (%s)." % source)
+
+
 class AuthError(Exception):
     """The source refused the key."""
 

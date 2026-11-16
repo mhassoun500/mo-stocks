@@ -3,7 +3,7 @@
 import time
 
 from .base import REG, NoData
-from . import health
+from . import health, defs
 
 
 def _core():
@@ -14,7 +14,24 @@ def _core():
 def status():
     return {"ok": True, "sources": REG.status(), "ranking": REG.ranking(), "auto": REG.auto(),
             "watch": bool(_core().Store.get("src_watch", True)),
-            "checking": health.BUSY.is_set()}
+            "checking": health.BUSY.is_set(), "defs": defs_status()}
+
+
+def defs_status():
+    d = defs.status()
+    d["auto"] = bool(_core().Store.get("defs_auto", True))
+    return d
+
+
+def defs_check():
+    r = defs.refresh()
+    r["status"] = defs_status()
+    return r
+
+
+def set_defs_auto(on):
+    _core().Store.set("defs_auto", bool(on))
+    return status()
 
 
 def set_auto(on):

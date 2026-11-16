@@ -7,7 +7,7 @@ set /p VER=<VERSION
 where py >nul 2>nul && (set "PY=py -3") || (set "PY=python")
 %PY% -m pip install --upgrade -r requirements.txt pyinstaller || goto :err
 %PY% tools\build_page.py || goto :err
-%PY% -m PyInstaller --noconfirm --clean --windowed --name MoStocks --icon assets\icon.ico ^
+%PY% -m PyInstaller --hidden-import pypdf --noconfirm --clean --windowed --name MoStocks --icon assets\icon.ico ^
   --add-data "app\page.html;." --add-data "app\fonts;fonts" --add-data "assets\icon.png;." --add-data "VERSION;." app\main.py || goto :err
 echo.
 echo App built: dist\MoStocks\MoStocks.exe

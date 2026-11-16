@@ -185,12 +185,44 @@ async function copyText(t){
 }
 const aiConnected=()=>AI.status?Object.entries(AI.status.providers).filter(([k,v])=>v.hasKey):[];
 async function loadAiStatus(){if(!LOCAL)return null;AI.status=await api('/api/ai').catch(()=>null);return AI.status;}
+/* ---------- "fill what is missing" with the AI assistant: separate from confirmed data, always with a source link ---------- */
+const FILL_LABEL={fair:'القيمة العادلة',sharia:'الحكم الشرعي',purification:'نسبة التطهير',earnings:'موعد إعلان الأرباح'};
+const FILL_VERDICT={ok:'متوافق',no:'غير متوافق',doubt:'محل نظر'};
+function aiFillMissing(){
+  if(!LOCAL||!S.A||S.isFund||S.ex==='GOLD'||S.ex==='FUND'||S.ex==='XX')return[];
+  const m=[];if(!(S.fv&&S.fv.fair))m.push('fair');if(!shariaInfo(S.code,S.ex))m.push('sharia');m.push('purification');
+  const p=S.profile;if(!(p&&p.ok&&(p.earningsDates||[]).some(e=>e*1000>Date.now())))m.push('earnings');return m;}
+function renderAiFill(){
+  const box=$('#aiFill');if(!box)return;const miss=aiFillMissing(),conn=aiConnected(),f=S.aiFill&&S.aiFill.code===S.code&&S.aiFill.ex===S.ex?S.aiFill:null;
+  if(!miss.length||!conn.length){box.hidden=true;return;}box.hidden=false;
+  $('#aiFillMissing').textContent=_t('ينقص هذا السهم:')+' '+miss.map(k=>_t(FILL_LABEL[k])).join('، ')+'. '+_t('يبحث المساعد على الإنترنت وتظهر نتيجته هنا منفصلة عن البيانات المؤكدة.');
+  $('#aiFillRun').disabled=!!(f&&f.busy);const out=$('#aiFillOut');
+  if(!f){out.innerHTML='';return;}
+  if(f.busy){out.innerHTML='<p class="muted">'+_t('يبحث المساعد…')+'</p>';return;}
+  if(!f.ok){out.innerHTML='<p class="err">'+esc(_t(f.error||'تعذّر البحث.'))+'</p>';return;}
+  const rows=Object.entries(f.items||{}).map(([k,v])=>{
+    let val=k==='fair'?NUM(v.value)+' '+esc(v.currency||''):k==='sharia'?esc(_t(FILL_VERDICT[v.verdict]||''))+(v.by?' — '+esc(v.by):''):k==='purification'?NUM(v.pct)+'%'+(v.by?' — '+esc(v.by):''):esc(v.date);
+    if(k==='fair'&&v.basis)val+=' <span class="muted">'+esc(v.basis)+'</span>';
+    return '<div class="fill-row"><b>'+esc(_t(FILL_LABEL[k]))+'</b> <span class="badge off">'+_t('من بحث المساعد')+'</span><div>'+val+'</div>'
+      +'<a href="'+esc(v.url)+'" data-url="'+esc(v.url)+'" class="fill-link" rel="noopener"><bdi>'+esc(new URL(v.url).hostname)+'</bdi></a></div>';}).join('');
+  const none=(f.missing||[]).filter(k=>!(f.items||{})[k]).map(k=>_t(FILL_LABEL[k]));
+  out.innerHTML=(rows||'<p class="muted">'+_t('لم يجد المساعد مصدرًا موثوقًا لأي بند.')+'</p>')
+    +(none.length&&rows?'<p class="muted">'+_t('لم يجد مصدرًا لـ:')+' '+none.map(esc).join('، ')+'</p>':'')
+    +'<p class="muted">'+_t('هذه معلومات من بحث المساعد ولم تُؤكَّد من مصدر بيانات. افتح الرابط وتحقق قبل الاعتماد عليها.')+'</p>';}
+async function runAiFill(){
+  const prov=$('#aiProv').value;if(!prov||!S.A)return;const st=AI.status.providers[prov],code=S.code,ex=S.ex,missing=aiFillMissing();
+  S.aiFill={code,ex,busy:true};renderAiFill();
+  try{const r=await apiPost('/api/ai',{action:'fill',provider:prov,model:(P.ai.models||{})[prov]||'',base:prov==='custom'?P.ai.base:'',code,ex,name:S.name||'',missing});
+    if(S.code!==code||S.ex!==ex)return;S.aiFill=Object.assign({code,ex},r||{ok:false,error:'لا يوجد رد.'});}
+  catch(e){S.aiFill={code,ex,ok:false,error:'تعذّر الاتصال بالبرنامج.'};}
+  renderAiFill();}
 function renderAiBox(){
   const conn=aiConnected(),c=S.ai&&S.ai.code===S.code&&S.ai.ex===S.ex?S.ai:null,out=$('#aiOut');
   if(LOCAL){$('#aiSetup').hidden=conn.length>0;$('#aiControls').hidden=!conn.length;
     const sel=$('#aiProv'),cur=conn.some(([k])=>k===P.ai.provider)?P.ai.provider:(conn[0]||[''])[0];
     sel.innerHTML=conn.map(([k,v])=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+esc(v.name)+'</option>').join('');
     const pv=conn.find(([k])=>k===cur);const canWeb=!!(pv&&pv[1].web);$('#aiWeb').disabled=!canWeb;$('#aiWebLbl').title=canWeb?'':_t('البحث في الأخبار متاح مع Claude وGemini فقط');}
+  renderAiFill();
   if(!c){out.hidden=true;$('#aiMeta').textContent='';return;}
   out.hidden=false;
   if(c.busy){out.innerHTML='<p class="muted">'+esc(c.name||'')+' '+_t('يقرأ بيانات السهم… قد يستغرق ذلك نصف دقيقة.')+'</p>';return;}
@@ -264,6 +296,8 @@ function setupPlan(){
   if(!LOCAL)return;
   setupAiPrefs();
   $('#aiRun').addEventListener('click',runAi);
+  $('#aiFillRun').addEventListener('click',runAiFill);
+  $('#aiFillOut').addEventListener('click',e=>{const a=e.target.closest('a[data-url]');if(a){e.preventDefault();openExt(a.dataset.url);}});
   $('#aiQ').addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('#aiControls').hidden)runAi();});
   $('#aiProv').addEventListener('change',()=>{P.ai.provider=$('#aiProv').value;savePrefs();renderAiBox();});
   $('#aiGoSettings').addEventListener('click',e=>{e.preventDefault();location.hash='#prefs';setTimeout(()=>{const el=$('#aiPanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);});

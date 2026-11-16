@@ -242,6 +242,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(sources.admin.reset())
                 if act == "probe":
                     return self._json(sources.admin.probe_now())
+                if act == "defs":
+                    return self._json(sources.admin.defs_check())
+                if act == "defsauto":
+                    return self._json(sources.admin.set_defs_auto(bool(b.get("enabled"))))
                 return self._json({"ok": False, "error": "إجراء غير معروف."})
             if p == "/api/ai":
                 act, prov = b.get("action"), b.get("provider") or "claude"
@@ -253,11 +257,23 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(AI.models(prov, b.get("key") or None, b.get("base")))
                 if act == "test":
                     return self._json(AI.test(prov, b.get("model"), b.get("key") or None, b.get("base")))
+                if act == "fill":
+                    log("  ai fill %s" % prov)
+                    return self._json(sources.aifill.fill(AI, prov, b.get("model"), b.get("base"), str(b.get("code") or "")[:20],
+                                                          str(b.get("name") or "")[:80], str(b.get("ex") or "")[:4],
+                                                          [str(x) for x in (b.get("missing") or [])][:4]))
                 if act == "ask":
                     log("  ai %s %s" % (prov, b.get("model") or ""))
                     return self._json(AI.ask(prov, b.get("model"), str(b.get("system") or "")[:8000],
                                              str(b.get("user") or "")[:60000], bool(b.get("web")), base=b.get("base")))
                 return self._json({"ok": False, "error": "إجراء غير معروف."})
+            if p == "/api/shariaimport":
+                import base64
+                import sharia_import
+                m = re.match(r"^data:[^,]*;base64,(.*)$", str(b.get("dataUrl") or ""), re.S)
+                if not m or len(m.group(1)) > 8 * 1024 * 1024:
+                    return self._json({"ok": False, "error": "لم يصل الملف."})
+                return self._json(sharia_import.preview(str(b.get("name") or ""), base64.b64decode(m.group(1)), str(b.get("ex") or "")))
             if p == "/api/save":
                 path = save_file(b.get("filename"), b.get("dataUrl"), b.get("text"))
                 return self._json({"ok": True, "path": path})

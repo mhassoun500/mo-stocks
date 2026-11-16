@@ -20,7 +20,7 @@ import urllib.request
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
-ARGAAM_URL = "https://www.argaam.com/ar/company/shariahcompanies/1/3/%d"
+ARGAAM_URL = "https://www.argaam.com/ar/company/shariahcompanies/1/3/%d"   # built-in; sources.defs may replace it
 ARGAAM_MARKETS = {"main": 3, "nomu": 14}
 EG_URL = "https://stocks.templatesnippet.com/data/stocks_merged.json"
 EG_PAGE = "https://stocks.templatesnippet.com/stocks"
@@ -41,25 +41,35 @@ def _get(url, timeout=40):
 
 
 # ---------------------------------------------------------------- Saudi (Argaam)
-def parse_argaam(page):
+def _defs():
+    from sources import defs
+    return defs
+
+
+def parse_argaam(page, d=None):
+    d = d or _defs().get("argaam")
     refs = []
-    for name, date in re.findall(r'<span class="inst_name">([^<]+)</span>\s*<br\s*/?>\s*<sup[^>]*>[^<]*<br\s*/?>\s*<span>([^<]*)</span>', page):
+    for name, date in re.findall(d["ref_re"], page):
         refs.append([name.strip(), date.strip()])
     if not refs:
-        refs = [[n.strip(), ""] for n in re.findall(r'<span class="inst_name">([^<]+)</span>', page)]
+        refs = [[n.strip(), ""] for n in re.findall(d["ref_alt_re"], page)]
     rows = {}
-    for code, name, rest in re.findall(
-            r'<td class="stock-symbol">\s*(\d+)\s*</td>\s*<td class="argaam-font company-name">\s*<a [^>]*>([^<]+)</a>\s*</td>(.*?)</tr>',
-            page, re.S):
-        cells = re.findall(r'<td class="center">(.*?)</td>', rest, re.S)[:len(refs) or 3]
-        rows[code] = {"n": re.sub(r"^شركة\s+", "", name.strip()), "v": "".join("1" if "✔" in c else "0" for c in cells)}
+    for code, name, rest in re.findall(d["row_re"], page, re.S):
+        cells = re.findall(d["cell_re"], rest, re.S)[:len(refs) or 3]
+        rows[code] = {"n": re.sub(d["name_prefix_re"], "", name.strip()), "v": "".join("1" if d["tick"] in c else "0" for c in cells)}
     return refs, rows
 
 
 def fetch_saudi():
-    out = {"source": "أرقام", "url": ARGAAM_URL % 3, "date": time.strftime("%Y-%m-%d"), "refs": [], "main": {}, "nomu": {}}
+    from sources.base import format_changed
+    D = _defs()
+    url = D.get("urls", "argaam")
+    out = {"source": "أرقام", "url": url % 3, "date": time.strftime("%Y-%m-%d"), "refs": [], "main": {}, "nomu": {}}
     for seg, mid in ARGAAM_MARKETS.items():
-        refs, rows = parse_argaam(_get(ARGAAM_URL % mid))
+        page = _get(url % mid)
+        refs, rows = parse_argaam(page)
+        if not rows and len(page) > 2000:
+            raise format_changed("argaam", "page is %d characters but no company row matched" % len(page), page[:400])
         if len(rows) < (100 if seg == "main" else 30):
             raise ValueError("Argaam list for %s looks incomplete (%d rows)" % (seg, len(rows)))
         out[seg] = rows
@@ -75,7 +85,11 @@ def _eg_verdict(v):
 
 
 def fetch_egypt():
-    data = json.loads(_get(EG_URL, timeout=60))
+    from sources.base import format_changed
+    raw = _get(_defs().get("urls", "eg"), timeout=60)
+    data = json.loads(raw)
+    if isinstance(data, list) and data and not any(isinstance(x, dict) and x.get("symbol") for x in data[:20]):
+        raise format_changed("egsharia", "records have no 'symbol' field", raw[:400])
     if not isinstance(data, list) or len(data) < 100:
         raise ValueError("Egyptian list looks incomplete")
     rows = {}
@@ -97,7 +111,11 @@ def fetch_spus():
     """Holdings of the SP Funds S&P 500 Sharia ETF, which tracks the S&P 500 Shariah index (AAOIFI rules)."""
     import csv
     import io
-    rows = list(csv.DictReader(io.StringIO(_get(SPUS_CSV))))
+    from sources.base import format_changed
+    text = _get(_defs().get("urls", "spus"))
+    rows = list(csv.DictReader(io.StringIO(text)))
+    if rows and "StockTicker" not in rows[0]:
+        raise format_changed("spus", "no 'StockTicker' column", text[:400])
     tickers = sorted({(r.get("StockTicker") or "").strip().upper() for r in rows})
     tickers = [t for t in tickers if re.match(r"^[A-Z]{1,5}(\.[A-Z])?$", t)]
     if len(tickers) < 100:

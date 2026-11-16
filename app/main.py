@@ -64,6 +64,7 @@ def start_server():
     threading.Thread(target=sharia_refresher, daemon=True).start()
     threading.Thread(target=backup_refresher, daemon=True).start()
     threading.Thread(target=sources.health.loop, daemon=True).start()
+    threading.Thread(target=sources.defs.loop, args=(QUIT,), daemon=True).start()
     return srv, "http://%s:%d/" % (HOST, srv.server_address[1])
 
 

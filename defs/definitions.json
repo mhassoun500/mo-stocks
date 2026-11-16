@@ -1,0 +1,19 @@
+{
+ "schema": 1,
+ "version": 1,
+ "min_app": "2.11.0",
+ "updated": "2026-11-16",
+ "urls": {
+  "argaam": "https://www.argaam.com/ar/company/shariahcompanies/1/3/%d",
+  "eg": "https://stocks.templatesnippet.com/data/stocks_merged.json",
+  "spus": "https://www.sp-funds.com/wp-content/uploads/data/TidalFG_Holdings_SPUS.csv"
+ },
+ "argaam": {
+  "ref_re": "<span class=\"inst_name\">([^<]+)</span>\\s*<br\\s*/?>\\s*<sup[^>]*>[^<]*<br\\s*/?>\\s*<span>([^<]*)</span>",
+  "ref_alt_re": "<span class=\"inst_name\">([^<]+)</span>",
+  "row_re": "<td class=\"stock-symbol\">\\s*(\\d+)\\s*</td>\\s*<td class=\"argaam-font company-name\">\\s*<a [^>]*>([^<]+)</a>\\s*</td>(.*?)</tr>",
+  "cell_re": "<td class=\"center\">(.*?)</td>",
+  "name_prefix_re": "^شركة\\s+",
+  "tick": "✔"
+ }
+}

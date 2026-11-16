@@ -25,7 +25,7 @@ jobs:
           node-version: "22"
       - name: Server tests
         run: |
-          python -m pip install --upgrade pytest
+          python -m pip install --upgrade pytest pypdf reportlab
           python -m pytest -q tests/py
       - name: Analysis engine tests
         run: node --test tests/js/engine.test.js
@@ -51,7 +51,7 @@ jobs:
       - name: Build app
         run: |
           python tools/build_page.py
-          python -m PyInstaller --noconfirm --clean --windowed --name MoStocks --icon assets\icon.ico --add-data "app\page.html;." --add-data "app\fonts;fonts" --add-data "assets\icon.png;." --add-data "VERSION;." app\main.py
+          python -m PyInstaller --hidden-import pypdf --noconfirm --clean --windowed --name MoStocks --icon assets\icon.ico --add-data "app\page.html;." --add-data "app\fonts;fonts" --add-data "assets\icon.png;." --add-data "VERSION;." app\main.py
       - name: Check the packaged app can reach the data sources
         shell: pwsh
         run: |
