@@ -61,7 +61,9 @@ PY_LIT = re.compile(r'"((?:[^"\\\n]|\\.)*)"')
 
 def server_strings():
     out = []
-    for f in sorted(os.path.basename(x) for x in glob.glob(os.path.join(ROOT, "app", "*.py"))):
+    files = sorted(os.path.relpath(x, os.path.join(ROOT, "app")) for x in
+                   glob.glob(os.path.join(ROOT, "app", "*.py")) + glob.glob(os.path.join(ROOT, "app", "sources", "*.py")))
+    for f in files:
         for line in open(os.path.join(ROOT, "app", f), encoding="utf-8"):
             if line.lstrip().startswith("#"):
                 continue

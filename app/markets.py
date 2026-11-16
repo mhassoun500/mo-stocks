@@ -2,6 +2,7 @@
 """Market data: search, company profiles, market lists, sectors, fundamentals, Sharia lists and screens."""
 from core import *  # noqa: F401,F403
 from prices import *  # noqa: F401,F403
+from sources import REG, NoData, SourcesFailed
 # ---------------------------------------------------------------- search, profile, universe, sectors
 def search_yahoo(q, ex):
     url = ("https://query2.finance.yahoo.com/v1/finance/search?q=%s&quotesCount=15&newsCount=0&listsCount=0"
@@ -320,8 +321,22 @@ def _fundamentals_yahoo(code, ex):
     return f
 
 
+def fundamentals_tradingview(code, ex):
+    """Company figures from TradingView's scanner (the first source of the fundamentals chain)."""
+    market = TV_MARKET_OF.get(ex)
+    c = code.strip().upper().split(".")[0]
+    body = {"filter": [{"left": "name", "operation": "equal", "right": c}], "columns": FUND_COLS, "range": [0, 10]}
+    rows = [dict(zip(FUND_COLS, r["d"])) for r in tv_scan(market, body).get("data") or []]
+    if ex == "US":
+        rows.sort(key=lambda r: (r.get("exchange") not in US_PRIMARY, -(r.get("market_cap_basic") or 0)))
+    if not rows:
+        raise NoData()
+    return rows[0]
+
+
 def get_fundamentals(code, ex):
-    """Company figures and analyst targets from TradingView's scanner, plus the sector's median multiples."""
+    """Company figures and analyst targets from the first source that has them (TradingView, Yahoo Finance,
+    the optional keyed sources, SEC EDGAR), plus the sector's median multiples."""
     market = TV_MARKET_OF.get(ex)
     c = code.strip().upper().split(".")[0]
     if not market or not c:
@@ -331,27 +346,11 @@ def get_fundamentals(code, ex):
         hit = MEM.get(key)
     if hit and time.time() - hit[0] < 6 * 3600:
         return hit[1]
-    body = {"filter": [{"left": "name", "operation": "equal", "right": c}], "columns": FUND_COLS, "range": [0, 10]}
-    rows, source = [], "TradingView"
-    for attempt in range(2):
-        try:
-            rows = [dict(zip(FUND_COLS, r["d"])) for r in tv_scan(market, body).get("data") or []]
-            break
-        except Exception as e:
-            if attempt:
-                record("WARN", "fundamentals %s %s" % (ex, c), e)
-            else:
-                time.sleep(1)
-    if ex == "US":
-        rows.sort(key=lambda r: (r.get("exchange") not in US_PRIMARY, -(r.get("market_cap_basic") or 0)))
-    f = rows[0] if rows else None
-    if not f:
-        try:
-            f, source = _fundamentals_yahoo(c, ex), "Yahoo Finance"
-        except Exception as e:
-            record("WARN", "fundamentals yahoo %s %s" % (ex, c), e)
-    if not f:
-        return {"ok": False, "error": "لم أجد بيانات مالية لهذه الشركة في TradingView ولا Yahoo Finance."}  # not cached: try again next time
+    try:
+        f, meta = REG.call("fundamentals", ex, code=c, ex=ex)
+        source = meta["label"]
+    except (NoData, SourcesFailed):
+        return {"ok": False, "error": "لم أجد بيانات مالية لهذه الشركة في أي مصدر."}  # not cached: try again next time
     sec, mkt = {}, {}
     try:
         if f.get("sector"):
@@ -535,13 +534,15 @@ def sharia_refresh():
     SHARIA_BUSY.set()
     res = {}
     try:
-        for key, fn in (("sa", sharia.fetch_saudi), ("eg", sharia.fetch_egypt), ("spus", sharia.fetch_spus)):
+        for c in list(REG.items.values()):
+            if "sharia" not in c.kinds or not c.available():
+                continue
             try:
-                cache_put("sharia|" + key, fn())
-                res[key] = True
+                cache_put("sharia|" + c.dataset, REG.call_one(c.id, "sharia"))
+                res[c.dataset] = True
             except Exception as e:
-                warn(" Sharia list (%s) refresh failed (%s)" % (key, e))
-                res[key] = False
+                warn(" Sharia list (%s) refresh failed (%s)" % (c.dataset, e))
+                res[c.dataset] = False
     finally:
         SHARIA_BUSY.clear()
     return res
@@ -751,25 +752,11 @@ def get_news(q, region):
     cached, _ = cache_get(key, max_age=1800)
     if cached:
         return cached
-    gl = {"SR": "SA", "CA": "EG"}.get(region, "SA")
-    url = ("https://news.google.com/rss/search?q=%s&hl=ar&gl=%s&ceid=%s:ar"
-           % (urllib.parse.quote(q), gl, gl))
     try:
-        root = ET.fromstring(http_text(url).encode("utf-8"))
-    except Exception:
+        items, _ = REG.call("news", region, q=q, region=region)
+    except (NoData, SourcesFailed):
         stale, _ = cache_get(key)
         return stale or {"ok": False, "error": "تعذّر جلب الأخبار."}
-    items = []
-    for it in root.iter("item"):
-        src = it.find("source")
-        title = (it.findtext("title") or "").strip()
-        source = src.text.strip() if src is not None and src.text else ""
-        if source and title.endswith(" - " + source):
-            title = title[: -len(source) - 3]
-        items.append({"title": title, "link": it.findtext("link") or "", "date": it.findtext("pubDate") or "",
-                      "source": source})
-        if len(items) >= 12:
-            break
     out = {"ok": True, "items": items}
     cache_put(key, out)
     return out

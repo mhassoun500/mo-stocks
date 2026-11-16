@@ -4,6 +4,7 @@ from core import *  # noqa: F401,F403
 from prices import *  # noqa: F401,F403
 from markets import *  # noqa: F401,F403
 from system import *  # noqa: F401,F403
+import sources  # noqa: E402
 # ================================================================ web server
 SKELETON = ('<!doctype html><html lang="ar"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
@@ -139,6 +140,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "enabled": autostart_state(), "available": FROZEN})
             if p == "/api/tvaccount":
                 return self._json(tv_account_status())
+            if p == "/api/sources":
+                return self._json(sources.admin.status())
             if p == "/api/fundamentals":
                 return self._json(get_fundamentals(q.get("code", ""), q.get("ex", "SR")))
             if p == "/api/ai":
@@ -221,6 +224,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "enabled": autostart_set(bool(b.get("enabled")))})
             if p == "/api/tvaccount":
                 return self._json(tv_account_action(b))
+            if p == "/api/sources":
+                act, cid = b.get("action"), str(b.get("id") or "")
+                if act == "enable":
+                    return self._json(sources.admin.set_enabled(cid, bool(b.get("enabled"))))
+                if act == "key":
+                    return self._json(sources.admin.set_key(cid, b.get("key")))
+                if act == "delkey":
+                    return self._json(sources.admin.delete_key(cid))
+                if act == "test":
+                    return self._json(sources.admin.test(cid))
+                return self._json({"ok": False, "error": "إجراء غير معروف."})
             if p == "/api/ai":
                 act, prov = b.get("action"), b.get("provider") or "claude"
                 if act == "save":

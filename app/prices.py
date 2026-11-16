@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Price data: Yahoo Finance, Stooq, metals, TradingView history and today's live session, mutual fund prices."""
 from core import *  # noqa: F401,F403
+from sources import REG, NoData, SourcesFailed
 # ================================================================ HTTP with Yahoo cookie + crumb
 class Yahoo:
     lock = threading.Lock()
@@ -68,7 +69,7 @@ def http_text(url, timeout=20):
         return r.read().decode("utf-8", errors="replace")
 
 
-class NotFound(Exception):
+class NotFound(NoData):
     pass
 
 
@@ -423,7 +424,7 @@ def _fetch_all_funds(stale):
 
     def one(country):
         try:
-            got_by[country] = funds.fetch_fund_list(country)
+            got_by[country] = REG.call_one("mubasher", "funds", op="list", country=country)
         except Exception:
             got_by[country] = None
 
@@ -467,7 +468,7 @@ def fetch_fund(code, rng):
     meta = next((i for i in lst.get("items", []) if i["id"] == fid), None)
     online = True
     try:
-        rows = funds.fetch_fund_history(fid)
+        rows = REG.call_one("mubasher", "funds", op="history", fid=fid)
     except urllib.error.HTTPError as e:
         if e.code not in (403, 404):
             online = False
@@ -586,49 +587,23 @@ def _history_live(code, ex, rng, interval, lite=False):
         return fetch_fund(code, rng)
     if ex == "GOLD":
         return fetch_metal(code, rng, interval)
-    tv_first = prefer_tv()
-    tv_err = None
-    if tv_first:
-        try:
-            r = fetch_tv(code, ex, rng, interval, lite)
-            if r:
-                return r
-        except NotFound as e:
-            tv_err = e
-        except Exception as e:
-            warn(" TradingView failed for %s (%s); trying Yahoo." % (code, e))
-
-    def tv_backup():
-        if tv_first or not tvdata.CLIENT.available():
-            return None
-        try:
-            r = fetch_tv(code, ex, rng, interval)
-            if r:
-                r["note"] = "تعذّر الجلب من Yahoo Finance فاستُخدم TradingView."
-            return r
-        except Exception:
-            return None
-
-    symbol = yahoo_symbol(code, ex)
     try:
-        return fetch_yahoo(symbol, rng, interval)
-    except NotFound as e:
-        tv = tv_backup()
-        if tv:
-            return tv
-        return {"ok": False, "notFound": True, "error": str(tv_err or e)}
-    except ConnectionError:
-        tv = tv_backup()
-        if tv:
-            return tv
-        if interval == "1d":
-            st = EXCHANGES.get(ex, (None, None, None, None))[3]
-            if st:
-                rows = trim_range(fetch_stooq(code.split(".")[0] + st), rng)
-                return {"ok": True, "source": "Stooq", "symbol": code.upper(), "interval": "1d", "name": code.upper(),
-                        "currency": "", "rows": rows, "dividends": [], "splits": [],
-                        "note": "تعذّر الوصول إلى TradingView وYahoo Finance فاستُخدم Stooq."}
-        raise
+        res, meta = REG.call("history", ex, code=code, ex=ex, rng=rng, interval=interval, lite=lite)
+    except NoData as e:
+        msg = str(e)
+        return {"ok": False, "notFound": True,
+                "error": msg if re.search("[\u0600-\u06ff]", msg) else "الرمز %s غير موجود في أي مصدر." % code.upper()}
+    except SourcesFailed as e:
+        raise ConnectionError(str(e))
+    failed = {t["id"] for t in meta["tried"] if t["state"] == "fail"}
+    if failed and not res.get("note") and meta["id"] != "yahoo":
+        if meta["id"] == "tradingview" and failed == {"yahoo"}:
+            res["note"] = "تعذّر الجلب من Yahoo Finance فاستُخدم TradingView."
+        elif meta["id"] == "stooq" and "yahoo" in failed:
+            res["note"] = "تعذّر الوصول إلى TradingView وYahoo Finance فاستُخدم Stooq."
+        elif meta["id"] != "tradingview":
+            res["note"] = "تعذّر الجلب من المصدر الأول فاستُخدم مصدر بديل."
+    return res
 
 
 MEM = {}

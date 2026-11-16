@@ -184,7 +184,7 @@ def test_fundamentals_falls_back_to_yahoo_and_never_caches_failures(monkeypatch)
     monkeypatch.setattr(markets.time, "sleep", lambda s: None)
     monkeypatch.setattr(markets, "get_profile", lambda sym: {"ok": False})
     r = main.get_fundamentals("NOPE1", "SR")
-    assert not r["ok"] and "Yahoo" in r["error"]
+    assert not r["ok"] and r["error"]
     monkeypatch.setattr(markets, "get_profile", lambda sym: {"ok": True, "price": 50, "trailingPE": 10, "targetMeanPrice": 60})
     r = main.get_fundamentals("NOPE1", "SR")  # the earlier failure was not cached
     assert r["ok"] and r["source"] == "Yahoo Finance" and r["f"]["price_target_average"] == 60
