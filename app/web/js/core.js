@@ -100,7 +100,7 @@ const PREF_DEFAULTS={
   alerts:{enabled:true,interval:15,desktop:true,telegram:true},
   telegram:{enabled:false,chatId:''},
   report:{enabled:false,time:'09:30',days:[0,1,2,3,4]},
-  sharia:{ok:'',no:'',asOf:''},
+  sharia:{ok:'',no:'',asOf:'',purify:''},
   calc:{capital:100000,risk:1,fee:0.15},
   egpLocal:{},
   ai:{provider:'claude',models:{},base:'',web:true},
@@ -160,7 +160,16 @@ function usSharia(code){const c=String(code||'').toUpperCase();const y=yaaqenSta
   const s=yes*2>n?'ok':(yes||vs.includes('2'))?'doubt':'no';
   return{s,src:'us',spus:sp,word:n===1&&y?YQ_LABEL[y]:SH_WORD[s],count:n>1?yes+'/'+n:'',head:'الأسهم الأمريكية',refs};}
 /* the verdict for one stock: your own pasted list first, then the market's built-in lists */
-function shariaInfo(code,ex){const u=shariaStatus(code);
+/* purification ratio: percent of each dividend to give away. Your own entries first, then the Egyptian list; never guessed */
+let _purSrc=null,_purMap=null;
+function purifyMap(){const t=String(P.sharia.purify||'');if(t===_purSrc&&_purMap)return _purMap;const m={};
+  t.split(/[\n;،]+/).forEach(l=>{const r=normDigits(l).trim().match(/^([A-Za-z0-9.]+)\s*[=:\s]\s*(\d+(?:\.\d+)?)\s*%?$/);if(r){const v=+r[2];if(v>=0&&v<=100)m[r[1].toUpperCase().replace(/\.(SR|CA)$/,'')]=v;}});
+  _purSrc=t;_purMap=m;return m;}
+function purifyInfo(code){if(!code)return null;const c=String(code).toUpperCase().replace(/\.(SR|CA)$/,''),u=purifyMap();
+  if(c in u)return{pct:u[c],src:'list'};const r=SHL.eg&&SHL.eg.rows&&SHL.eg.rows[c];
+  return r&&typeof r.p==='number'?{pct:r.p,src:'eg'}:null;}
+function shariaInfo(code,ex){const i=shariaInfo0(code,ex);if(!i)return i;const p=purifyInfo(code);return p?Object.assign({},i,{pur:p}):i;}
+function shariaInfo0(code,ex){const u=shariaStatus(code);
   if(u)return{s:u,src:'list',word:SH_WORD[u],count:'',head:P.sharia.asOf?'قائمتك · '+P.sharia.asOf:'قائمتك في الإعدادات',refs:[['قائمتك',u==='ok'?'1':'0']]};
   if(ex==='SR'||/\.SR$/i.test(code))return saSharia(code);
   if(ex==='CA'||/\.CA$/i.test(code)){const e=egSharia(code);return e&&e.s?e:null;}
@@ -168,6 +177,7 @@ function shariaInfo(code,ex){const u=shariaStatus(code);
   return null;}
 /* a tag with the verdict; hovering it lists every reference and what it said */
 function shariaPopHTML(i){return '<span class="sh-pop" hidden><b class="sh-head">'+esc(i.head||'')+'</b>'+(i.note?'<span class="sh-note">'+esc(i.note)+'</span>':'')+
+  (i.pur?'<span class="sh-note">'+esc(_t('نسبة التطهير'))+': <b>'+NUM(i.pur.pct)+'%</b> '+esc(_t('من كل ربح موزّع'))+' · '+esc(i.pur.src==='list'?_t('قائمتك'):_t('مصادر مصرية'))+'</span>':'')+
   (i.refs&&i.refs.length?'<span class="sh-list">'+i.refs.map(([n,v])=>'<span class="sh-r v'+(v==='-'?'u':v)+'"><i>'+VMARK[v]+'</i><span>'+esc(n)+'</span><em>'+VWORD[v]+'</em></span>').join('')+'</span>':'')+'</span>';}
 function shariaTagHTML(i,cls){if(!i||!i.s)return'';const k=i.s==='ok'||i.s==='auto_ok'?'b':i.s==='doubt'?'in':'x';
   return '<span class="tag sh-tag '+k+(cls?' '+cls:'')+'" tabindex="0">'+esc(i.word||'')+(i.count?' '+NUM(esc(i.count)):'')+shariaPopHTML(i)+'</span>';}

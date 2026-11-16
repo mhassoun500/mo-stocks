@@ -654,6 +654,8 @@
         <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
         <label class="field" for="pShNo"><span>غير متوافقة</span><textarea id="pShNo" data-pref="sharia.no" placeholder="1180 1050 ..."></textarea></label>
         <label class="field" for="pShDate"><span>تاريخ القائمة المعتمدة</span><input id="pShDate" type="text" data-pref="sharia.asOf" placeholder="مثال: الربع الثالث 2026"></label>
+        <label class="field" for="pShPur"><span>نسب التطهير (رمز ثم النسبة، سطر لكل سهم)</span><textarea id="pShPur" data-pref="sharia.purify" placeholder="1120 2.5&#10;AAPL 1.1"></textarea></label>
+        <p class="small muted">النسبة المئوية من كل ربح موزّع التي تُخرج للتطهير. تُملأ تلقائيًا للأسهم المصرية من القائمة المصرية إن توفرت، وما تكتبه هنا يتقدّم عليها. لم أجد مصدرًا مجانيًا يعطي النسبة آليًا للأسهم السعودية والأمريكية، فتُدخل يدويًا أو من «املأ الناقص بالمساعد» مع رابط المصدر.</p>
         <h3 class="sub-h">استيراد قائمة من ملف</h3>
         <p class="small muted">اختر ملف CSV أو PDF فيه رموز الأسهم وحكمها (متوافق / غير متوافق). تُعرض لك المعاينة أولًا ولا يُحفظ شيء قبل موافقتك. ملفات PDF العربية قد تُقرأ بترتيب معكوس، فراجع المعاينة جيدًا.</p>
         <div class="actions local-only"><input id="shFile" type="file" accept=".csv,.txt,.pdf" aria-label="ملف القائمة الشرعية">

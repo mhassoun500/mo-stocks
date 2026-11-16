@@ -1586,5 +1586,11 @@
  "لم أجد في الملف رموزًا مع حكمها. تأكد أن في كل سطر رمز السهم وبجانبه الحكم (متوافق / غير متوافق).": "I found no symbols with a ruling in the file. Make sure each line has the stock symbol with its ruling (compliant / non-compliant).",
  "لا يوجد ما يُملأ.": "Nothing to fill.",
  "هذه الميزة تحتاج بحثًا على الإنترنت، وهو غير متاح مع هذا الاختيار. استخدم Claude أو Gemini بحساب يدعم البحث.": "This feature needs web search, which is not available with this choice. Use Claude or Gemini with an account that supports search.",
- "تغيّر شكل صفحة المصدر (%s).": "The source's page layout has changed (%s)."
+ "تغيّر شكل صفحة المصدر (%s).": "The source's page layout has changed (%s).",
+ "من كل ربح موزّع": "of each dividend",
+ "مصادر مصرية": "Egyptian sources",
+ "احفظ في نسب التطهير": "Save to purification ratios",
+ "حُفظت": "Saved",
+ "نسب التطهير (رمز ثم النسبة، سطر لكل سهم)": "Purification ratios (symbol then percent, one stock per line)",
+ "النسبة المئوية من كل ربح موزّع التي تُخرج للتطهير. تُملأ تلقائيًا للأسهم المصرية من القائمة المصرية إن توفرت، وما تكتبه هنا يتقدّم عليها. لم أجد مصدرًا مجانيًا يعطي النسبة آليًا للأسهم السعودية والأمريكية، فتُدخل يدويًا أو من «املأ الناقص بالمساعد» مع رابط المصدر.": "The percentage of each dividend to give away for purification. Filled automatically for Egyptian stocks from the Egyptian list when available; what you type here takes priority. I found no free source that gives the ratio automatically for Saudi and US stocks, so enter it by hand or from “Fill the missing with the AI assistant” with its source link."
 }

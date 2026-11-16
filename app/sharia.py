@@ -84,6 +84,15 @@ def _eg_verdict(v):
     return {"compliant": "1", "non_compliant": "0", "doubtful": "2"}.get(st, "-")
 
 
+def eg_purification(it):
+    """Share of the company's income that is not permissible, in percent: what is given away from each dividend."""
+    for k in ("haram_earnings_percentage", "sp_haram_earning_percentage"):
+        v = it.get(k)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v <= 100:
+            return round(float(v), 3)
+    return None
+
+
 def fetch_egypt():
     from sources.base import format_changed
     raw = _get(_defs().get("urls", "eg"), timeout=60)
@@ -99,6 +108,9 @@ def fetch_egypt():
             continue
         rows[sym] = {"n": (it.get("name_ar") or "").strip(),
                      "v": "".join(_eg_verdict(it.get(k)) for k, _ in EG_SOURCES)}
+        pur = eg_purification(it)
+        if pur is not None:
+            rows[sym]["p"] = pur
     return {"source": "اسهم حلال (stocks.templatesnippet.com)", "url": EG_PAGE, "date": time.strftime("%Y-%m-%d"),
             "refs": [n for _, n in EG_SOURCES], "rows": rows}
 

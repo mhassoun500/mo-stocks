@@ -570,8 +570,9 @@ def sharia_refresher():
     QUIT.wait(60)
     while not QUIT.is_set():
         _, t1 = cache_get("sharia|sa")
-        _, t2 = cache_get("sharia|eg")
-        if not t1 or not t2 or time.time() - min(t1, t2) > 7 * 86400:
+        eg, t2 = cache_get("sharia|eg")
+        old_shape = bool(eg) and not any("p" in r for r in (eg.get("rows") or {}).values())   # saved before purification ratios existed
+        if not t1 or not t2 or old_shape or time.time() - min(t1, t2) > 7 * 86400:
             sharia_refresh()
         QUIT.wait(12 * 3600)
 

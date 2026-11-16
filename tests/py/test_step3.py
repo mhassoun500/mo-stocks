@@ -312,3 +312,49 @@ def test_import_route(monkeypatch):
         assert not post({"name": "a.csv"})["ok"]
     finally:
         srv.shutdown()
+
+
+# ---------------------------------------------------------------- Step 4: purification ratio
+def test_egypt_purification_uses_haram_income_and_rejects_nonsense():
+    f = sharia.eg_purification
+    assert f({"haram_earnings_percentage": 8.0814}) == 8.081
+    assert f({"haram_earnings_percentage": None, "sp_haram_earning_percentage": 3}) == 3.0
+    assert f({"haram_earnings_percentage": 0}) == 0.0
+    assert f({}) is None and f({"haram_earnings_percentage": 140}) is None and f({"haram_earnings_percentage": "5"}) is None
+    assert f({"haram_earnings_percentage": True}) is None
+
+
+def test_fetch_egypt_carries_the_ratio(monkeypatch):
+    data = [{"symbol": "S%d" % i, "name_ar": "x", "haram_earnings_percentage": (i % 10) if i % 3 else None} for i in range(150)]
+    monkeypatch.setattr(sharia, "_get", lambda url, timeout=40: json.dumps(data))
+    rows = sharia.fetch_egypt()["rows"]
+    assert rows["S1"]["p"] == 1.0 and "p" not in rows["S3"] and rows["S2"]["p"] == 2.0
+
+
+def test_old_egypt_cache_without_ratios_is_refreshed(monkeypatch):
+    import markets
+    calls = []
+    store = {"sharia|sa": ({"x": 1}, 9e12), "sharia|eg": ({"rows": {"A": {"n": "a", "v": "1"}}}, 9e12)}
+    monkeypatch.setattr(markets, "cache_get", lambda k: store.get(k, (None, 0)))
+    monkeypatch.setattr(markets, "sharia_refresh", lambda: calls.append(1) or {})
+    n = [0]
+
+    def wait(t):
+        n[0] += 1
+        if n[0] >= 2:
+            markets.QUIT.set()
+        return markets.QUIT.is_set()
+    monkeypatch.setattr(markets.QUIT, "wait", wait)
+    try:
+        markets.sharia_refresher()
+    finally:
+        markets.QUIT.clear()
+    assert calls == [1]
+    calls.clear()
+    store["sharia|eg"] = ({"rows": {"A": {"n": "a", "v": "1", "p": 2.0}}}, 9e12)
+    n[0] = 0
+    try:
+        markets.sharia_refresher()
+    finally:
+        markets.QUIT.clear()
+    assert calls == []

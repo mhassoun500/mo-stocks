@@ -190,7 +190,7 @@ const FILL_LABEL={fair:'القيمة العادلة',sharia:'الحكم الشر
 const FILL_VERDICT={ok:'متوافق',no:'غير متوافق',doubt:'محل نظر'};
 function aiFillMissing(){
   if(!LOCAL||!S.A||S.isFund||S.ex==='GOLD'||S.ex==='FUND'||S.ex==='XX')return[];
-  const m=[];if(!(S.fv&&S.fv.fair))m.push('fair');if(!shariaInfo(S.code,S.ex))m.push('sharia');m.push('purification');
+  const m=[];if(!(S.fv&&S.fv.fair))m.push('fair');if(!shariaInfo(S.code,S.ex))m.push('sharia');if(!purifyInfo(S.code))m.push('purification');
   const p=S.profile;if(!(p&&p.ok&&(p.earningsDates||[]).some(e=>e*1000>Date.now())))m.push('earnings');return m;}
 function renderAiFill(){
   const box=$('#aiFill');if(!box)return;const miss=aiFillMissing(),conn=aiConnected(),f=S.aiFill&&S.aiFill.code===S.code&&S.aiFill.ex===S.ex?S.aiFill:null;
@@ -203,8 +203,9 @@ function renderAiFill(){
   const rows=Object.entries(f.items||{}).map(([k,v])=>{
     let val=k==='fair'?NUM(v.value)+' '+esc(v.currency||''):k==='sharia'?esc(_t(FILL_VERDICT[v.verdict]||''))+(v.by?' — '+esc(v.by):''):k==='purification'?NUM(v.pct)+'%'+(v.by?' — '+esc(v.by):''):esc(v.date);
     if(k==='fair'&&v.basis)val+=' <span class="muted">'+esc(v.basis)+'</span>';
+    const sv=k==='purification'?' <button class="btn sm ghost" type="button" data-savepur="'+v.pct+'">'+_t('احفظ في نسب التطهير')+'</button>':'';
     return '<div class="fill-row"><b>'+esc(_t(FILL_LABEL[k]))+'</b> <span class="badge off">'+_t('من بحث المساعد')+'</span><div>'+val+'</div>'
-      +'<a href="'+esc(v.url)+'" data-url="'+esc(v.url)+'" class="fill-link" rel="noopener"><bdi>'+esc(new URL(v.url).hostname)+'</bdi></a></div>';}).join('');
+      +'<a href="'+esc(v.url)+'" data-url="'+esc(v.url)+'" class="fill-link" rel="noopener"><bdi>'+esc(new URL(v.url).hostname)+'</bdi></a>'+sv+'</div>';}).join('');
   const none=(f.missing||[]).filter(k=>!(f.items||{})[k]).map(k=>_t(FILL_LABEL[k]));
   out.innerHTML=(rows||'<p class="muted">'+_t('لم يجد المساعد مصدرًا موثوقًا لأي بند.')+'</p>')
     +(none.length&&rows?'<p class="muted">'+_t('لم يجد مصدرًا لـ:')+' '+none.map(esc).join('، ')+'</p>':'')
@@ -297,7 +298,11 @@ function setupPlan(){
   setupAiPrefs();
   $('#aiRun').addEventListener('click',runAi);
   $('#aiFillRun').addEventListener('click',runAiFill);
-  $('#aiFillOut').addEventListener('click',e=>{const a=e.target.closest('a[data-url]');if(a){e.preventDefault();openExt(a.dataset.url);}});
+  $('#aiFillOut').addEventListener('click',e=>{const b=e.target.closest('button[data-savepur]');
+    if(b){const el=$('#pShPur'),pct=+b.dataset.savepur;if(!(pct>=0&&pct<=100)||!S.code)return;const c=String(S.code).toUpperCase().replace(/\.(SR|CA)$/,'');
+      const lines=el.value.split('\n').filter(l=>l.trim()&&l.trim().split(/[\s=:]+/)[0].toUpperCase()!==c);lines.push(c+' '+pct);
+      el.value=lines.join('\n');el.dispatchEvent(new Event('change',{bubbles:true}));b.disabled=true;b.textContent=_t('حُفظت');render();return;}
+    const a=e.target.closest('a[data-url]');if(a){e.preventDefault();openExt(a.dataset.url);}});
   $('#aiQ').addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('#aiControls').hidden)runAi();});
   $('#aiProv').addEventListener('change',()=>{P.ai.provider=$('#aiProv').value;savePrefs();renderAiBox();});
   $('#aiGoSettings').addEventListener('click',e=>{e.preventDefault();location.hash='#prefs';setTimeout(()=>{const el=$('#aiPanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);});
