@@ -3,7 +3,18 @@ const REC_WORD=m=>m==null?'':m<1.5?'شراء قوي':m<2.5?'شراء':m<3.5?'م�
 
 /* fair value from the company's own figures; every method is listed so the user can see where the number comes from.
    When TradingView has no ready ratio, per-share figures are rebuilt from the raw ones (profit, shares, equity). */
-function fairValue(r){
+/* assumptions of the cash-flow estimate, per market: yearly discount rate and long-run growth (percent). Not verified
+   against any source: they are starting points the user is expected to change (saved in P.fv) */
+const FV_DEF={mos:20,disc:{SR:9,CA:22,US:9},tg:{SR:2.5,CA:10,US:2.5}};
+function fvParams(ex){const u=P.fv||{},d=FV_DEF,pick=(a,b,k)=>(a&&a[k]!=null&&isFinite(a[k]))?a[k]:b[k]!=null?b[k]:9;
+  return{mos:u.mos!=null&&isFinite(u.mos)?u.mos:d.mos,disc:pick(u.disc,d.disc,ex),tg:pick(u.tg,d.tg,ex)};}
+/* value of one share from its free cash flow: 5 years at growth g, 5 years fading to the long-run rate, then a steady perpetuity */
+function dcfPerShare(f0,g,disc,tg){
+  if(!(f0>0)||!isFinite(g)||!(disc>tg+0.01))return null;let f=f0,pv=0;
+  for(let y=1;y<=10;y++){const gy=y<=5?g:g+(tg-g)*(y-5)/5;f*=1+gy;pv+=f/Math.pow(1+disc,y);}
+  return pv+f*(1+tg)/(disc-tg)/Math.pow(1+disc,10);}
+function medianOf(a){const x=a.filter(v=>v!=null&&isFinite(v)).sort((p,q)=>p-q);if(!x.length)return null;const m=x.length>>1;return x.length%2?x[m]:(x[m-1]+x[m])/2;}
+function fairValue(r,opt){
   if(!r||!r.ok||!r.f)return null;const F=r.f,px=F.close;if(!px)return null;
   const pos=v=>v!=null&&isFinite(v)&&v>0,sh=F.total_shares_outstanding_fundamental;
   const pe=pos(F.price_earnings_ttm)?F.price_earnings_ttm:null,pb=pos(F.price_book_fq)?F.price_book_fq:null;
@@ -39,12 +50,37 @@ function fairValue(r){
     note:'التوزيع السنوي '+fp(dps)+' ÷ متوسط عائد '+(dyOK?'قطاع '+(r.sectorAr||''):'السوق كله')+' '+refDY.toFixed(2)+'%'+(div?'':' — لا تُحتسب لأن توزيعات السهم صغيرة مقارنة بأرباحه'),use:div&&sane(v)});}
   if(eps&&bvps){const v=Math.sqrt(22.5*eps*bvps);if(v&&isFinite(v))m.push({k:'gr',name:'معادلة جراهام (تقدير متحفظ)',v,
     note:'الجذر التربيعي لـ 22.5 × الربحية × القيمة الدفترية'+(ePB>6?' — لا تُحتسب هنا لأن السعر يزيد كثيرًا عن القيمة الدفترية':''),use:ePB<=6&&sane(v)});}
+  /* ---- Phase 2 methods: next year's earnings, the stock's own past multiple, simplified cash-flow estimate ---- */
+  const ex=(opt&&opt.ex)||r.ex||(typeof S!=='undefined'&&S.ex)||'US',prm=Object.assign(fvParams(ex),opt||{});
+  const fwd=pos(F.earnings_per_share_forecast_next_fy)?F.earnings_per_share_forecast_next_fy:null;
+  if(fwd&&refPE){const v=fwd*refPE;m.push({k:'fw',name:'ربحية السنة القادمة المتوقعة × مكرر القطاع',v,
+    note:'ربحية السهم المتوقعة '+fp(fwd)+' × متوسط مكرر '+refName+' '+refPE.toFixed(1)+(eps?' — نمو متوقع '+((fwd/eps-1)*100).toFixed(1)+'%':''),use:sane(v)});}
+  else if(!fwd)why.push('لا توجد ربحية متوقعة للسنة القادمة');
+  const hp=(r.epsHist||[]).filter(h=>h&&pos(h.eps)&&pos(h.px)).map(h=>h.px/h.eps);
+  if(eps&&hp.length>=3){const med=medianOf(hp),spread=(Math.max(...hp)-Math.min(...hp))/med,v=eps*med,stable=spread<=1;
+    m.push({k:'hist',name:'مكرر الربحية التاريخي للسهم نفسه',v,note:'ربحية السهم '+fp(eps)+' × وسيط مكرره في آخر '+hp.length+' سنوات مالية '+med.toFixed(1)
+      +(stable?'':' — لا يُحتسب لأن المكرر كان متقلبًا جدًا بين السنوات'),use:stable&&sane(v)});}
+  else why.push('لا يتوفر تاريخ كافٍ لمكرر السهم (يلزم 3 سنوات على الأقل)');
+  let dcf=null;
+  if(fin)why.push('التدفق النقدي الحر لا يصلح لتقييم البنوك والمالية');
+  else if(!pos(F.free_cash_flow_per_share_ttm))why.push('التدفق النقدي الحر سالب أو غير متوفر');
+  else{const gs=[fwd&&eps?fwd/eps-1:null,F.earnings_per_share_diluted_yoy_growth_fy!=null?F.earnings_per_share_diluted_yoy_growth_fy/100:null,
+      F.total_revenue_yoy_growth_ttm!=null?F.total_revenue_yoy_growth_ttm/100:null].filter(x=>x!=null&&isFinite(x));
+    if(!gs.length)why.push('لا تتوفر بيانات نمو للتدفق النقدي');
+    else{const g=Math.min(0.15,Math.max(0,Math.min(...gs))),d=prm.disc/100,t=prm.tg/100,v=dcfPerShare(F.free_cash_flow_per_share_ttm,g,d,t);
+      const lo=dcfPerShare(F.free_cash_flow_per_share_ttm,g,d+0.02,t),hi=dcfPerShare(F.free_cash_flow_per_share_ttm,g,Math.max(d-0.02,t+0.011),t);
+      if(v){dcf={g,d,t,v,lo,hi};m.push({k:'dcf',name:'القيمة بخصم التدفقات النقدية (مبسّطة)',v,
+        note:'تدفق حر للسهم '+fp(F.free_cash_flow_per_share_ttm)+' · نمو '+(g*100).toFixed(1)+'% لخمس سنوات ثم يتناقص إلى '+prm.tg+'% · خصم '+prm.disc+'% (بخصم '+(prm.disc-2)+'% إلى '+(prm.disc+2)+'% تتراوح من '+fp(hi)+' إلى '+fp(lo)+')',use:sane(v)});}}}
   /* the analysts' average counts twice: it already folds in growth, guidance and news that ratios can't see */
   const used=m.filter(x=>x.use).flatMap(x=>x.k==='an'?[x.v,x.v]:[x.v]).sort((a,b)=>a-b);
-  const base={methods:m,r,eps,bvps,pe:ePE,pb:ePB,why,loss:F.net_income_ttm!=null&&F.net_income_ttm<0&&!eps};
+  const base={prm,dcf,methods:m,r,eps,bvps,pe:ePE,pb:ePB,why,loss:F.net_income_ttm!=null&&F.net_income_ttm<0&&!eps};
   if(!used.length)return Object.assign(base,{fair:null});
   const mid=used.length>>1,fair=used.length%2?used[mid]:(used[mid-1]+used[mid])/2;
-  return Object.assign(base,{fair,lo:used[0],hi:used[used.length-1],anW:m.some(x=>x.k==='an'&&x.use),n:m.filter(x=>x.use).length});
+  const usedM=m.filter(x=>x.use),vals=usedM.map(x=>x.v).sort((a,b)=>a-b),mdn=medianOf(vals),spread=vals.length>1?(vals[vals.length-1]-vals[0])/mdn:0;
+  /* confidence = how closely the methods agree (and how many there are), not how sure any one of them is */
+  const level=usedM.length>=4&&spread<=0.3?'high':usedM.length>=3&&spread<=0.5?'mid':'low';
+  return Object.assign(base,{fair,lo:used[0],hi:used[used.length-1],anW:m.some(x=>x.k==='an'&&x.use),n:usedM.length,
+    conf:{level,spread,n:usedM.length},buy:fair*(1-prm.mos/100)});
 }
 
 function renderFair(){
@@ -61,7 +97,14 @@ function renderFair(){
     h+='<span class="fv-v">'+NUM(fp(fv.fair))+'</span><span class="fv-verdict '+k+'">'+(k==='b'?'السهم أقل من قيمته العادلة بـ '+NUM(((1-px/fv.fair)*100).toFixed(1)+'%')+' (مساحة صعود '+NUM(pct(fv.fair/px-1))+')':
       k==='x'?'السهم أعلى من قيمته العادلة بـ '+NUM((d*100).toFixed(1)+'%'):'السعر قريب من قيمته العادلة')+'</span></div>'+
       (fv.lo!==fv.hi?'<p class="muted small">نطاق التقديرات من '+RANGE(fv.lo,fv.hi)+(fv.anW?'، والسعر العادل هو الوسيط بينها (متوسط المحللين بوزن مضاعف).</p>':'، والسعر العادل هو الوسيط بينها.</p>'):'')+(fv.n===1?'<p class="muted small">'+_t('تقدير ضعيف: مبني على طريقة واحدة فقط.')+'</p>':'');}
-  else h+='</div><p class="muted small">'+(fv.loss?'الشركة خاسرة في آخر 12 شهرًا، فلا يصلح تقييمها بالأرباح.':'لا تكفي البيانات لحساب سعر عادل موثوق.')+(fv.why.length?' '+_t('السبب:')+' '+fv.why.map(x=>_t(x)).join('، ')+'.':'')+'</p>';
+  if(fv.fair&&fv.conf){const c=fv.conf,lv=c.level==='high'?'عالية':c.level==='mid'?'متوسطة':'منخفضة';
+    h+='<p class="fv-conf '+c.level+'"><b>'+_t('الثقة في التقدير')+':</b> '+_t(lv)+' — '+_t('اتفاق الطرق')+': '+NUM(c.n)+' '+_t('طرق')+'، '+_t('الفرق بين أعلاها وأدناها')+' '+NUM((c.spread*100).toFixed(0)+'%')+' '+_t('من الوسيط')
+      +(c.level==='low'?'. '+_t('الطرق متباعدة أو قليلة، فاعتبر الرقم تقريبيًا جدًا.'):'.')+'</p>'
+      +'<p class="fv-mos"><b>'+_t('سعر الشراء بهامش أمان')+' '+NUM(fv.prm.mos+'%')+':</b> '+NUM(fp(fv.buy))+' — '
+      +(px<=fv.buy?_t('السعر الحالي داخل هامش الأمان'):_t('السعر الحالي فوق سعر الشراء المطلوب بـ')+' '+NUM(((px/fv.buy-1)*100).toFixed(1)+'%'))+'</p>';}
+  if(!fv.fair)h+='</div>';
+  if(!fv.fair)h+='<p class="muted small">'+(fv.loss?'الشركة خاسرة في آخر 12 شهرًا، فلا يصلح تقييمها بالأرباح.':'لا تكفي البيانات لحساب سعر عادل موثوق.')+(fv.why.length?' '+_t('السبب:')+' '+fv.why.map(x=>_t(x)).join('، ')+'.':'')+'</p>';
+  if(fv.fair&&fv.why.length)h+='<p class="muted small">'+_t('طرق لم تُحتسب')+': '+fv.why.map(x=>_t(x)).join('، ')+'.</p>';
   h+='<ul>'+fv.methods.map(x=>'<li class="'+(x.use?'':'off')+'"><span>'+esc(x.name)+'</span><b>'+NUM(fp(x.v))+'</b><span class="n">'+x.note+'</span></li>').join('')+'</ul>';
   const fx=[];if(fv.pe)fx.push('مكرر الربحية <b>'+NUM(fv.pe.toFixed(1))+'</b>');if(fv.r.sectorPE)fx.push('مكرر القطاع <b>'+NUM(fv.r.sectorPE.toFixed(1))+'</b>');
   if(fv.pb)fx.push('السعر إلى القيمة الدفترية <b>'+NUM(fv.pb.toFixed(2))+'</b>');if(F.dividends_yield_current)fx.push('عائد التوزيعات <b>'+NUM(F.dividends_yield_current.toFixed(2)+'%')+'</b>');
@@ -72,7 +115,16 @@ function renderFair(){
     h+='<p class="muted small">'+_t('قورنت الأرقام مع')+' '+esc(ck.sources.join('، '))+(cf.length?'':' — '+_t('لا تعارض.'))+'</p>';
     if(cf.length)h+='<div class="small"><b>⚠ '+_t('اختلفت المصادر في')+':</b><ul>'+cf.map(c=>'<li>'+esc(_t(c.label))+': '+Object.keys(c.values).map(k=>'<bdi>'+esc(k)+'</bdi> '+NUM(Number(c.values[k]).toFixed(2))).join(' · ')
       +(c.used!=null?' — '+_t('اعتُمد رأي الأغلبية')+' '+NUM(Number(c.used).toFixed(2)):' — '+_t('اعتُمد المصدر الأول.'))+'</li>').join('')+'</ul></div>';}
+  const ex=S.ex,pr=fv.prm;
+  h+='<details class="fv-set"><summary>'+_t('افتراضات التقدير (عدّلها حسب رأيك)')+'</summary><div class="fv-inputs">'
+    +'<label>'+_t('هامش الأمان %')+' <input id="fvMos" type="number" min="0" max="80" step="1" value="'+pr.mos+'"></label>'
+    +'<label>'+_t('معدل الخصم السنوي %')+' <input id="fvDisc" type="number" min="3" max="40" step="0.5" value="'+pr.disc+'"></label>'
+    +'<label>'+_t('النمو بعيد المدى %')+' <input id="fvTg" type="number" min="0" max="20" step="0.5" value="'+pr.tg+'"></label></div>'
+    +'<p class="muted small">'+_t('القيم الافتراضية نقطة بداية لم أتحقق منها مع أي مصدر، وتتغير القيمة كثيرًا بتغيّرها. تُحفظ لكل سوق على حدة.')+'</p></details>';
   box.innerHTML=h;
+  const upd=()=>{const m=+$('#fvMos').value,d=+$('#fvDisc').value,t=+$('#fvTg').value;if(!(m>=0&&m<=80&&d>=3&&d<=40&&t>=0&&t<=20&&d>t+1))return;
+    P.fv=P.fv||{};P.fv.mos=m;P.fv.disc=Object.assign({},P.fv.disc,{[ex]:d});P.fv.tg=Object.assign({},P.fv.tg,{[ex]:t});savePrefs();S.fv=fairValue(S.fund);renderFair();};
+  ['#fvMos','#fvDisc','#fvTg'].forEach(i=>$(i).addEventListener('change',upd));
 }
 
 /* funds: no targets or stop (one price a day, bought at NAV); show performance instead */

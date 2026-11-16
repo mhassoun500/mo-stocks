@@ -270,7 +270,10 @@ FUND_COLS = ["close", "price_earnings_ttm", "price_book_fq", "earnings_per_share
              # raw figures, used when TradingView has no ready ratio for the stock
              "earnings_per_share_basic_ttm", "last_annual_eps", "earnings_per_share_fy", "net_income_fy",
              "total_shares_outstanding_fundamental", "book_value_per_share_fy", "total_equity_fq", "total_equity_fy",
-             "dps_common_stock_prim_issue_fy"]
+             "dps_common_stock_prim_issue_fy",
+             # growth and free cash flow, used by the discounted-cash-flow estimate
+             "free_cash_flow_per_share_ttm", "earnings_per_share_diluted_yoy_growth_ttm", "earnings_per_share_diluted_yoy_growth_fy",
+             "total_revenue_yoy_growth_ttm"]
 US_PRIMARY = ("NASDAQ", "NYSE", "AMEX", "NYSE ARCA", "CBOE")
 
 
@@ -323,6 +326,46 @@ def _fundamentals_yahoo(code, ex):
     return f
 
 
+def eps_history(code, ex):
+    """Annual diluted EPS of the last few fiscal years (Yahoo) with the month-end price of each fiscal year-end,
+    so the page can work out the stock's own past P/E. Returns [] when Yahoo has no such history."""
+    sym = yahoo_symbol(code, ex)
+    key = "epsh|" + sym
+    hit, _ = cache_get(key, max_age=24 * 3600)
+    if hit is not None:
+        return hit
+    out = []
+    try:
+        def call(crumb):
+            url = ("https://query1.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/%s"
+                   "?type=annualDilutedEPS,annualBasicEPS&period1=1400000000&period2=%d&crumb=%s"
+                   % (urllib.parse.quote(sym), int(time.time()) + 86400 * 400, urllib.parse.quote(crumb)))
+            return json.loads(Yahoo.get(url).decode("utf-8"))
+        data = Yahoo.with_crumb(call)
+        series = {}
+        for r in ((data.get("timeseries") or {}).get("result") or []):
+            for k in ("annualDilutedEPS", "annualBasicEPS"):
+                if r.get(k):
+                    series[k] = {x["asOfDate"]: _raw(x.get("reportedValue")) for x in r[k] if x and x.get("asOfDate")}
+        eps = series.get("annualDilutedEPS") or series.get("annualBasicEPS") or {}
+        ch = http_json("https://query1.finance.yahoo.com/v8/finance/chart/%s?range=10y&interval=1mo&includePrePost=false"
+                       % urllib.parse.quote(sym))
+        res = ((ch.get("chart") or {}).get("result") or [{}])[0]
+        closes = ((res.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+        bars = [[ts * 1000, None, None, None, c] for ts, c in zip(res.get("timestamp") or [], closes) if c]
+        for d in sorted(eps)[-6:]:
+            t = calendar.timegm(time.strptime(d, "%Y-%m-%d")) * 1000
+            prior = [b for b in bars if b[0] <= t]
+            if not prior or t - prior[-1][0] > 45 * 86400000 or eps[d] is None:
+                continue
+            out.append({"d": d, "eps": eps[d], "px": prior[-1][4]})
+    except Exception as e:
+        record("WARN", "eps_history %s" % sym, e)
+        return []
+    cache_put(key, out)
+    return out
+
+
 def fundamentals_tradingview(code, ex):
     """Company figures from TradingView's scanner (the first source of the fundamentals chain)."""
     market = TV_MARKET_OF.get(ex)
@@ -334,6 +377,14 @@ def fundamentals_tradingview(code, ex):
     if not rows:
         raise NoData()
     return rows[0]
+
+
+def _safe_eps_history(code, ex):
+    try:
+        return eps_history(code, ex)
+    except Exception as e:
+        record("WARN", "eps_history", e)
+        return []
 
 
 def get_fundamentals(code, ex):
@@ -367,9 +418,10 @@ def get_fundamentals(code, ex):
             mkt = market_multiples(market)
     except Exception as e:
         warn("  sector multiples failed: %s" % e)
-    res = {"ok": True, "code": c, "f": f, "source": source, "checks": checks, "date": time.strftime("%Y-%m-%d"),
+    res = {"ok": True, "code": c, "ex": ex, "f": f, "source": source, "checks": checks, "date": time.strftime("%Y-%m-%d"),
            "sectorPE": sec.get("pe"), "sectorPB": sec.get("pb"), "sectorDY": sec.get("dy"), "sectorN": sec.get("n"), "sectorNDY": sec.get("ndy"),
            "marketPE": mkt.get("pe"), "marketPB": mkt.get("pb"), "marketDY": mkt.get("dy"), "marketN": mkt.get("n"),
+           "epsHist": _safe_eps_history(c, ex),
            "sectorAr": TV_SECTOR_AR.get(f.get("sector") or "", f.get("sector") or "")}
     with MEM_LOCK:
         MEM[key] = (time.time(), res)

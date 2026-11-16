@@ -322,3 +322,71 @@ test('score split groups trades by score and ignores trades without a score', ()
   assert.equal(r.hi.n, 2); assert.equal(r.lo.n, 1);
   assert.ok(Math.abs(r.hi.avg - 0.015) < 1e-12 && r.hi.win === 0.5 && r.lo.avg === -0.03);
 });
+
+/* ---------- Phase 2, step 3: next-year earnings, own past multiple, cash-flow estimate, agreement, margin of safety ---------- */
+const withF = (name, extra, top = {}) => { const r = J(fixture(name)); Object.assign(r.f, extra); return Object.assign(r, top); };
+
+test('cash-flow value: equals the closed form when growth equals long-run growth', () => {
+  const v = T.dcfPerShare(10, 0.03, 0.09, 0.03);
+  assert.ok(Math.abs(v - 10 * 1.03 / (0.09 - 0.03)) < 1e-9);
+});
+test('cash-flow value: rises with growth, falls with the discount rate, refuses impossible inputs', () => {
+  assert.ok(T.dcfPerShare(10, 0.08, 0.09, 0.025) > T.dcfPerShare(10, 0.02, 0.09, 0.025));
+  assert.ok(T.dcfPerShare(10, 0.05, 0.12, 0.025) < T.dcfPerShare(10, 0.05, 0.09, 0.025));
+  assert.equal(T.dcfPerShare(-1, 0.05, 0.09, 0.025), null);
+  assert.equal(T.dcfPerShare(10, 0.05, 0.03, 0.025), null, 'discount rate must exceed long-run growth by a margin');
+  assert.equal(T.dcfPerShare(10, NaN, 0.09, 0.025), null);
+});
+test('fair value: next-year earnings method uses the forecast and the sector multiple', () => {
+  const r = withF('AAPL_fund', { earnings_per_share_forecast_next_fy: 10 });
+  const fw = T.fairValue(r, { ex: 'US' }).methods.find(m => m.k === 'fw');
+  assert.ok(fw && Math.abs(fw.v - 10 * (r.sectorN >= 5 ? r.sectorPE : r.marketPE)) < 1e-9);
+  const none = T.fairValue(withF('AAPL_fund', { earnings_per_share_forecast_next_fy: null }), { ex: 'US' });
+  assert.ok(!none.methods.some(m => m.k === 'fw') && none.why.includes('لا توجد ربحية متوقعة للسنة القادمة'));
+});
+test('fair value: own past multiple needs 3 years, uses the median, and is dropped when it swings wildly', () => {
+  const eh = (...pes) => pes.map((pe, i) => ({ d: '202' + i + '-12-31', eps: 2, px: 2 * pe }));
+  const ok = T.fairValue(withF('AAPL_fund', {}, { epsHist: eh(10, 12, 14, 16) }), { ex: 'US' });
+  const h = ok.methods.find(m => m.k === 'hist');
+  assert.ok(h.use && Math.abs(h.v - ok.eps * 13) < 1e-9, 'median of 10,12,14,16 is 13');
+  const few = T.fairValue(withF('AAPL_fund', {}, { epsHist: eh(10, 12) }), { ex: 'US' });
+  assert.ok(!few.methods.some(m => m.k === 'hist') && few.why.some(w => w.includes('3 سنوات')));
+  const wild = T.fairValue(withF('AAPL_fund', {}, { epsHist: eh(4, 30, 6, 40) }), { ex: 'US' });
+  assert.equal(wild.methods.find(m => m.k === 'hist').use, false);
+  const loss = T.fairValue(withF('AAPL_fund', {}, { epsHist: [{ d: 'a', eps: -1, px: 5 }, { d: 'b', eps: -2, px: 5 }, { d: 'c', eps: 0, px: 5 }, { d: 'd', eps: 3, px: 30 }] }), { ex: 'US' });
+  assert.ok(!loss.methods.some(m => m.k === 'hist'), 'loss years are ignored, leaving too few');
+});
+test('fair value: cash-flow method is skipped for banks and for negative cash flow, with the reason', () => {
+  const bank = T.fairValue(withF('COMI_fund', { free_cash_flow_per_share_ttm: 12, earnings_per_share_diluted_yoy_growth_fy: 20 }), { ex: 'CA' });
+  assert.ok(!bank.methods.some(m => m.k === 'dcf') && bank.why.some(w => w.includes('البنوك')));
+  const neg = T.fairValue(withF('AAPL_fund', { free_cash_flow_per_share_ttm: -2 }), { ex: 'US' });
+  assert.ok(!neg.methods.some(m => m.k === 'dcf') && neg.why.some(w => w.includes('سالب')));
+  const ok = T.fairValue(withF('AAPL_fund', { free_cash_flow_per_share_ttm: 9, earnings_per_share_diluted_yoy_growth_fy: 20, total_revenue_yoy_growth_ttm: 15 }), { ex: 'US' });
+  const d = ok.methods.find(m => m.k === 'dcf');
+  assert.ok(d && d.v > 0);
+  assert.ok(ok.dcf.g <= 0.15 + 1e-12 && ok.dcf.g >= 0, 'growth is capped at 15% and never negative');
+  assert.ok(ok.dcf.lo < ok.dcf.v && ok.dcf.v < ok.dcf.hi, 'higher discount rate gives lower value');
+});
+test('fair value: discount rate and long-run growth come from the user, per market', () => {
+  const r = withF('AAPL_fund', { free_cash_flow_per_share_ttm: 9, earnings_per_share_diluted_yoy_growth_fy: 8 });
+  const a = T.fairValue(r, { ex: 'US', disc: 8 }).dcf.v, b = T.fairValue(r, { ex: 'US', disc: 12 }).dcf.v;
+  assert.ok(a > b);
+  assert.equal(T.fvParams('CA').disc, 22); assert.equal(T.fvParams('US').disc, 9); assert.equal(T.fvParams('SR').mos, 20);
+});
+test('fair value: confidence reflects agreement between methods, not the number of decimals', () => {
+  const base = T.fairValue(fixture('COMI_fund'), { ex: 'CA' });
+  assert.ok(['high', 'mid', 'low'].includes(base.conf.level) && base.conf.n === base.n);
+  assert.ok(base.conf.spread >= 0);
+  const one = T.fairValue(fixture('AMII_fund'), { ex: 'SR' });
+  assert.equal(one.conf.level, 'low', 'a single method is never high confidence');
+});
+test('fair value: margin of safety sets the buy-below price', () => {
+  const r = fixture('COMI_fund');
+  const a = T.fairValue(r, { ex: 'CA', mos: 20 }), b = T.fairValue(r, { ex: 'CA', mos: 35 });
+  assert.ok(Math.abs(a.buy - a.fair * 0.8) < 1e-9 && Math.abs(b.buy - b.fair * 0.65) < 1e-9);
+  assert.equal(a.fair, b.fair, 'the margin changes the buy price only, not the fair value');
+});
+test('fair value: old saved data without the new fields still works', () => {
+  const fv = T.fairValue(fixture('4014_fund'), { ex: 'SR' });
+  assert.ok(fv.fair > 0 && fv.conf && fv.buy < fv.fair);
+});
