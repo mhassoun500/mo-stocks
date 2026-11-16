@@ -142,3 +142,87 @@ test('supertrend on a clean up-trend then a crash', () => {
   assert.equal(st.dir[99], -1);
   assert.ok(st.flips.some(f => f.dir === -1 && f.i >= 80));
 });
+
+/* ---------- Phase 2, step 1: trade simulation with costs ---------- */
+const SIM = { span: 250, sens: 5, zoneCount: 6, stopMult: 0.5, fee: 0, slip: 0 };
+function sim(name, o = {}) { const { D, I } = run(name); return { D, I, S: T.runTradeSim(D, I, Object.assign({}, SIM, o)) }; }
+
+test('simulation: trades are consistent and fills follow the rules', () => {
+  for (const a of ASSETS) {
+    const { D, S } = sim(a);
+    for (const t of S.trades) {
+      assert.ok(t.j0 === t.e + 1 && t.exit >= t.j0 && t.exit <= t.e + 30, a + ': timing');
+      assert.equal(t.open, D[t.j0].o, a + ': entry at the next open');
+      assert.ok(t.open > t.stop && t.open < t.target, a + ': plan valid at the open');
+      if (t.why === 'target') assert.equal(t.px, t.target);
+      if (t.why === 'stop') assert.ok(t.px <= t.stop);
+    }
+    for (let i = 1; i < S.trades.length; i++) assert.ok(S.trades[i].e > S.trades[i - 1].exit, a + ': no overlap');
+    assert.equal(S.stats.n, S.trades.length);
+    assert.equal(S.eq.length, D.length - S.first);
+    assert.ok(S.stats.maxDD <= 0 && S.stats.bhDD <= 0);
+  }
+});
+
+test('simulation: costs only ever reduce the result, and zero costs match the plain price move', () => {
+  const free = sim('1120').S, paid = sim('1120', { fee: 0.15, slip: 0.05 }).S;
+  assert.equal(free.trades.length, paid.trades.length);
+  free.trades.forEach((t, i) => {
+    assert.ok(Math.abs(t.ret - (t.px / t.open - 1)) < 1e-12);
+    assert.ok(paid.trades[i].ret < t.ret);
+  });
+  assert.ok(paid.stats.total <= free.stats.total && paid.stats.bhTotal < free.stats.bhTotal);
+  const expectedCost = (1 - 0.0005) * (1 - 0.0015) / ((1 + 0.0005) * (1 + 0.0015));      // one flat trade, both sides
+  const t0 = free.trades[0], t1 = paid.trades[0];
+  assert.ok(Math.abs((1 + t1.ret) - (1 + t0.ret) * expectedCost) < 1e-9);
+});
+
+test('simulation: statistics add up and equity ends where the trades say', () => {
+  const { S } = sim('AAPL', { fee: 0.1, slip: 0.05 });
+  const prod = S.trades.reduce((p, t) => p * (1 + t.ret), 1);
+  assert.ok(Math.abs(S.eq[S.eq.length - 1] - prod) < 1e-9);
+  if (S.stats.n) {
+    assert.ok(Math.abs(S.stats.expectancy - S.trades.reduce((s, t) => s + t.ret, 0) / S.stats.n) < 1e-12);
+    assert.equal(S.stats.byWhy.stop + S.stats.byWhy.target + S.stats.byWhy.time, S.stats.n);
+  }
+  assert.equal(S.stats.lowSample, S.stats.n < 20);
+});
+
+test('simulation: repricing with new costs equals a full re-run', () => {
+  const { D, I, S } = sim('COMI');
+  const again = T.priceTrades(D, S.raw, S.first, 0.3, 0.1), full = sim('COMI', { fee: 0.3, slip: 0.1 }).S;
+  assert.deepEqual(again.stats, full.stats);
+});
+
+test('no look-ahead: scrambling every candle after the signal does not change the plan', () => {
+  const { D, I } = run('1120');
+  const first = D.length - 400, picked = T.pickTrades(D, I, Object.assign({}, SIM, { first }));
+  assert.ok(picked.raw.length > 0);
+  for (const t of picked.raw.slice(0, 4)) {
+    const D2 = D.map((d, i) => i <= t.e ? d : Object.assign({}, d, { o: d.o * 1.7, h: d.h * 2.1, l: d.l * 0.4, c: d.c * 1.3 }));
+    const I2 = T.computeInd(D2), o = { end: t.e + 1, span: 250, sens: 5, zoneCount: 6, stopMult: 0.5, lite: true };
+    const a = T.analyzeCore(D, I, o), b = T.analyzeCore(D2, I2, o);
+    assert.equal(a.stop, b.stop); assert.equal(a.t1, b.t1);
+    assert.deepEqual(a.buy, b.buy); assert.deepEqual(a.zones.map(z => [z.lo, z.hi]), b.zones.map(z => [z.lo, z.hi]));
+  }
+});
+
+test('no look-ahead: trades that finished before a cut-off are the same with or without the later data', () => {
+  const { D, I } = run('AAPL');
+  const first = D.length - 450, cut = D.length - 150;
+  const full = T.pickTrades(D, I, Object.assign({}, SIM, { first })).raw;
+  const part = T.pickTrades(D.slice(0, cut), T.computeInd(D.slice(0, cut)), Object.assign({}, SIM, { first })).raw;
+  const done = full.filter(t => t.exit < cut - 1);
+  assert.ok(done.length > 0);
+  assert.deepEqual(part.slice(0, done.length).map(t => [t.e, t.exit, t.px]), done.map(t => [t.e, t.exit, t.px]));
+});
+
+test('exit rules: stop first when one candle touches both, gap fills at the open, target at its price, time exit at the close', () => {
+  const c = (o, h, l, cl) => ({ o, h, l, c: cl });
+  const X = (...a) => JSON.parse(JSON.stringify(T.resolveExit(...a)));
+  assert.deepEqual(X([c(100, 101, 99, 100), c(100, 112, 94, 100)], 1, 5, 95, 110), { exit: 1, px: 95, why: 'stop' });
+  assert.deepEqual(X([c(100, 101, 99, 100), c(90, 91, 88, 89)], 1, 5, 95, 110), { exit: 1, px: 90, why: 'stop' });
+  assert.deepEqual(X([c(100, 101, 99, 100), c(105, 120, 104, 118)], 1, 5, 95, 110), { exit: 1, px: 110, why: 'target' });
+  assert.deepEqual(X([c(100, 101, 99, 100), c(100, 102, 98, 101), c(101, 103, 99, 102)], 1, 2, 95, 110), { exit: 2, px: 102, why: 'time' });
+  assert.equal(X([c(100, 101, 99, 100), c(100, 102, 98, 101)], 1, 5, 95, 110), null);      // data ends first: trade left out
+});

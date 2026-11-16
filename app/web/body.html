@@ -312,6 +312,16 @@
           </table>
         </div>
         <p class="small muted">النجاح يعني بلوغ الهدف قبل وقف الخسارة خلال 30 شمعة. النتائج السابقة لا تضمن المستقبل.</p>
+        <h3 class="sub-h">محاكاة الصفقات بالتكاليف (استراتيجية الشراء في منطقة الدعم)</h3>
+        <div class="actions sim-costs">
+          <label class="field inline" for="btFee"><span>العمولة % لكل جهة</span><input id="btFee" type="number" min="0" max="5" step="0.01" inputmode="decimal"></label>
+          <label class="field inline" for="btSlip"><span>الانزلاق السعري % لكل جهة</span><input id="btSlip" type="number" min="0" max="5" step="0.01" inputmode="decimal"></label>
+          <span class="muted small" id="btCostFor"></span>
+        </div>
+        <p class="warn-box" id="btWarn" hidden></p>
+        <div class="sim-stats" id="btStats"></div>
+        <canvas id="btEq" height="200" aria-label="منحنى رأس المال مقارنة بالشراء والاحتفاظ"></canvas>
+        <p class="small muted" id="btEqNote"></p>
         <p class="edu">يحاكي الاختبار ما كانت الأداة ستقوله في كل يوم من الماضي باستخدام البيانات المتاحة حتى ذلك اليوم فقط، ثم يقيس ماذا حدث بعدها.</p>
       </div>
     </section>

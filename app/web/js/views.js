@@ -32,11 +32,11 @@ function analyzeNow(reset){
   /* short views still analyse at least 3 months (60 daily / 26 weekly bars) so zones stay meaningful */
   const minSpan=S.tf==='W'?26:S.tf==='H'?35:63;
   S.A=analyzeCore(D,S.ind,{span:r>0?Math.min(Math.max(r,minSpan),D.length):D.length,view:r>0?r:0,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult,htf,noGaps:S.isFund});
-  S.bt=null;
+  S.bt=null;S.sim=null;S.simPick=null;
   if(reset)resetView();
   render();
   clearTimeout(S.btTimer);
-  S.btTimer=setTimeout(()=>{if(!S.A)return;S.bt=runBacktest(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});renderBacktest();renderConfidence();},40);
+  S.btTimer=setTimeout(()=>{if(!S.A)return;S.bt=runBacktest(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});renderBacktest();renderConfidence();setTimeout(()=>{if(!S.A||S.bt==null)return;S.simPick=pickTrades(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});priceSim();},30);},40);
 }
 
 /* ---------- how old the newest price is, and whether the data looks sound ---------- */
@@ -156,6 +156,47 @@ function renderConfidence(){
   else{$('#confVal').textContent='—';$('#confBar').style.width=A.bull+'%';
     $('#confNote').textContent='لا توجد إشارة كافية. ميل المؤشرات '+(A.bull>=50?'نحو الشراء ':'نحو البيع ')+Math.round(Math.abs(A.bull-50)*2.5)+'%';S.confText='';}
 }
+/* ---------- trade simulation with commission and slippage ---------- */
+const BT_KEYS=['SR','CA','US','GOLD'];
+function btKey(){const k=mktKey(S.ex,S.code);return BT_KEYS.includes(k)?k:'OTHER';}
+function priceSim(){
+  const k=btKey(),c=P.bt[k]||P.bt.OTHER;
+  $('#btFee').value=c.fee;$('#btSlip').value=c.slip;
+  const nm={SR:'السوق السعودي',CA:'السوق المصري',US:'السوق الأمريكي',GOLD:'الذهب والفضة',OTHER:'الأصول الأخرى'};
+  $('#btCostFor').textContent=_t('تُحفظ لـ')+' '+_t(nm[k]);
+  S.sim=S.simPick?priceTrades(S.data,S.simPick.raw,S.simPick.first,c.fee,c.slip):null;renderSim();}
+function pctTxt(x,sign){return x==null||!isFinite(x)?'—':NUM((sign&&x>0?'+':'')+(x*100).toFixed(1)+'%');}
+function renderSim(){
+  const R=S.sim,st=R&&R.stats,w=$('#btWarn'),g=$('#btStats');
+  if(!R){w.hidden=true;g.innerHTML='';$('#btEqNote').textContent='';clearSimCanvas();return;}
+  if(st.lowSample){w.hidden=false;w.textContent=_t('تحذير: عدد الصفقات')+' '+st.n+' '+_t('أقل من 20، فالنتائج أدناه ضعيفة الدلالة الإحصائية ولا يُعتمد عليها وحدها.');}else w.hidden=true;
+  const cell=(l,v)=>'<div><span>'+_t(l)+'</span><b>'+v+'</b></div>';
+  g.innerHTML=cell('عدد الصفقات',NUM(st.n))+cell('نسبة النجاح',pctTxt(st.winRate))+cell('متوسط الربح',pctTxt(st.avgWin,true))+cell('متوسط الخسارة',pctTxt(st.avgLoss,true))
+    +cell('العائد المتوقع للصفقة',pctTxt(st.expectancy,true))+cell('عامل الربح',st.profitFactor==null?'—':st.profitFactor===Infinity?'∞':NUM(st.profitFactor.toFixed(2)))
+    +cell('إجمالي عائد الاستراتيجية',pctTxt(st.total,true))+cell('أقصى تراجع',pctTxt(st.maxDD))
+    +cell('عائد الشراء والاحتفاظ',pctTxt(st.bhTotal,true))+cell('أقصى تراجع للاحتفاظ',pctTxt(st.bhDD))
+    +cell('نسبة البقاء في السوق',pctTxt(st.exposure))+cell('متوسط مدة الصفقة',st.avgBars==null?'—':NUM(st.avgBars.toFixed(0))+' <small>'+_t('شمعة')+'</small>');
+  $('#btEqNote').textContent=_t('الدخول عند افتتاح الشمعة التالية للإشارة، وإذا لمست شمعة واحدة الوقف والهدف يُحتسب الوقف. الأرقام بعد العمولة والانزلاق. منحنى رأس المال يفترض استثمار كامل الرصيد في كل صفقة بالتتابع، وهو لا يضمن المستقبل.')
+    +' ('+_t('وقف')+' '+st.byWhy.stop+' · '+_t('هدف')+' '+st.byWhy.target+' · '+_t('انتهاء المدة')+' '+st.byWhy.time+')';
+  drawSimCanvas();}
+function clearSimCanvas(){const cv=$('#btEq');if(cv&&cv.getContext){const x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);}}
+function drawSimCanvas(){
+  const cv=$('#btEq'),R=S.sim;if(!cv||!R||!cv.getContext)return;const C=colors(),dpr=window.devicePixelRatio||1,W=Math.max(300,cv.clientWidth||600),H=200;
+  cv.width=W*dpr;cv.height=H*dpr;const x=cv.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,W,H);
+  const all=R.eq.concat(R.bh),lo=Math.min(...all,1),hi=Math.max(...all,1),pad=lo===hi?0.05:(hi-lo)*0.08,mn=lo-pad,mx=hi+pad,L=48,Rm=8,T=8,B=22;
+  const X=i=>L+(W-L-Rm)*(i/Math.max(1,R.eq.length-1)),Y=v=>T+(H-T-B)*(1-(v-mn)/(mx-mn));
+  x.direction='ltr';x.font='11px '+(FB||'sans-serif');x.fillStyle=C.muted;x.strokeStyle=C.grid;x.lineWidth=1;
+  for(const v of ticks(mn,mx,4)){const y=Y(v);x.beginPath();x.moveTo(L,y);x.lineTo(W-Rm,y);x.stroke();x.textAlign='right';x.fillText(((v-1)*100).toFixed(0)+'%',L-4,y+4);}
+  x.strokeStyle=C.muted;x.setLineDash([4,3]);x.beginPath();x.moveTo(L,Y(1));x.lineTo(W-Rm,Y(1));x.stroke();x.setLineDash([]);
+  const line=(a,col,dash)=>{x.strokeStyle=col;x.lineWidth=2;x.setLineDash(dash||[]);x.beginPath();a.forEach((v,i)=>{i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v));});x.stroke();x.setLineDash([]);};
+  line(R.bh,C.neutral||C.muted,[6,3]);line(R.eq,C.accent||C.buy);
+  x.textAlign='left';x.fillStyle=C.accent||C.buy;x.fillText(_t('الاستراتيجية'),L+6,T+12);x.fillStyle=C.muted;x.fillText(_t('الشراء والاحتفاظ'),L+86,T+12);
+  const d0=S.data[R.first],d1=S.data[S.data.length-1];x.fillStyle=C.muted;x.textAlign='left';x.fillText(fmtDate.format(d0.t),L,H-6);x.textAlign='right';x.fillText(fmtDate.format(d1.t),W-Rm,H-6);}
+function setupSim(){
+  const upd=()=>{const k=btKey(),f=+$('#btFee').value,s=+$('#btSlip').value;
+    if(!(f>=0&&f<=5&&s>=0&&s<=5))return;P.bt[k]=Object.assign({},P.bt[k],{fee:f,slip:s});savePrefs();
+    S.sim=S.simPick?priceTrades(S.data,S.simPick.raw,S.simPick.first,f,s):null;renderSim();};
+  $('#btFee').addEventListener('change',upd);$('#btSlip').addEventListener('change',upd);}
 function renderBacktest(){
   const bt=S.bt;if(!bt)return;
   const names={zone:'الشراء في منطقة الدعم',rsi:'خروج من التشبّع البيعي',cross:'تقاطع المتوسطين',macd:'تقاطع الماكد',brk:'اختراق قمة 20 شمعة بحجم'};
