@@ -234,6 +234,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(sources.admin.delete_key(cid))
                 if act == "test":
                     return self._json(sources.admin.test(cid))
+                if act == "auto":
+                    return self._json(sources.admin.set_auto(bool(b.get("enabled"))))
+                if act == "watch":
+                    return self._json(sources.admin.set_watch(bool(b.get("enabled"))))
+                if act == "reset":
+                    return self._json(sources.admin.reset())
+                if act == "probe":
+                    return self._json(sources.admin.probe_now())
                 return self._json({"ok": False, "error": "إجراء غير معروف."})
             if p == "/api/ai":
                 act, prov = b.get("action"), b.get("provider") or "claude"
@@ -298,11 +306,13 @@ class Handler(BaseHTTPRequestHandler):
 
 def shutdown_app():
     QUIT.set()
+    sources.REG.maybe_save(True)
     w = WINDOW[0]
     if w is not None:
         try:
             w.destroy()  # on_closing lets it through because QUIT is set
-        except Exception:
+        except Exception as _e:
+            record("WARN", "server.shutdown_app", _e)
             pass
     else:
         os._exit(0)
@@ -340,7 +350,8 @@ def tv_login_window():
     closed = threading.Event()
     try:
         win.events.closed += lambda: closed.set()
-    except Exception:
+    except Exception as _e:
+        record("WARN", "server.tv_login_window", _e)
         pass
 
     def poll():
@@ -350,7 +361,8 @@ def tv_login_window():
             closed.wait(2)
             try:
                 jar = win.get_cookies() or []
-            except Exception:
+            except Exception as _e:
+                record("WARN", "server.poll", _e)
                 continue
             found = {}
             for c in jar:
@@ -358,7 +370,8 @@ def tv_login_window():
                     for k, morsel in c.items():
                         if k in ("sessionid", "sessionid_sign") and morsel.value:
                             found[k] = morsel.value
-                except Exception:
+                except Exception as _e:
+                    record("WARN", "server.poll", _e)
                     continue
             if not found.get("sessionid") or found == tried:
                 continue
@@ -369,7 +382,8 @@ def tv_login_window():
                 TVLOGIN.update(state="done", message="تم ربط حساب TradingView: %s" % (res.get("username") or ""), win=False)
                 try:
                     win.destroy()
-                except Exception:
+                except Exception as _e:
+                    record("WARN", "server.poll", _e)
                     pass
                 return
         if TVLOGIN.get("state") == "waiting":

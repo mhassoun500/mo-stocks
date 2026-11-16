@@ -3,6 +3,7 @@
 import time
 
 from .base import REG, NoData
+from . import health
 
 
 def _core():
@@ -11,7 +12,34 @@ def _core():
 
 
 def status():
-    return {"ok": True, "sources": REG.status(), "kinds": {k: REG.ids(k, "*") for k in REG.order}}
+    return {"ok": True, "sources": REG.status(), "ranking": REG.ranking(), "auto": REG.auto(),
+            "watch": bool(_core().Store.get("src_watch", True)),
+            "checking": health.BUSY.is_set()}
+
+
+def set_auto(on):
+    _core().Store.set("src_auto", bool(on))
+    return status()
+
+
+def set_watch(on):
+    _core().Store.set("src_watch", bool(on))
+    return status()
+
+
+def reset():
+    REG.reset()
+    health.ROUNDS.clear()
+    health.ALERTED.clear()
+    return status()
+
+
+def probe_now():
+    """Start a check round in the background; the page polls the status."""
+    if not health.BUSY.is_set():
+        import threading
+        threading.Thread(target=lambda: health.check_all(notify=False), daemon=True).start()
+    return dict(status(), checking=True)
 
 
 def set_enabled(cid, enabled):

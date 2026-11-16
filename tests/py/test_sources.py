@@ -28,6 +28,10 @@ def quiet(monkeypatch):
     markets.MEM.clear()
     core.Store.set("src_off", [])
     core.Store.set("prefs", {})
+    core.Store.set("src_auto", True)
+    core.Store.set("src_cross", False)       # the extra-source comparison has its own tests
+    monkeypatch.setattr(sources.REG, "path", None)
+    sources.REG.detail.clear()
     for c in sources.REG.items.values():
         c.throttle = Throttle(c.per_min, c.gap)
     yield

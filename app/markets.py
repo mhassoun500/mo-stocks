@@ -3,6 +3,7 @@
 from core import *  # noqa: F401,F403
 from prices import *  # noqa: F401,F403
 from sources import REG, NoData, SourcesFailed
+import sources.consensus
 # ---------------------------------------------------------------- search, profile, universe, sectors
 def search_yahoo(q, ex):
     url = ("https://query2.finance.yahoo.com/v1/finance/search?q=%s&quotesCount=15&newsCount=0&listsCount=0"
@@ -48,7 +49,8 @@ def get_profile(symbol):
             return {"ok": False, "error": "لا توجد بيانات أساسية لهذا الرمز."}
         stale, _ = cache_get(key)
         return stale or {"ok": False, "error": "تعذّر جلب البيانات الأساسية."}
-    except Exception:
+    except Exception as _e:
+        record("WARN", "markets.call", _e)
         stale, _ = cache_get(key)
         return stale or {"ok": False, "error": "تعذّر جلب البيانات الأساسية."}
     res = ((data.get("quoteSummary") or {}).get("result") or [{}])[0]
@@ -349,6 +351,12 @@ def get_fundamentals(code, ex):
     try:
         f, meta = REG.call("fundamentals", ex, code=c, ex=ex)
         source = meta["label"]
+        checks = None
+        if Store.get("src_cross", True):
+            try:
+                f, checks = sources.consensus.cross_check(ex, meta["id"], f, c, ex)
+            except Exception as e:
+                record("WARN", "cross-check %s %s" % (ex, c), e)
     except (NoData, SourcesFailed):
         return {"ok": False, "error": "لم أجد بيانات مالية لهذه الشركة في أي مصدر."}  # not cached: try again next time
     sec, mkt = {}, {}
@@ -359,7 +367,7 @@ def get_fundamentals(code, ex):
             mkt = market_multiples(market)
     except Exception as e:
         warn("  sector multiples failed: %s" % e)
-    res = {"ok": True, "code": c, "f": f, "source": source, "date": time.strftime("%Y-%m-%d"),
+    res = {"ok": True, "code": c, "f": f, "source": source, "checks": checks, "date": time.strftime("%Y-%m-%d"),
            "sectorPE": sec.get("pe"), "sectorPB": sec.get("pb"), "sectorDY": sec.get("dy"), "sectorN": sec.get("n"), "sectorNDY": sec.get("ndy"),
            "marketPE": mkt.get("pe"), "marketPB": mkt.get("pb"), "marketDY": mkt.get("dy"), "marketN": mkt.get("n"),
            "sectorAr": TV_SECTOR_AR.get(f.get("sector") or "", f.get("sector") or "")}
@@ -394,7 +402,8 @@ def sa_names():
         if out:
             cache_put("sa|names", out)
         return out
-    except Exception:
+    except Exception as _e:
+        record("WARN", "markets.sa_names", _e)
         stale, _ = cache_get("sa|names")
         return stale or {}
 
@@ -506,7 +515,8 @@ def yaaqen_refresh():
                     got, _ = _yaaqen_page(p)
                     rows += got
                     break
-                except Exception:
+                except Exception as _e:
+                    record("WARN", "markets.yaaqen_refresh", _e)
                     QUIT.wait(3)
             QUIT.wait(0.3)
             if QUIT.is_set():
@@ -656,7 +666,8 @@ def get_universe_yahoo(ex):
                               "chg52": q.get("fiftyTwoWeekChangePercent"),
                               "segment": sa_segment((q.get("symbol") or "").split(".")[0])})
             offset += len(quotes)
-    except Exception:
+    except Exception as _e:
+        record("WARN", "markets.page", _e)
         stale, _ = cache_get(key)
         return stale or {"ok": False, "error": "تعذّر جلب قائمة شركات السوق. تحقق من الاتصال."}
     out = {"ok": True, "ex": ex, "items": [i for i in items if i["symbol"]], "at": time.time()}

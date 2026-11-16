@@ -39,6 +39,28 @@ function analyzeNow(reset){
   S.btTimer=setTimeout(()=>{if(!S.A)return;S.bt=runBacktest(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});renderBacktest();renderConfidence();},40);
 }
 
+/* ---------- how old the newest price is, and whether the data looks sound ---------- */
+const mktKey=(ex,code)=>ex==='XX'?(/\.SR$/i.test(code||'')?'SR':/\.CA$/i.test(code||'')?'CA':''):ex;
+function dataAge(){
+  if(S.source!=='live'||!S.meta||!S.data||!S.data.length)return null;
+  const t=S.data[S.data.length-1].t,d0=new Date(t),n=new Date(),day=x=>new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+  const days=Math.round((day(n)-day(d0))/864e5),date=d0.toISOString().slice(0,10);
+  let txt,k='';
+  if(S.meta.offline){txt=_t('قديم');k='old';}
+  else if(days<=0){const mk=mktKey(S.ex,S.code);
+    if(mk&&!marketOpen(mk))txt=_t('إغلاق اليوم');else if(S.meta.source==='TradingView'&&S.meta.delayed===false){txt=_t('حي');k='live';}else txt=_t('متأخر');}
+  else if(days===1)txt=_t('إغلاق أمس');
+  else if(days<=4)txt=_t('آخر إغلاق')+' '+date;
+  else{txt=_t('قديم');k='old';}
+  return{txt,k,date,tip:_t('تاريخ آخر شمعة')+': '+date+' · '+_t('المصدر')+': '+(S.meta.source||'')};
+}
+const QUAL_TXT={zero:'أسعار صفرية أو سالبة',order:'ترتيب تواريخ غير منطقي',bar:'شموع غير متسقة (الإغلاق خارج المدى)',jump:'قفزات سعرية غير معتادة',gap:'أيام ناقصة في البيانات',stale:'آخر شمعة قديمة'};
+function renderDataBadges(){
+  const ab=$('#ageBadge'),qb=$('#qualBadge'),a=dataAge();
+  ab.hidden=!a;if(a){ab.textContent=a.txt;ab.className='badge'+(a.k?' age-'+a.k:'');ab.title=a.tip;}
+  const q=(S.meta&&S.meta.quality)||[];qb.hidden=!q.length||S.source!=='live';
+  if(q.length){qb.textContent='⚠ '+_t('تحذير بيانات');qb.title=q.map(i=>_t(QUAL_TXT[i.code]||i.code)+(i.n>1?' ('+i.n+')':'')).join('\n')+'\n'+_t('راجع الأرقام قبل الاعتماد عليها.');}
+}
 /* ---------- render ---------- */
 function render(){
   const A=S.A,D=S.data;if(!A)return;const N=D.length,last=D[N-1],prev=D[N-2];
@@ -48,7 +70,7 @@ function render(){
   if(S.source==='sample'){b.textContent='بيانات تجريبية للعرض';b.className='badge sample';}
   else if(S.source==='live'&&S.meta){const m=S.meta;b.innerHTML='<bdi>'+esc(m.source)+'</bdi> · <bdi>'+esc(m.symbol)+'</bdi> · '+N+' شمعة'+(m.currency?' · <bdi>'+esc(m.currency)+'</bdi>':'');b.className='badge';}
   else{b.textContent=(S.fileName?S.fileName+' · ':'')+N+' شمعة';b.className='badge';}
-  $('#offlineBadge').hidden=!(S.meta&&S.meta.offline);
+  $('#offlineBadge').hidden=!(S.meta&&S.meta.offline);renderDataBadges();
   const shI=S.ex!=='GOLD'&&S.ex!=='FUND'&&S.source!=='sample'?shariaInfo(S.code,S.ex):null,
     shA=!shI&&S.ex==='US'&&S.usSharia&&S.usSharia.status?S.usSharia:null,sb=$('#shariaBadge');
   sb.hidden=!(shI||shA);

@@ -28,7 +28,8 @@ def notify_desktop(title, body):
         else:
             subprocess.Popen(["notify-send", title, body])
         return True
-    except Exception:
+    except Exception as _e:
+        record("WARN", "system.notify_desktop", _e)
         return False
 
 
@@ -45,7 +46,8 @@ def telegram_call(method, params=None, token=None):
     except urllib.error.HTTPError as e:
         try:
             desc = json.loads(e.read().decode("utf-8")).get("description", "")
-        except Exception:
+        except Exception as _e:
+            record("WARN", "system.telegram_call", _e)
             desc = ""
         raise ValueError("رفض تيليجرام الطلب: %s" % (desc or e.code))
 
@@ -141,11 +143,13 @@ def check_update():
                 urllib.request.urlopen(urllib.request.Request("https://api.github.com/repos/%s" % repo, headers={
                     "User-Agent": UA, "Accept": "application/vnd.github+json"}), timeout=15).read()
                 return {"ok": False, "error": "لا يوجد إصدار منشور بعد في المستودع %s. أنشئ إصدارًا من صفحة Releases." % repo}
-            except Exception:
+            except Exception as _e:
+                record("WARN", "system.check_update", _e)
                 pass
             return {"ok": False, "error": "لم أجد إصدارات منشورة في %s. يجب أن يكون المستودع عامًا ليعمل فحص التحديث." % repo}
         return {"ok": False, "error": "تعذّر فحص التحديثات (HTTP %s)." % e.code}
-    except Exception:
+    except Exception as _e:
+        record("WARN", "system.check_update", _e)
         return {"ok": False, "error": "تعذّر فحص التحديثات. تحقق من الاتصال."}
     tag = r.get("tag_name") or ""
     assets = {a.get("name", ""): a.get("browser_download_url") for a in r.get("assets") or []}

@@ -176,7 +176,7 @@
 
     <section class="card chart-card" id="chartCard">
       <div class="chart-head">
-        <div class="chart-title"><h2 id="chartName">—</h2><button class="icon-btn" id="favBtn" type="button" aria-pressed="false" hidden>☆ أضف للمفضلة</button><span class="badge" id="srcBadge"></span><span class="badge" id="shariaBadge" hidden></span><span class="badge seg" id="segBadge" hidden></span><span class="badge off" id="offlineBadge" hidden>بيانات محفوظة</span></div>
+        <div class="chart-title"><h2 id="chartName">—</h2><button class="icon-btn" id="favBtn" type="button" aria-pressed="false" hidden>☆ أضف للمفضلة</button><span class="badge" id="srcBadge"></span><span class="badge" id="shariaBadge" hidden></span><span class="badge seg" id="segBadge" hidden></span><span class="badge" id="ageBadge" hidden></span><span class="badge off" id="qualBadge" hidden></span><span class="badge off" id="offlineBadge" hidden>بيانات محفوظة</span></div>
         <div class="toolbar">
           <div class="seg" role="group" aria-label="الإطار الزمني" id="tfSeg">
             <button type="button" data-tf="H" class="local-only">ساعة</button>
@@ -662,7 +662,16 @@
       <section class="card panel local-only" id="dsPanel">
         <h2>مصادر البيانات</h2>
         <p class="small muted">يجلب البرنامج كل نوع من البيانات من أول مصدر يعمل، وينتقل إلى التالي تلقائيًا عند تعطل الأول. يمكنك إيقاف أي مصدر. المصادر التي تحتاج مفتاحًا مجانيًا خاصًا بك تبقى خاملة حتى تضيفه، ويُحفظ المفتاح مشفّرًا على جهازك ولا يدخل في النسخ الاحتياطي.</p>
+        <div class="actions">
+          <label class="chk"><input type="checkbox" id="srcAuto"> <span>رتّب المصادر تلقائيًا حسب أدائها في كل سوق</span></label>
+          <label class="chk"><input type="checkbox" id="srcWatch"> <span>افحص المصادر كل 3 ساعات ونبّهني عند تعطل أحدها</span></label>
+        </div>
+        <div class="actions">
+          <button class="btn sm" id="srcProbe" type="button">افحص الآن</button>
+          <button class="btn sm ghost" id="srcReset" type="button">تصفير سجل الأداء</button>
+        </div>
         <p class="status" id="srcStatus"></p>
+        <div class="src-rank" id="srcRank"></div>
         <div class="src-list" id="srcList"></div>
       </section>
 

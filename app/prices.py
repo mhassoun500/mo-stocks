@@ -2,6 +2,8 @@
 """Price data: Yahoo Finance, Stooq, metals, TradingView history and today's live session, mutual fund prices."""
 from core import *  # noqa: F401,F403
 from sources import REG, NoData, SourcesFailed
+import sources.quality
+REG.load(os.path.join(DATA_DIR, "source_stats.json"))
 # ================================================================ HTTP with Yahoo cookie + crumb
 class Yahoo:
     lock = threading.Lock()
@@ -33,7 +35,8 @@ class Yahoo:
                 cls._reset()
                 try:
                     cls.get("https://fc.yahoo.com", timeout=10)
-                except Exception:
+                except Exception as _e:
+                    record("WARN", "prices.ensure_crumb", _e)
                     pass  # returns 404 but sets the A3 cookie
                 try:
                     c = cls.get("https://query1.finance.yahoo.com/v1/test/getcrumb").decode().strip()
@@ -308,7 +311,8 @@ def yahoo_events(symbol, rng, box):
             r = fetch_yahoo(symbol, "max" if rng == "max" else "5y", "1d")
             hit = {"dividends": r["dividends"], "splits": r["splits"], "name": r["name"]}
             cache_put(key, hit)
-        except Exception:
+        except Exception as _e:
+            record("WARN", "prices.yahoo_events", _e)
             return
     box.update(hit)
 
@@ -425,7 +429,8 @@ def _fetch_all_funds(stale):
     def one(country):
         try:
             got_by[country] = REG.call_one("mubasher", "funds", op="list", country=country)
-        except Exception:
+        except Exception as _e:
+            record("WARN", "prices.one", _e)
             got_by[country] = None
 
     ths = [threading.Thread(target=one, args=(c,), daemon=True) for c in funds.COUNTRIES]
@@ -473,7 +478,8 @@ def fetch_fund(code, rng):
         if e.code not in (403, 404):
             online = False
         rows = []
-    except Exception:
+    except Exception as _e:
+        record("WARN", "prices.fetch_fund", _e)
         online = False
         rows = []
     mub_last = rows[-1][0] if rows else None
@@ -530,7 +536,8 @@ def live_quotes(ex):
     try:
         with urllib.request.urlopen(req, timeout=12) as r:
             data = json.loads(r.read().decode("utf-8"))
-    except Exception:
+    except Exception as _e:
+        record("WARN", "prices.live_quotes", _e)
         with LQ_LOCK:  # back off for a minute instead of retrying on every request
             LQ[ex] = (time.time() - LIVE_TTL + 60, hit[1] if hit else {})
         return hit[1] if hit else {}
@@ -639,6 +646,8 @@ def get_history(code, ex, rng, interval="1d", lite=False):
             return cached
         return {"ok": False, "error": str(e) or "تعذّر جلب البيانات.", "offline": True}
     if res.get("ok"):
+        if ex != "FUND":
+            res["quality"] = sources.quality.check_history(res)
         with MEM_LOCK:
             MEM[key] = (time.time(), res)
         cache_put(key, res)

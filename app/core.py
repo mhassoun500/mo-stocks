@@ -100,8 +100,19 @@ ERROR_LOCK = threading.Lock()
 ERROR_MAX = 512 * 1024
 
 
+_RECENT = {}
+
+
 def record(level, where, msg, tb=None):
-    """Append one entry to errors.log; keeps one older file when it grows past 512 KB."""
+    """Append one entry to errors.log; keeps one older file when it grows past 512 KB.
+    The same message from the same place is written once a minute, so a broken source cannot flood the log."""
+    sig = (level, where, str(msg)[:200])
+    now = time.time()
+    if now - _RECENT.get(sig, 0) < 60:
+        return
+    if len(_RECENT) > 500:
+        _RECENT.clear()
+    _RECENT[sig] = now
     line = "%s [%s] %s: %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), level, where, str(msg).replace("\n", " ")[:2000])
     if tb:
         line += "".join("    " + x + "\n" for x in tb.rstrip().splitlines()[-25:])

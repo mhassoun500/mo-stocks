@@ -29,6 +29,7 @@ from prices import *  # noqa: F401,F403
 from markets import *  # noqa: F401,F403
 from system import *  # noqa: F401,F403
 from server import *  # noqa: F401,F403
+import sources  # noqa: E402
 
 # ================================================================ app lifecycle
 def fund_refresher():
@@ -36,7 +37,8 @@ def fund_refresher():
     while not QUIT.is_set():
         try:
             get_funds(force=True)
-        except Exception:
+        except Exception as _e:
+            record("WARN", "main.fund_refresher", _e)
             pass
         QUIT.wait(6 * 3600)
 
@@ -61,6 +63,7 @@ def start_server():
     threading.Thread(target=yaaqen_refresher, daemon=True).start()
     threading.Thread(target=sharia_refresher, daemon=True).start()
     threading.Thread(target=backup_refresher, daemon=True).start()
+    threading.Thread(target=sources.health.loop, daemon=True).start()
     return srv, "http://%s:%d/" % (HOST, srv.server_address[1])
 
 
@@ -80,7 +83,8 @@ def run_window(url, minimized):
             return True
         try:
             win.minimize()  # keep running so alerts and the morning report keep working
-        except Exception:
+        except Exception as _e:
+            record("WARN", "main.on_closing", _e)
             return True
         return False
 
@@ -103,7 +107,8 @@ def run_browser(url):
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    except Exception:
+    except Exception as _e:
+        record("WARN", "main.main", _e)
         pass
     if "--selftest" in sys.argv:  # used by the build pipeline to check HTTPS works inside the packaged app
         i = sys.argv.index("--selftest")
@@ -134,7 +139,8 @@ def main():
         try:  # keep "start with the computer" pointing at this copy (the program was renamed in 2.4)
             if autostart_state():
                 autostart_set(True)
-        except Exception:
+        except Exception as _e:
+            record("WARN", "main.main", _e)
             pass
     log("Mo Stocks v%s running at %s  (data: %s)" % (VERSION, url, DATA_DIR))
     if "--browser" in sys.argv:

@@ -40,6 +40,15 @@ TZ_OFF = {"Asia/Riyadh": 3, "Africa/Cairo": 2, "America/New_York": -5, "America/
           "Etc/UTC": 0, "UTC": 0, "Europe/London": 0, "Asia/Dubai": 4, "Asia/Qatar": 3, "Asia/Kuwait": 3}
 
 
+def _rec(where, e):
+    """Write a swallowed error to the app's error log (the log lives in core, which imports this module)."""
+    try:
+        import core
+        core.record("WARN", where, e)
+    except Exception:
+        pass
+
+
 class TVError(Exception):
     pass
 
@@ -82,7 +91,8 @@ class TVClient:
         try:
             if self.ws is not None:
                 self.ws.close()
-        except Exception:
+        except Exception as _e:
+            _rec("tvdata.close", _e)
             pass
         self.ws = None
 
@@ -136,7 +146,8 @@ class TVClient:
         finally:
             try:
                 ws.send(_msg("chart_delete_session", [cs]))
-            except Exception:
+            except Exception as _e:
+                _rec("tvdata._run", _e)
                 pass
 
     def history(self, symbol, res="1D", n=520, token=UNAUTH):
@@ -257,7 +268,8 @@ def secret_save(path, text, service=KEYCHAIN_SERVICE):
             enc = _dpapi(raw, True)
             _write(path, b"DPAPI:" + base64.b64encode(enc))
             return "dpapi"
-        except Exception:
+        except Exception as _e:
+            _rec("tvdata.secret_save", _e)
             pass
     if sys.platform == "darwin":
         try:
@@ -265,7 +277,8 @@ def secret_save(path, text, service=KEYCHAIN_SERVICE):
                             "-w", text], check=True, capture_output=True, timeout=15)
             _write(path, b"KEYCHAIN:")
             return "keychain"
-        except Exception:
+        except Exception as _e:
+            _rec("tvdata.secret_save", _e)
             pass
     _write(path, b"PLAIN:" + base64.b64encode(raw))
     return "file"
@@ -288,7 +301,8 @@ def secret_load(path, service=KEYCHAIN_SERVICE):
             return r.stdout.decode("utf-8").strip() or None
         if data.startswith(b"PLAIN:"):
             return base64.b64decode(data[6:]).decode("utf-8")
-    except Exception:
+    except Exception as _e:
+        _rec("tvdata.secret_load", _e)
         return None
     return None
 
@@ -307,7 +321,8 @@ def secret_delete(path, service=KEYCHAIN_SERVICE):
         try:
             subprocess.run(["security", "delete-generic-password", "-a", "StockZones", "-s", service],
                            capture_output=True, timeout=15)
-        except Exception:
+        except Exception as _e:
+            _rec("tvdata.secret_delete", _e)
             pass
     try:
         os.remove(path)
@@ -376,7 +391,8 @@ class Account:
             return {"ok": False, "error": "لم يُعثر على الجلسة (sessionid)."}
         try:
             info = account_from_cookies(cookies)
-        except Exception:
+        except Exception as _e:
+            _rec("tvdata.save", _e)
             return {"ok": False, "error": "تعذّر الاتصال بـ TradingView للتحقق من الجلسة."}
         if not info:
             return {"ok": False, "error": "الجلسة غير صالحة أو منتهية. سجّل الدخول من جديد."}
@@ -400,7 +416,8 @@ class Account:
             return UNAUTH
         try:
             info = account_from_cookies(c)
-        except Exception:
+        except Exception as _e:
+            _rec("tvdata.token", _e)
             with self.lock:  # offline or TradingView down: keep the last token if any
                 return self.info["token"] if self.info else UNAUTH
         with self.lock:

@@ -13,12 +13,13 @@ DEFAULT = {
 
 
 def _history_hook(ids, market):
-    """Yahoo comes first when the user chose it in the settings; TradingView then stays as a backup."""
+    """Yahoo comes first when the user chose it in the settings (that choice beats the learned order);
+    TradingView then stays as the backup."""
     try:
         import core
         if core.pref("dataSource", "tv") == "yahoo" and "tradingview" in ids and "yahoo" in ids:
-            ids = [i for i in ids if i != "tradingview"]
-            ids.insert(ids.index("yahoo") + 1, "tradingview")
+            ids = [i for i in ids if i not in ("yahoo", "tradingview")]
+            ids[0:0] = ["yahoo", "tradingview"]
     except Exception:
         pass
     return ids

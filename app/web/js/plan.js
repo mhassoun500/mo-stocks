@@ -67,6 +67,11 @@ function renderFair(){
   if(fv.pb)fx.push('السعر إلى القيمة الدفترية <b>'+NUM(fv.pb.toFixed(2))+'</b>');if(F.dividends_yield_current)fx.push('عائد التوزيعات <b>'+NUM(F.dividends_yield_current.toFixed(2)+'%')+'</b>');
   if(F.return_on_equity_fq!=null)fx.push('العائد على حقوق المساهمين <b>'+NUM(F.return_on_equity_fq.toFixed(1)+'%')+'</b>');
   h+='<div class="facts">'+fx.map(x=>'<span>'+x+'</span>').join('')+'</div><p class="muted small">المصدر: '+esc(fv.r.source||'TradingView')+' · '+NUM(esc(fv.r.date||''))+'. السعر العادل تقدير تقريبي وليس ضمانًا.</p>';
+  const ck=fv.r.checks;
+  if(ck&&ck.sources&&ck.sources.length>1){const cf=ck.conflicts||[];
+    h+='<p class="muted small">'+_t('قورنت الأرقام مع')+' '+esc(ck.sources.join('، '))+(cf.length?'':' — '+_t('لا تعارض.'))+'</p>';
+    if(cf.length)h+='<div class="small"><b>⚠ '+_t('اختلفت المصادر في')+':</b><ul>'+cf.map(c=>'<li>'+esc(_t(c.label))+': '+Object.keys(c.values).map(k=>'<bdi>'+esc(k)+'</bdi> '+NUM(Number(c.values[k]).toFixed(2))).join(' · ')
+      +(c.used!=null?' — '+_t('اعتُمد رأي الأغلبية')+' '+NUM(Number(c.used).toFixed(2)):' — '+_t('اعتُمد المصدر الأول.'))+'</li>').join('')+'</ul></div>';}
   box.innerHTML=h;
 }
 
@@ -95,7 +100,7 @@ function renderPlan(){
   const src={r:'منطقة مقاومة',hi:'أعلى سعر في الفترة',atr:'تقدير من متوسط المدى'};
   const cell=(cls,k,v,note)=>'<div class="lad '+cls+'"><span class="k">'+k+'</span><span class="v">'+NUM(fp(v))+'</span><span class="p">'+(cls==='cur'?'&nbsp;':chgSpan(v/px-1,1))+'</span><span class="n">'+(note||'&nbsp;')+'</span></div>';
   $('#ladder').innerHTML=cell('stop','وقف الخسارة',A.stop,'اخرج إذا أغلق السعر تحته')+cell('','سعر الدخول',A.entry,A.buy&&A.buy.inside?'السعر داخل منطقة الشراء':A.entry<px*0.97?'انتظر نزول السعر إلى منطقة الشراء':'داخل منطقة الشراء')+
-    cell('cur','السعر الحالي',px,'')+cell('tg','الهدف الأول',A.t1,src[A.tSrc[0]]+(risk>0?' · '+R(A.t1):''))+
+    cell('cur','السعر الحالي',px,(typeof dataAge==='function'&&dataAge()||{}).txt||'')+cell('tg','الهدف الأول',A.t1,src[A.tSrc[0]]+(risk>0?' · '+R(A.t1):''))+
     cell('tg','الهدف الثاني',A.t2,src[A.tSrc[1]]+(risk>0?' · '+R(A.t2):''))+cell('tg','الهدف الثالث',A.t3,src[A.tSrc[2]]+(risk>0?' · '+R(A.t3):''));
   /* a scale from the stop to the third target with the price and the fair value marked */
   const lo=Math.min(A.stop,px),hi=Math.max(A.t3,px),span=hi-lo||1,pos=v=>((v-lo)/span*100).toFixed(2)+'%';
