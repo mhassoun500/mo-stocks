@@ -22,7 +22,7 @@ async function renderSources(){
     const wait=s.needsKey&&!s.hasKey;
     const state=wait?_t('يحتاج مفتاحًا'):!s.enabled?_t('موقوف'):_t('يعمل');
     const mk=Object.keys(s.markets||{}).map(m=>{const v=s.markets[m],ag=v.agree+v.disagree;
-      return '<bdi>'+esc(_t(SRC_MK[m]))+'</bdi> '+NUM(v.rate+'%')+(v.ms?' · '+NUM(v.ms+' ms'):'')+(ag?' · '+_t('اتفاق')+' '+NUM(Math.round(100*v.agree/ag)+'%'):'');}).join(' &nbsp;|&nbsp; ');
+      return '<span class="src-chip"><bdi>'+esc(_t(SRC_MK[m]))+'</bdi> '+NUM(v.rate+'%')+(v.ms?' · '+NUM(v.ms+' ms'):'')+(ag?' · '+_t('اتفاق')+' '+NUM(Math.round(100*v.agree/ag)+'%'):'')+'</span>';}).join('');
     const down=s.lastFail&&s.lastFail>s.lastOk;
     const key=s.needsKey?'<input class="ltr" type="password" autocomplete="off" data-key="'+esc(s.id)+'" placeholder="'+(s.hasKey?'••••••••':_t('المفتاح'))+'">'
       +'<button class="btn xs" type="button" data-act="key" data-id="'+esc(s.id)+'">'+_t('حفظ المفتاح')+'</button>'
@@ -31,7 +31,7 @@ async function renderSources(){
     const on=!wait&&s.enabled;
     return '<div class="src-item"><div class="src-head"><b>'+esc(_t(s.name))+'</b><span class="src-state'+(on?' on':'')+'">'+esc(state)+'</span></div>'
       +'<div class="src-meta">'+esc(kinds)+(s.calls?' · '+_t('نجح')+' '+NUM(s.ok+' / '+s.calls):'')+(s.note?' · '+esc(_t(s.note)):'')+'</div>'
-      +(mk?'<div class="src-meta">'+mk+'</div>':'')
+      +(mk?'<div class="src-chips">'+mk+'</div>':'')
       +(down?'<p class="src-err">'+esc(_t('آخر فشل'))+' '+esc(agoText(s.lastFail))+(s.lastError?': <bdi class="ltr">'+esc(s.lastError)+'</bdi>':'')+'</p>':
         (s.lastOk?'<div class="src-meta">'+esc(_t('آخر نجاح'))+' '+esc(agoText(s.lastOk))+'</div>':''))
       +'<div class="src-act">'+key

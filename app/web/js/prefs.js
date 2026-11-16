@@ -137,3 +137,23 @@ async function checkUpdate(manual){
     if(manual||(await Store.get('updateSnooze',''))!==todayKey())$('#updateBanner').hidden=false;if(manual)st.textContent='يتوفر الإصدار '+j.latest+'.';}
   else if(manual)st.textContent='لديك أحدث إصدار ('+j.current+').';
 }
+
+/* settings tabs: one group of cards at a time; the last tab is remembered */
+const PREF_PAGES=['gen','data','alerts','ai','sys'];
+function showPrefTab(pg){
+  if(!PREF_PAGES.includes(pg))pg='gen';
+  const tabs=$$('#prefTabs button');
+  /* a tab whose cards are all hidden here (web version) falls back to the first tab */
+  const btn=tabs.find(b=>b.dataset.pg===pg);if(btn&&btn.offsetParent===null&&btn.classList.contains('local-only'))pg='gen';
+  tabs.forEach(b=>{const on=b.dataset.pg===pg;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;});
+  $$('#prefsGrid > section').forEach(sec=>{sec.hidden=sec.dataset.pg!==pg;});
+  try{localStorage.setItem('mo-pref-tab',pg);}catch(e){}}
+function setupPrefTabs(){
+  const bar=$('#prefTabs');if(!bar)return;
+  bar.addEventListener('click',e=>{const b=e.target.closest('button[data-pg]');if(b)showPrefTab(b.dataset.pg);});
+  bar.addEventListener('keydown',e=>{if(e.key!=='ArrowLeft'&&e.key!=='ArrowRight')return;
+    const tabs=$$('#prefTabs button').filter(b=>b.offsetParent!==null),i=tabs.findIndex(b=>b.getAttribute('aria-selected')==='true');
+    const rtl=document.documentElement.dir==='rtl',d=(e.key==='ArrowRight')===rtl?-1:1,n=tabs[(i+d+tabs.length)%tabs.length];
+    if(n){showPrefTab(n.dataset.pg);n.focus();e.preventDefault();}});
+  let pg='gen';try{pg=localStorage.getItem('mo-pref-tab')||'gen';}catch(e){}
+  showPrefTab(pg);}

@@ -557,8 +557,15 @@
 
   <!-- ===================================================== PREFERENCES -->
   <section class="view" id="view-prefs" hidden>
-    <div class="prefs-grid">
-      <section class="card panel">
+    <div class="pref-tabs" role="tablist" aria-label="أقسام الإعدادات" id="prefTabs">
+      <button type="button" role="tab" data-pg="gen">عام</button>
+      <button type="button" role="tab" data-pg="data">مصادر البيانات</button>
+      <button type="button" role="tab" data-pg="alerts" class="local-only">التنبيهات</button>
+      <button type="button" role="tab" data-pg="ai" class="local-only">الذكاء الاصطناعي</button>
+      <button type="button" role="tab" data-pg="sys">النظام</button>
+    </div>
+    <div class="prefs-grid" id="prefsGrid">
+      <section data-pg="gen" class="card panel">
         <h2>إعدادات التحليل</h2>
         <div class="form-grid">
           <label class="field" for="pMaFast"><span>المتوسط القصير</span><input id="pMaFast" type="number" min="3" max="100" data-pref="ana.maFast"></label>
@@ -576,8 +583,8 @@
         <button class="btn sm ghost" id="pAnaReset" type="button">استعادة القيم الافتراضية</button>
       </section>
 
-      <section class="card panel local-only" id="srcPanel">
-        <h2>مصادر البيانات وحساب <bdi>TradingView</bdi></h2>
+      <section data-pg="data" class="card panel local-only" id="srcPanel">
+        <h2>مصدر الأسعار وحساب <bdi>TradingView</bdi></h2>
         <div class="form-grid">
           <label class="field wide" for="pSource"><span>مصدر الأسعار الأول</span><select id="pSource" data-pref="dataSource">
             <option value="tv">TradingView أولًا، ثم Yahoo Finance</option><option value="yahoo">Yahoo Finance أولًا، ثم TradingView</option></select></label>
@@ -603,7 +610,7 @@
         <p class="small muted">موقع <bdi>Investing.com</bdi> يحجب أي جلب آلي لبياناته بحماية <bdi>Cloudflare</bdi> حتى مع تسجيل الدخول، لذلك لا يمكن ربطه بالبرنامج.</p>
       </section>
 
-      <section class="card panel local-only" id="aiPanel">
+      <section data-pg="ai" class="card panel local-only" id="aiPanel">
         <h2>الربط مع مساعدي الذكاء الاصطناعي (اختياري)</h2>
         <p class="small muted">عند ربط مساعد يظهر زر «حلّل الآن» في صفحة التحليل: يرسل البرنامج أرقام السهم (السعر والمناطق والأهداف والمؤشرات والبيانات المالية والحكم الشرعي) إلى المساعد، فيكتب رأيًا ثانيًا مفصلًا. يمكنك ربط أكثر من مساعد والاختيار بينها عند التحليل.</p>
         <p class="small muted">بدون أي مفتاح: استخدم زر «نسخ البرومبت» في صفحة التحليل، والصقه في <bdi>claude.ai</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> باشتراكك العادي.</p>
@@ -636,7 +643,7 @@
         <p class="small muted">تُحفظ المفاتيح مشفّرة بنظام التشغيل على جهازك فقط، ولا يُرسل كل مفتاح إلا إلى شركته. لا يرسل البرنامج أي بيانات إلا عند ضغطك الزر.</p>
       </section>
 
-      <section class="card panel local-only">
+      <section data-pg="alerts" class="card panel local-only">
         <h2>التنبيهات</h2>
         <label class="field row" for="pAlerts"><input id="pAlerts" type="checkbox" data-pref="alerts.enabled"><span>تفعيل تنبيهات قائمة المراقبة</span></label>
         <div class="form-grid">
@@ -650,7 +657,7 @@
         <button class="btn sm danger" id="quitBtn" type="button">إنهاء البرنامج بالكامل</button>
       </section>
 
-      <section class="card panel local-only">
+      <section data-pg="alerts" class="card panel local-only">
         <h2>تيليجرام</h2>
         <ol class="small muted" style="margin:0;padding-inline-start:18px">
           <li>افتح <bdi>@BotFather</bdi> في تيليجرام وأرسل <code>/newbot</code>، ثم انسخ الرمز الذي يعطيك إياه.</li>
@@ -666,7 +673,7 @@
         <p class="status" id="tgStatus"></p>
       </section>
 
-      <section class="card panel local-only">
+      <section data-pg="alerts" class="card panel local-only">
         <h2>التقرير الصباحي</h2>
         <label class="field row" for="pRep"><input id="pRep" type="checkbox" data-pref="report.enabled"><span>إرسال تقرير يومي بقائمة المراقبة والمحفظة</span></label>
         <div class="form-grid">
@@ -676,7 +683,7 @@
         <p class="small muted">يُرسل عبر تيليجرام وإشعار سطح المكتب. يجب أن يكون البرنامج مفتوحًا أو مصغّرًا وقت الإرسال.</p>
       </section>
 
-      <section class="card panel">
+      <section data-pg="data" class="card panel">
         <h2>الضوابط الشرعية</h2>
         <p class="small muted">الصق رموز الأسهم المتوافقة وغير المتوافقة من أحدث قائمة تعتمدها (مثل قوائم الهيئات الشرعية في البنوك)، مفصولة بمسافات أو فواصل. تظهر الحالة بجانب اسم السهم وفي ماسح السوق.</p>
         <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
@@ -700,8 +707,8 @@
         <p class="status" id="yqStatus"></p>
       </section>
 
-      <section class="card panel local-only" id="dsPanel">
-        <h2>مصادر البيانات</h2>
+      <section data-pg="data" class="card panel local-only wide" id="dsPanel">
+        <h2>حالة المصادر وترتيبها</h2>
         <p class="small muted">يجلب البرنامج كل نوع من البيانات من أول مصدر يعمل، وينتقل إلى التالي تلقائيًا عند تعطل الأول. يمكنك إيقاف أي مصدر. المصادر التي تحتاج مفتاحًا مجانيًا خاصًا بك تبقى خاملة حتى تضيفه، ويُحفظ المفتاح مشفّرًا على جهازك ولا يدخل في النسخ الاحتياطي.</p>
         <div class="actions">
           <label class="chk"><input type="checkbox" id="srcAuto"> <span>رتّب المصادر تلقائيًا حسب أدائها في كل سوق</span></label>
@@ -719,7 +726,7 @@
         <div class="src-list" id="srcList"></div>
       </section>
 
-      <section class="card panel local-only" id="backupPanel">
+      <section data-pg="sys" class="card panel local-only" id="backupPanel">
         <h2>النسخ الاحتياطي لبياناتك</h2>
         <p class="small muted">يحفظ قائمة المراقبة والتنبيهات والصفقات والمحفظة والمفضلة والرسومات والإعدادات في ملف واحد. يأخذ البرنامج نسخة تلقائية كل أسبوع ويحتفظ بآخر 8 نسخ. المفاتيح وجلسات الدخول لا تدخل في النسخة لحمايتها.</p>
         <div class="actions">
@@ -732,7 +739,7 @@
         <div class="tbl-wrap"><table id="bkTable"><thead><tr><th>التاريخ</th><th>النوع</th><th>الحجم</th><th></th></tr></thead><tbody id="bkList"></tbody></table></div>
       </section>
 
-      <section class="card panel local-only" id="errPanel">
+      <section data-pg="sys" class="card panel local-only" id="errPanel">
         <h2>سجل الأخطاء</h2>
         <p class="small muted">يسجّل البرنامج هنا ما يتعثر فيه: مصدر بيانات لم يرد، أو خطأ داخلي. إذا واجهت مشكلة، اضغط «نسخ تقرير المشكلة» وأرسله مع وصف ما حدث.</p>
         <div class="actions">
@@ -744,7 +751,7 @@
         <textarea id="errLog" class="ltr err-log" rows="10" readonly></textarea>
       </section>
 
-      <section class="card panel local-only">
+      <section data-pg="sys" class="card panel local-only">
         <h2>التحديثات وحول البرنامج</h2>
         <p class="small" id="aboutText"></p>
         <label class="field" for="pRepo"><span>مستودع التحديثات على GitHub</span><input id="pRepo" type="text" class="ltr" data-pref="updateRepo" placeholder="mhassoun500/mo-stocks"></label>
@@ -752,7 +759,7 @@
         <p class="status" id="updateStatus"></p>
       </section>
 
-      <section class="card panel">
+      <section data-pg="gen" class="card panel">
         <h2>المظهر</h2>
         <div class="form-grid">
           <label class="field" for="pTheme"><span>المظهر</span><select id="pTheme" data-pref="theme"><option value="system">حسب النظام</option><option value="light">فاتح</option><option value="dark">داكن</option></select></label>

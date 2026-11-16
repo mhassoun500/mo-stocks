@@ -357,7 +357,7 @@ function setupPlan(){
     const a=e.target.closest('a[data-url]');if(a){e.preventDefault();openExt(a.dataset.url);}});
   $('#aiQ').addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('#aiControls').hidden)runAi();});
   $('#aiProv').addEventListener('change',()=>{P.ai.provider=$('#aiProv').value;savePrefs();renderAiBox();});
-  $('#aiGoSettings').addEventListener('click',e=>{e.preventDefault();location.hash='#prefs';setTimeout(()=>{const el=$('#aiPanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);});
+  $('#aiGoSettings').addEventListener('click',e=>{e.preventDefault();location.hash='#prefs';showPrefTab('ai');setTimeout(()=>{const el=$('#aiPanel');if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},60);});
   $('#aiWeb').checked=P.ai.web!==false;
   $('#aiWeb').addEventListener('change',()=>{P.ai.web=$('#aiWeb').checked;savePrefs();});
   loadAiStatus().then(()=>{renderAiBox();renderAiPrefs();});
