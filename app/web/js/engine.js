@@ -304,11 +304,49 @@ function runBacktest(D,I,o){
   }
   return res;
 }
+/* ---------- setup quality score (out of 100, every point explained) ----------
+   Only facts already in the analysis are used; nothing is hidden. Whether the score means anything is measured
+   in the simulation below (average result of high-score versus low-score setups), not assumed. */
+function setupScore(D,I,A,i){
+  if(!A||i==null||i<1)return null;const close=D[i].c,z=A.buy,parts=[];
+  /* each part: points, maximum, and fixed phrases (k) with an optional number (n), so the page can translate them */
+  const add=(pts,max,...items)=>parts.push({pts,max,items});
+  if(!z)add(0,25,{k:'لا توجد منطقة دعم تحت السعر'});
+  else{const gap=(close-z.hi)/A.atrv;
+    if(close<=z.hi&&close>=z.lo-0.2*A.atrv)add(25,25,{k:'السعر داخل منطقة الدعم'});
+    else if(close>z.hi&&gap<=1)add(15,25,{k:'السعر قرب منطقة الدعم'});
+    else if(close>z.hi&&gap<=2.5)add(6,25,{k:'السعر فوق منطقة الدعم بمسافة متوسطة'});
+    else add(0,25,{k:'السعر بعيد عن منطقة الدعم'});}
+  if(z){let p=z.touches>=4?10:z.touches===3?7:z.touches===2?4:1;const w=[{k:'قوة المنطقة: عدد اللمسات',n:z.touches}];
+    if(z.vpStrong){p+=5;w.push({k:'حجم تداول مرتفع عندها'});}if(z.flip){p+=3;w.push({k:'كانت مقاومة ثم صارت دعمًا'});}if(z.htf){p+=2;w.push({k:'تدعمها منطقة على إطار أكبر'});}
+    add(Math.min(20,p),20,...w);}
+  else add(0,20,{k:'قوة المنطقة: غير متاحة'});
+  const rr=A.rr;add(rr==null?0:rr>=3?20:rr>=2?15:rr>=1.5?10:rr>=1?5:0,20,rr==null?{k:'العائد إلى المخاطرة: غير متاح'}:{k:'العائد إلى المخاطرة حتى الهدف الأول 1 :',n:rr.toFixed(1)});
+  const m2=I.ma2[i],m2p=i>=10?I.ma2[i-10]:null;
+  if(m2==null)add(0,15,{k:'الاتجاه: لا يكفي التاريخ لحساب المتوسط البطيء'});
+  else{const up=m2p!=null&&m2>m2p*1.002,flat=m2p!=null&&Math.abs(m2/m2p-1)<=0.002;
+    if(close>m2&&up)add(15,15,{k:'الاتجاه: السعر فوق متوسط صاعد'});else if(close>m2&&flat)add(9,15,{k:'الاتجاه: السعر فوق متوسط مسطّح'});
+    else if(close>m2)add(6,15,{k:'الاتجاه: السعر فوق متوسط هابط'});else if(up||flat)add(4,15,{k:'الاتجاه: السعر تحت المتوسط البطيء'});else add(0,15,{k:'الاتجاه: السعر تحت متوسط هابط'});}
+  const r=I.rsi[i],rn={k:'الزخم: القوة النسبية',n:r==null?null:Math.round(r)};
+  if(r==null)add(0,10,{k:'الزخم: غير متاح'});else if(r>=30&&r<=55)add(10,10,rn,{k:'معتدلة وفيها مجال للصعود'});
+  else if(r<30)add(6,10,rn,{k:'في تشبّع بيعي (ارتداد محتمل لكنه غير مؤكد)'});
+  else if(r<=70)add(5,10,rn,{k:'مرتفعة نسبيًا'});else add(0,10,rn,{k:'في تشبّع شرائي'});
+  const vm=I.volMa[i];
+  if(!(vm>0)||!(D[i].v>0))add(0,10,{k:'لا تتوفر بيانات حجم'});else{const q=D[i].v/vm;
+    if(q>=1.2)add(10,10,{k:'الحجم أعلى من المعتاد'});else if(q>=0.8)add(5,10,{k:'الحجم قريب من المعتاد'});else add(0,10,{k:'الحجم أقل من المعتاد'});}
+  const total=parts.reduce((x,q)=>x+q.pts,0);
+  return{score:total,grade:total>=70?'strong':total>=50?'mid':'weak',parts};
+}
+
 /* ---------- realistic trade simulation of the support-zone strategy ----------
    Each decision uses only candles up to the signal candle; the fill is at the NEXT candle's open. Stop and target are
    checked candle by candle (stop first when one candle touches both; a gap through the stop fills at the open).
    Commission and slippage are charged on both sides. Prices are chosen once (pickTrades); costs are applied after
-   (priceTrades), so changing the costs does not repeat the heavy analysis. */
+   (priceTrades), so changing the costs does not repeat the heavy analysis.
+   Exit modes: single = everything at target 1 (30 candles); staged = a third at each of the three targets (60 candles);
+   trail = staged, stop to entry after target 1, to target 1 after target 2, and an ATR trailing stop after target 1. */
+const EXIT_MODES={single:{hold:30},staged:{hold:60},trail:{hold:60,trail:true}};
+const TRAIL_ATR=2;
 function resolveExit(D,j0,last,stop,target){
   for(let j=j0;j<=Math.min(D.length-1,last);j++){
     if(D[j].l<=stop)return{exit:j,px:Math.min(stop,D[j].o),why:'stop'};     /* stop first; a gap through it fills at the open */
@@ -317,22 +355,47 @@ function resolveExit(D,j0,last,stop,target){
   }
   return null;
 }
+function resolveStaged(D,j0,last,entry,stop,tg,atr,trail){
+  let s=stop,k=0,rem=1,hh=-Infinity;const fills=[];
+  for(let j=j0;j<=Math.min(D.length-1,last);j++){
+    if(D[j].l<=s){fills.push({j,px:Math.min(s,D[j].o),frac:rem,why:k?'trail':'stop'});return{exit:j,fills};}
+    while(k<3&&D[j].h>=tg[k]){const f=k===2?rem:1/3;fills.push({j,px:tg[k],frac:f,why:'target'});rem-=f;k++;
+      if(k===1)s=Math.max(s,entry);if(k===2)s=Math.max(s,tg[0]);if(k===3)return{exit:j,fills};}
+    if(trail&&k>=1&&hh>-Infinity)s=Math.max(s,hh-TRAIL_ATR*atr);
+    hh=Math.max(hh,D[j].h);                      /* the trailing level only uses candles already finished */
+    if(j===last){fills.push({j,px:D[j].c,frac:rem,why:'time'});return{exit:j,fills};}
+  }
+  return null;
+}
+function signalAt(D,I,o,e,cache){
+  if(cache&&e in cache)return cache[e];
+  const look=Math.min(o.span||250,250);
+  const A=analyzeCore(D,I,{end:e+1,span:Math.min(look,e+1),sens:o.sens,zoneCount:o.zoneCount,stopMult:o.stopMult,lite:true});
+  let g=null;
+  if(A&&A.buy){const c=D[e].c;
+    if(c<=A.buy.hi&&c>=A.buy.lo-0.2*A.atrv&&(I.rsi[e]==null||I.rsi[e]<60)&&A.t1>c&&A.stop<c){
+      const q=setupScore(D,I,A,e);g={e,stop:A.stop,t1:A.t1,t2:A.t2,t3:A.t3,atr:A.atrv,score:q?q.score:null};}}
+  if(cache)cache[e]=g;return g;
+}
 function pickTrades(D,I,o){
-  const N=D.length,H=o.hold||30,step=o.step||2,first=o.first!=null?o.first:Math.max(80,N-700),look=Math.min(o.span||250,250);
+  const N=D.length,step=o.step||2,first=o.first!=null?o.first:Math.max(80,N-700),mode=EXIT_MODES[o.mode||'single'],H=mode.hold;
   const raw=[];let busy=-1;
   for(let e=first;e<N-2;e+=step){
     if(e<=busy)continue;
-    const A=analyzeCore(D,I,{end:e+1,span:Math.min(look,e+1),sens:o.sens,zoneCount:o.zoneCount,stopMult:o.stopMult,lite:true});
-    if(!A||!A.buy)continue;const c=D[e].c;
-    if(!(c<=A.buy.hi&&c>=A.buy.lo-0.2*A.atrv&&(I.rsi[e]==null||I.rsi[e]<60)&&A.t1>c&&A.stop<c))continue;
-    const j0=e+1,open=D[j0].o,stop=A.stop,target=A.t1;
-    if(!(open>stop&&open<target))continue;      /* the plan no longer holds at the open: no trade */
-    const x=resolveExit(D,j0,e+H,stop,target),exit=x?x.exit:-1,px=x?x.px:0,why=x?x.why:'';
-    if(exit<0)continue;                          /* still open at the end of the data: left out */
-    raw.push({e,j0,exit,open,px,why,stop,target});busy=exit;
+    const g=signalAt(D,I,o,e,o.cache);if(!g)continue;
+    const j0=e+1,open=D[j0].o;
+    if(!(open>g.stop&&open<g.t1))continue;      /* the plan no longer holds at the open: no trade */
+    let fills,exit;
+    if(o.mode==='staged'||o.mode==='trail'){
+      if(!(g.t2>g.t1&&g.t3>g.t2))continue;
+      const x=resolveStaged(D,j0,e+H,open,g.stop,[g.t1,g.t2,g.t3],g.atr,mode.trail);if(!x)continue;fills=x.fills;exit=x.exit;
+    }else{const x=resolveExit(D,j0,e+H,g.stop,g.t1);if(!x)continue;fills=[{j:x.exit,px:x.px,frac:1,why:x.why}];exit=x.exit;}
+    const px=fills.reduce((a,f)=>a+f.px*f.frac,0);
+    raw.push({e,j0,exit,open,px,why:fills[fills.length-1].why,stop:g.stop,target:g.t1,fills,score:g.score});busy=exit;
   }
   return{raw,first};
 }
+const TRADE_MIN=20;
 function priceTrades(D,raw,first,fee,slip){
   fee=(fee||0)/100;slip=(slip||0)/100;const N=D.length,n=N-first;
   const trades=raw.map(t=>{const inn=t.open*(1+slip),out=t.px*(1-slip),f=(out*(1-fee))/(inn*(1+fee));
@@ -343,22 +406,32 @@ function priceTrades(D,raw,first,fee,slip){
     let v=base;const t=trades[k];
     if(t&&i>=t.j0&&i<=t.exit){inPos++;
       if(i===t.exit){base*=1+t.ret;v=base;k++;}
-      else v=base*((D[i].c*(1-slip)*(1-fee))/(t.inFill*(1+fee)));}
+      else{let real=0,done=0;for(const f of t.fills){if(f.j<=i){real+=f.frac*f.px;done+=f.frac;}}
+        const mark=(real+(1-done)*D[i].c)*(1-slip)*(1-fee)/(t.inFill*(1+fee));v=base*mark;}}
     eq[i-first]=v;bh[i-first]=D[i].c*(1-slip)*(1-fee)/c0;
   }
   const dd=a=>{let pk=-Infinity,m=0;for(const v of a){if(v>pk)pk=v;m=Math.min(m,v/pk-1);}return m;};
   const wins=trades.filter(t=>t.ret>0),loss=trades.filter(t=>t.ret<=0),sum=a=>a.reduce((s,t)=>s+t.ret,0);
   const gw=sum(wins),gl=-sum(loss),m=trades.length;
+  const by=w=>trades.filter(t=>t.why===w).length;
   const stats={n:m,wins:wins.length,winRate:m?wins.length/m:null,avgWin:wins.length?gw/wins.length:null,avgLoss:loss.length?-gl/loss.length:null,
     expectancy:m?sum(trades)/m:null,profitFactor:gl>0?gw/gl:(gw>0?Infinity:null),total:eq[eq.length-1]-1,maxDD:dd(eq),
     exposure:inPos/n,avgBars:m?trades.reduce((s,t)=>s+t.bars,0)/m:null,
     best:m?Math.max(...trades.map(t=>t.ret)):null,worst:m?Math.min(...trades.map(t=>t.ret)):null,
-    byWhy:{stop:trades.filter(t=>t.why==='stop').length,target:trades.filter(t=>t.why==='target').length,time:trades.filter(t=>t.why==='time').length},
+    byWhy:{stop:by('stop')+by('trail'),target:by('target'),time:by('time')},
     bhTotal:bh[bh.length-1]-1,bhDD:dd(bh),lowSample:m<TRADE_MIN};
   return{trades,eq,bh,first,stats,fee:fee*100,slip:slip*100};
 }
-const TRADE_MIN=20;
 function runTradeSim(D,I,o){const p=pickTrades(D,I,o);const r=priceTrades(D,p.raw,p.first,o.fee,o.slip);r.raw=p.raw;return r;}
+/* the three exit modes on the same entry rule, sharing one analysis pass */
+function pickModes(D,I,o){const cache={},out={modes:{}};
+  for(const m of Object.keys(EXIT_MODES)){const p=pickTrades(D,I,Object.assign({},o,{mode:m,cache}));out.modes[m]=p.raw;out.first=p.first;}
+  return out;}
+/* average result of setups scoring at least `cut` versus below it (single-exit trades) */
+function scoreSplit(trades,cut){
+  const g=a=>({n:a.length,avg:a.length?a.reduce((s,t)=>s+t.ret,0)/a.length:null,win:a.length?a.filter(t=>t.ret>0).length/a.length:null});
+  const sc=trades.filter(t=>t.score!=null);return{cut,hi:g(sc.filter(t=>t.score>=cut)),lo:g(sc.filter(t=>t.score<cut))};
+}
 function blendConfidence(A,bt){
   if(!A||A.dirStrength==null)return null;
   const ref=A.stance==='buy'&&bt&&bt.zone.n>=5?bt.zone:null;

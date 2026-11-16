@@ -32,11 +32,11 @@ function analyzeNow(reset){
   /* short views still analyse at least 3 months (60 daily / 26 weekly bars) so zones stay meaningful */
   const minSpan=S.tf==='W'?26:S.tf==='H'?35:63;
   S.A=analyzeCore(D,S.ind,{span:r>0?Math.min(Math.max(r,minSpan),D.length):D.length,view:r>0?r:0,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult,htf,noGaps:S.isFund});
-  S.bt=null;S.sim=null;S.simPick=null;
+  S.bt=null;S.sim=null;S.simPick=null;S.modes=null;
   if(reset)resetView();
   render();
   clearTimeout(S.btTimer);
-  S.btTimer=setTimeout(()=>{if(!S.A)return;S.bt=runBacktest(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});renderBacktest();renderConfidence();setTimeout(()=>{if(!S.A||S.bt==null)return;S.simPick=pickTrades(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});priceSim();},30);},40);
+  S.btTimer=setTimeout(()=>{if(!S.A)return;S.bt=runBacktest(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});renderBacktest();renderConfidence();setTimeout(()=>{if(!S.A||S.bt==null)return;S.simPick=pickModes(S.data,S.ind,{span:S.A.span,sens:S.sens,zoneCount:S.zoneCount,stopMult:P.ana.stopMult});priceSim();},30);},40);
 }
 
 /* ---------- how old the newest price is, and whether the data looks sound ---------- */
@@ -89,7 +89,7 @@ function render(){
     neutral:['انتظار حتى تتضح الإشارة','السعر بين الدعم والمقاومة. راقب منطقة الشراء قبل الدخول.']};
   $('#stanceText').textContent=T[A.stance][0];$('#stanceSub').textContent=T[A.stance][1];
   $('#reasons').innerHTML=A.reasons.map(r=>'<li class="'+r[0]+'"><span class="dot"></span><span>'+r[1]+'</span></li>').join('');
-  renderConfidence();
+  renderConfidence();renderQuality();renderExitPlan();
 
   const tfTxt=S.tf==='H'?fmtDateTime.format(last.t):fmtDate.format(last.t);
   $('#mPrice').innerHTML=fp(last.c);
@@ -164,7 +164,32 @@ function priceSim(){
   $('#btFee').value=c.fee;$('#btSlip').value=c.slip;
   const nm={SR:'السوق السعودي',CA:'السوق المصري',US:'السوق الأمريكي',GOLD:'الذهب والفضة',OTHER:'الأصول الأخرى'};
   $('#btCostFor').textContent=_t('تُحفظ لـ')+' '+_t(nm[k]);
-  S.sim=S.simPick?priceTrades(S.data,S.simPick.raw,S.simPick.first,c.fee,c.slip):null;renderSim();}
+  priceAllModes(c.fee,c.slip);renderSim();}
+function priceAllModes(fee,slip){
+  S.modes=null;if(!S.simPick){S.sim=null;return;}
+  S.modes={};for(const m of Object.keys(S.simPick.modes))S.modes[m]=priceTrades(S.data,S.simPick.modes[m],S.simPick.first,fee,slip);
+  S.sim=S.modes.single;}
+const MODE_NAME={single:'بيع كامل عند الهدف الأول (30 شمعة)',staged:'بيع ثلث عند كل هدف من الثلاثة (60 شمعة)',trail:'بيع ثلث عند كل هدف + وقف متحرك'};
+function renderModes(){
+  const M=S.modes,b=$('#btModes');if(!M){b.innerHTML='';$('#btScoreNote').textContent='';return;}
+  b.innerHTML=Object.keys(MODE_NAME).map(k=>{const st=M[k].stats;return '<tr><td>'+_t(MODE_NAME[k])+'</td><td>'+NUM(st.n)+'</td><td>'+pctTxt(st.winRate)+'</td><td>'+pctTxt(st.expectancy,true)+'</td><td>'+pctTxt(st.total,true)+'</td><td>'+pctTxt(st.maxDD)+'</td></tr>';}).join('');
+  const sp=scoreSplit(M.single.trades,60),f=g=>g.n?NUM(g.n)+' '+_t('صفقة')+'، '+_t('متوسط العائد')+' '+pctTxt(g.avg,true):_t('لا صفقات');
+  $('#btScoreNote').innerHTML=_t('بحسب درجة الجودة: صفقات درجتها 60 فأكثر')+' — '+f(sp.hi)+' · '+_t('وصفقات درجتها أقل من 60')+' — '+f(sp.lo)+'. '
+    +((sp.hi.n<10||sp.lo.n<10)?_t('العينة صغيرة جدًا للحكم على فائدة الدرجة.'):(sp.hi.avg>sp.lo.avg?_t('الدرجة المرتفعة أفضل في هذا التاريخ.'):_t('الدرجة المرتفعة لم تتفوق في هذا التاريخ.')));}
+function renderQuality(){
+  const box=$('#qualBox'),A=S.A;if(!box)return;
+  const q=A&&!S.isFund?setupScore(S.data,S.ind,A,S.data.length-1):null;
+  if(!q){box.hidden=true;return;}box.hidden=false;
+  $('#qualVal').textContent=q.score+' / 100 · '+_t(q.grade==='strong'?'قوي':q.grade==='mid'?'متوسط':'ضعيف');$('#qualBar').style.width=q.score+'%';
+  $('#qualParts').innerHTML=q.parts.map(p=>'<li><span>'+p.items.map(t=>esc(_t(t.k))+(t.n!=null?' '+NUM(t.n):'')).join('، ')+'</span><b>'+NUM(p.pts)+' / '+NUM(p.max)+'</b></li>').join('');
+  $('#qualNote').textContent=_t('الدرجة تقيّم إعداد الشراء فقط، وكل نقطة فيها مشروحة أعلاه. قيمتها الفعلية تُقاس في جدول الاختبار التاريخي ولا تُفترض.');}
+function renderExitPlan(){
+  const A=S.A,el=$('#exitPlan');if(!el)return;if(!A||S.isFund){el.innerHTML='';return;}
+  const risk=A.entry-A.stop,R=v=>risk>0?' ('+((v-A.entry)/risk).toFixed(1)+'R)':'';
+  el.innerHTML='<h4>'+_t('خطة الخروج المجزأ')+'</h4><ol><li>'+_t('عند الهدف الأول')+' '+NUM(fp(A.t1))+R(A.t1)+': '+_t('بع الثلث وانقل الوقف إلى سعر الدخول')+' '+NUM(fp(A.entry))+'.</li>'
+    +'<li>'+_t('عند الهدف الثاني')+' '+NUM(fp(A.t2))+R(A.t2)+': '+_t('بع ثلثًا آخر وانقل الوقف إلى الهدف الأول')+'.</li>'
+    +'<li>'+_t('عند الهدف الثالث')+' '+NUM(fp(A.t3))+R(A.t3)+': '+_t('بع الباقي')+'.</li></ol>'
+    +'<p class="muted small">'+_t('بعد الهدف الأول يمكن استبدال الوقف بوقف متحرك تحت أعلى سعر بمقدار مدى متوسطين. قارن النتائج التاريخية لكل طريقة في بطاقة الاختبار التاريخي.')+'</p>';}
 function pctTxt(x,sign){return x==null||!isFinite(x)?'—':NUM((sign&&x>0?'+':'')+(x*100).toFixed(1)+'%');}
 function renderSim(){
   const R=S.sim,st=R&&R.stats,w=$('#btWarn'),g=$('#btStats');
@@ -178,7 +203,7 @@ function renderSim(){
     +cell('نسبة البقاء في السوق',pctTxt(st.exposure))+cell('متوسط مدة الصفقة',st.avgBars==null?'—':NUM(st.avgBars.toFixed(0))+' <small>'+_t('شمعة')+'</small>');
   $('#btEqNote').textContent=_t('الدخول عند افتتاح الشمعة التالية للإشارة، وإذا لمست شمعة واحدة الوقف والهدف يُحتسب الوقف. الأرقام بعد العمولة والانزلاق. منحنى رأس المال يفترض استثمار كامل الرصيد في كل صفقة بالتتابع، وهو لا يضمن المستقبل.')
     +' ('+_t('وقف')+' '+st.byWhy.stop+' · '+_t('هدف')+' '+st.byWhy.target+' · '+_t('انتهاء المدة')+' '+st.byWhy.time+')';
-  drawSimCanvas();}
+  renderModes();drawSimCanvas();}
 function clearSimCanvas(){const cv=$('#btEq');if(cv&&cv.getContext){const x=cv.getContext('2d');x.clearRect(0,0,cv.width,cv.height);}}
 function drawSimCanvas(){
   const cv=$('#btEq'),R=S.sim;if(!cv||!R||!cv.getContext)return;const C=colors(),dpr=window.devicePixelRatio||1,W=Math.max(300,cv.clientWidth||600),H=200;
@@ -195,7 +220,7 @@ function drawSimCanvas(){
 function setupSim(){
   const upd=()=>{const k=btKey(),f=+$('#btFee').value,s=+$('#btSlip').value;
     if(!(f>=0&&f<=5&&s>=0&&s<=5))return;P.bt[k]=Object.assign({},P.bt[k],{fee:f,slip:s});savePrefs();
-    S.sim=S.simPick?priceTrades(S.data,S.simPick.raw,S.simPick.first,f,s):null;renderSim();};
+    priceAllModes(f,s);renderSim();};
   $('#btFee').addEventListener('change',upd);$('#btSlip').addEventListener('change',upd);}
 function renderBacktest(){
   const bt=S.bt;if(!bt)return;

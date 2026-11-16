@@ -108,6 +108,12 @@
           <div class="meter"><i id="confBar" style="width:0%"></i></div>
           <div class="conf-row"><span id="confNote"></span></div>
         </div>
+        <div class="qual" id="qualBox" hidden>
+          <div class="conf-row"><span>جودة الإعداد (للشراء)</span><b id="qualVal">—</b></div>
+          <div class="meter"><i id="qualBar" style="width:0%"></i></div>
+          <ul class="qual-parts" id="qualParts"></ul>
+          <p class="small muted" id="qualNote"></p>
+        </div>
         <p class="edu">درجة الثقة تجمع قوة الأسباب المؤيدة والمعارضة، ونسبة نجاح نفس الإعداد على تاريخ السهم نفسه. أقل من 55% تعني إشارة ضعيفة.</p>
         <ul class="reasons" id="reasons"></ul>
         <div class="actions">
@@ -147,6 +153,7 @@
       <div class="plan-head"><h2 id="planTitle">خطة السعر والقيمة العادلة</h2><span class="muted small" id="planNote"></span></div>
       <div class="ladder" id="ladder"></div>
       <div class="scale" id="planScale" aria-hidden="true"></div>
+      <div class="exit-plan" id="exitPlan"></div>
       <p class="edu" id="planEdu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
       <div class="plan-grid">
         <div class="fair" id="fairBox"></div>
@@ -320,6 +327,9 @@
         </div>
         <p class="warn-box" id="btWarn" hidden></p>
         <div class="sim-stats" id="btStats"></div>
+        <h3 class="sub-h">مقارنة طرق الخروج (نفس شرط الدخول)</h3>
+        <div class="tbl-wrap"><table><thead><tr><th>طريقة الخروج</th><th>الصفقات</th><th>نسبة النجاح</th><th>العائد المتوقع للصفقة</th><th>عائد الاستراتيجية</th><th>أقصى تراجع</th></tr></thead><tbody id="btModes"></tbody></table></div>
+        <p class="small muted" id="btScoreNote"></p>
         <canvas id="btEq" height="200" aria-label="منحنى رأس المال مقارنة بالشراء والاحتفاظ"></canvas>
         <p class="small muted" id="btEqNote"></p>
         <p class="edu">يحاكي الاختبار ما كانت الأداة ستقوله في كل يوم من الماضي باستخدام البيانات المتاحة حتى ذلك اليوم فقط، ثم يقيس ماذا حدث بعدها.</p>

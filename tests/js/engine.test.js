@@ -226,3 +226,99 @@ test('exit rules: stop first when one candle touches both, gap fills at the open
   assert.deepEqual(X([c(100, 101, 99, 100), c(100, 102, 98, 101), c(101, 103, 99, 102)], 1, 2, 95, 110), { exit: 2, px: 102, why: 'time' });
   assert.equal(X([c(100, 101, 99, 100), c(100, 102, 98, 101)], 1, 5, 95, 110), null);      // data ends first: trade left out
 });
+
+/* ---------- Phase 2, step 2: staged exits, moving stop, setup score ---------- */
+const J = (x) => JSON.parse(JSON.stringify(x));
+const cd = (o, h, l, c) => ({ o, h, l, c });
+const STG = (rows, trail = false, last = 20) => J(T.resolveStaged(rows, 1, last, 100, 95, [105, 110, 115], 2, trail));
+
+test('staged exit: a third at each target, stop to entry after target 1', () => {
+  const r = STG([cd(100, 101, 99, 100), cd(101, 106, 100, 105), cd(105, 106, 99, 100)]);
+  assert.deepEqual(r.fills.map(f => [f.j, f.px, +f.frac.toFixed(4), f.why]), [[1, 105, 0.3333, 'target'], [2, 100, 0.6667, 'trail']]);
+  assert.equal(r.exit, 2);
+});
+
+test('staged exit: several targets in one candle, then the stop climbs to target 1', () => {
+  const r = STG([cd(100, 101, 99, 100), cd(104, 111, 103, 110), cd(110, 111, 104, 106)]);
+  assert.deepEqual(r.fills.map(f => [f.px, f.why]), [[105, 'target'], [110, 'target'], [105, 'trail']]);
+  assert.ok(Math.abs(r.fills.reduce((a, f) => a + f.frac, 0) - 1) < 1e-12);
+});
+
+test('staged exit: all three targets in one candle closes the trade', () => {
+  const r = STG([cd(100, 101, 99, 100), cd(104, 120, 103, 119)]);
+  assert.deepEqual(r.fills.map(f => f.px), [105, 110, 115]);
+  assert.ok(Math.abs(r.fills.reduce((a, f) => a + f.frac, 0) - 1) < 1e-12);
+});
+
+test('staged exit: stop is checked before targets in the same candle', () => {
+  const r = STG([cd(100, 101, 99, 100), cd(100, 112, 94, 100)]);
+  assert.deepEqual(r.fills.map(f => [f.px, f.frac, f.why]), [[95, 1, 'stop']]);
+});
+
+test('trailing stop: follows the highest high of FINISHED candles, 2 ATR below, never below entry', () => {
+  const rows = [cd(100, 101, 99, 100), cd(101, 106, 100, 105), cd(105, 108, 101, 107), cd(103, 104, 101, 102)];
+  const t = STG(rows, true, 3), plain = STG(rows, false, 3);
+  assert.deepEqual(t.fills.map(f => [f.j, f.px, f.why]), [[1, 105, 'target'], [3, 102, 'trail']]);   // level = 106-4 = 102 (candle 2's high was not used on candle 2)
+  assert.deepEqual(plain.fills.map(f => [f.j, f.px, f.why]), [[1, 105, 'target'], [3, 102, 'time']]);   // without the trail the same path is held to the end
+  assert.notDeepEqual(t.fills, plain.fills);
+});
+
+test('staged exit: time exit sells what is left at the close; data ending first leaves the trade out', () => {
+  const rows = [cd(100, 101, 99, 100), cd(101, 106, 100, 105), cd(105, 107, 104, 106)];
+  const r = STG(rows, false, 2);
+  assert.deepEqual(r.fills.map(f => [f.px, +f.frac.toFixed(4), f.why]), [[105, 0.3333, 'target'], [106, 0.6667, 'time']]);
+  assert.equal(T.resolveStaged(rows.slice(0, 2), 1, 9, 100, 95, [105, 110, 115], 2, false), null);
+});
+
+test('modes: same entry rule, fills add up, equity ends at the product of trade results', () => {
+  for (const a of ['1120', 'AAPL']) {
+    const { D, I } = run(a), pm = T.pickModes(D, I, SIM);
+    for (const m of ['single', 'staged', 'trail']) {
+      const R = T.priceTrades(D, pm.modes[m], pm.first, 0.15, 0.05);
+      for (const t of R.trades) {
+        assert.ok(Math.abs(t.fills.reduce((s, f) => s + f.frac, 0) - 1) < 1e-9, a + m + ': fractions');
+        assert.equal(t.exit, t.fills[t.fills.length - 1].j);
+        assert.ok(t.fills.every((f, i) => i === 0 || f.j >= t.fills[i - 1].j));
+      }
+      assert.ok(Math.abs(R.eq[R.eq.length - 1] - R.trades.reduce((p, t) => p * (1 + t.ret), 1)) < 1e-9, a + m + ': equity');
+    }
+    const one = T.runTradeSim(D, I, Object.assign({}, SIM, { fee: 0.15, slip: 0.05 }));
+    const viaModes = T.priceTrades(D, pm.modes.single, pm.first, 0.15, 0.05);
+    assert.deepEqual(J(one.stats), J(viaModes.stats));                       // sharing the cache changes nothing
+    const firstEntries = ['single', 'staged', 'trail'].map(m => pm.modes[m][0] && pm.modes[m][0].e);
+    assert.ok(firstEntries.every(e => e === firstEntries[0]), a + ': the first signal is the same in every mode');
+  }
+});
+
+test('modes: a staged trade is never worse than stopping at the original stop, and trail never exits above its prices', () => {
+  const { D, I } = run('1120'), pm = T.pickModes(D, I, SIM);
+  for (const t of pm.modes.trail) { for (const f of t.fills) assert.ok(f.px >= Math.min(t.stop, D[f.j].o) - 1e-9 && f.px <= Math.max(D[f.j].h, f.px)); }
+});
+
+test('setup score: 0-100, parts add up, every part within its maximum, plain reasons', () => {
+  for (const a of ASSETS) {
+    const { D, I, A } = run(a), q = J(T.setupScore(D, I, A, D.length - 1));
+    assert.equal(q.score, q.parts.reduce((s, p) => s + p.pts, 0));
+    assert.ok(q.score >= 0 && q.score <= 100);
+    assert.equal(q.parts.reduce((s, p) => s + p.max, 0), 100);
+    assert.ok(q.parts.every(p => p.pts >= 0 && p.pts <= p.max && p.items.length > 0 && p.items.every(x => x.k.length > 3)));
+    assert.ok(['strong', 'mid', 'weak'].includes(q.grade));
+  }
+});
+
+test('setup score: no support zone below the price gives no location points; a clean setup scores higher than a poor one', () => {
+  const { D, I, A } = run('1120');
+  const none = J(T.setupScore(D, I, Object.assign({}, A, { buy: null, rr: null }), D.length - 1));
+  assert.equal(none.parts[0].pts, 0); assert.equal(none.parts[0].items[0].k, 'لا توجد منطقة دعم تحت السعر');
+  const z = { lo: 99, hi: 100.5, touches: 5, vpStrong: true, flip: true, htf: true };
+  const good = T.setupScore(D, I, Object.assign({}, A, { buy: z, rr: 3.2 }), D.length - 1);
+  const poor = T.setupScore(D, I, Object.assign({}, A, { buy: Object.assign({}, z, { touches: 1, vpStrong: false, flip: false, htf: false, hi: 50, lo: 49 }), rr: 0.6 }), D.length - 1);
+  assert.ok(good.score > poor.score);
+});
+
+test('score split groups trades by score and ignores trades without a score', () => {
+  const tr = [{ ret: 0.05, score: 80 }, { ret: -0.02, score: 75 }, { ret: -0.03, score: 40 }, { ret: 0.01, score: null }];
+  const r = J(T.scoreSplit(tr, 60));
+  assert.equal(r.hi.n, 2); assert.equal(r.lo.n, 1);
+  assert.ok(Math.abs(r.hi.avg - 0.015) < 1e-12 && r.hi.win === 0.5 && r.lo.avg === -0.03);
+});
