@@ -6,6 +6,14 @@ import sys
 import tempfile
 import threading
 
+# Playwright finds its browser under the home folder; keep that place before the tests move HOME to a scratch folder
+if not os.environ.get("PLAYWRIGHT_BROWSERS_PATH"):
+    if sys.platform == "win32":
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.environ.get("LOCALAPPDATA", ""), "ms-playwright")
+    elif sys.platform == "darwin":
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.expanduser("~/Library/Caches/ms-playwright")
+    else:
+        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "ms-playwright")
 _TMP = tempfile.mkdtemp(prefix="mostocks-ui-")
 os.environ["HOME"] = _TMP
 os.environ["APPDATA"] = _TMP
