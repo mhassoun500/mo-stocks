@@ -118,7 +118,8 @@ def main():
         checks = (("TradingView scanner", True, lambda: tv_scan("ksa", {"columns": ["close"], "range": [0, 1]})),
                   ("TradingView chart feed", True, lambda: tvdata.CLIENT.history("TADAWUL:1120", "1D", 5)),
                   ("Yahoo Finance", False, lambda: http_json("https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d&interval=1d")),
-                  ("Mubasher", False, lambda: http_text("https://www.mubasher.info/api/1/listed-companies?country=sa&size=1")))
+                  ("Saudi Exchange funds", False, lambda: funds.fetch_tadawul_history("SA003215")),
+                  ("Mubasher fund history", False, lambda: funds.fetch_fund_history(2680)))
         for name, required, fn in checks:
             try:
                 fn()

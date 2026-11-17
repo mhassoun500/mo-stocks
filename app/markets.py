@@ -457,7 +457,25 @@ def sa_names():
     except Exception as _e:
         record("WARN", "markets.sa_names", _e)
         stale, _ = cache_get("sa|names")
-        return stale or {}
+        return stale or _sa_names_from_sharia()
+
+
+def _sa_names_from_sharia():
+    """Arabic names without sectors, from Argaam's Sharia table (the saved copy, else the one shipped with the app):
+    used when Mubasher's company list does not answer (its old address has been gone since November 2026)."""
+    lst, _ = cache_get("sharia|sa")
+    if not lst:
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "sharia_sa.json"), encoding="utf-8") as f:
+                lst = json.load(f)
+        except (OSError, ValueError):
+            return {}
+    out = {}
+    for seg in ("main", "nomu"):
+        for code, r in (lst.get(seg) or {}).items():
+            if r.get("n"):
+                out[str(code)] = [r["n"], ""]
+    return out
 
 
 

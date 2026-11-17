@@ -423,14 +423,21 @@ def get_funds(force=False):
             FUNDS_BUSY.clear()
 
 
+FUND_FAIL_NOTE = {
+    "EG": "تعذّر تحديث قائمة الصناديق المصرية: موقع مباشر صار يطلب تسجيل الدخول لعرض الصناديق، فتظهر آخر قائمة محفوظة.",
+    "SA": "تعذّر تحديث قائمة الصناديق السعودية من تداول السعودية الآن، فتظهر آخر قائمة محفوظة.",
+}
+
+
 def _fetch_all_funds(stale):
-    got_by = {}
+    got_by, src_by = {}, {}
 
     def one(country):
-        try:
-            got_by[country] = REG.call_one("mubasher", "funds", op="list", country=country)
+        try:   # Saudi: the exchange's own list first; Egypt: Mubasher
+            got_by[country], meta = REG.call("funds", "SR" if country == "SA" else "CA", op="list", country=country)
+            src_by[country] = meta["name"]
         except Exception as _e:
-            record("WARN", "prices.one", _e)
+            record("WARN", "prices.funds_list %s" % country, _e)
             got_by[country] = None
 
     ths = [threading.Thread(target=one, args=(c,), daemon=True) for c in funds.COUNTRIES]
@@ -456,24 +463,29 @@ def _fetch_all_funds(stale):
     except OSError:
         pass
     out = {"ok": True, "items": items, "at": time.time(), "categories": funds.CATEGORY_AR,
-           "countries": funds.COUNTRY_AR, "shariaNote": funds.SHARIA_NOTE}
+           "countries": funds.COUNTRY_AR, "shariaNote": funds.SHARIA_NOTE, "sources": src_by}
     if failed:
         out["offline"] = True
+        out["failed"] = failed
+        out["note"] = " ".join(FUND_FAIL_NOTE[c] for c in failed if c in FUND_FAIL_NOTE)
     else:
         cache_put("funds|all", out)
     return out
 
 
 def fetch_fund(code, rng):
+    sa = str(code).strip().upper().startswith("SA")
     try:
-        fid = int(str(code).strip())
+        fid = str(code).strip().upper() if sa else int(str(code).strip())
     except ValueError:
+        raise NotFound("رقم الصندوق غير صحيح.")
+    if sa and not re.match(r"^SA\d{3,8}$", fid):
         raise NotFound("رقم الصندوق غير صحيح.")
     lst = get_funds()
     meta = next((i for i in lst.get("items", []) if i["id"] == fid), None)
     online = True
     try:
-        rows = REG.call_one("mubasher", "funds", op="history", fid=fid)
+        rows = REG.call_one("tadawul_funds" if sa else "mubasher", "funds", op="history", fid=fid)
     except urllib.error.HTTPError as e:
         if e.code not in (403, 404):
             online = False
@@ -492,19 +504,19 @@ def fetch_fund(code, rng):
         rows = sorted(by_t.values(), key=lambda r: r[0])
     if not rows:
         if not online:
-            raise ConnectionError("تعذّر الاتصال بموقع مباشر.")
+            raise ConnectionError("تعذّر الاتصال بتداول السعودية." if sa else "تعذّر الاتصال بموقع مباشر.")
         raise NotFound("لا يوجد سجل أسعار لهذا الصندوق بعد.")
     gaps = []
     for a, b in zip(rows, rows[1:]):
         if b[0] - a[0] > 45 * 86400000:
             gaps.append([a[0], b[0]])
-    name = meta["name"] if meta else "صندوق %d" % fid
-    country = (meta or {}).get("country") or "EG"
-    return {"ok": True, "source": "مباشر", "symbol": "صندوق %d" % fid, "interval": "1d", "name": name,
-            "short": fund_short(name), "currency": funds.fund_currency(name, country), "rows": funds.trim_days(rows, rng),
+    name = meta["name"] if meta else "صندوق %s" % fid
+    country = (meta or {}).get("country") or ("SA" if sa else "EG")
+    return {"ok": True, "source": "تداول السعودية" if sa else "مباشر", "symbol": "صندوق %s" % fid, "interval": "1d", "name": name,
+            "short": fund_short(name), "currency": (meta or {}).get("currency") or funds.fund_currency(name, country), "rows": funds.trim_days(rows, rng),
             "allRows": len(rows), "inception": rows[0][0], "dividends": [], "splits": [], "isFund": True,
             "country": country, "category": funds.fund_category(name, country),
-            "sharia": funds.fund_sharia(fid, name, (meta or {}).get("manager", ""), country),
+            "sharia": (meta or {}).get("sharia") if sa and meta else funds.fund_sharia(fid, name, (meta or {}).get("manager", ""), country),
             "manager": meta["manager"] if meta else "", "owner": meta["owner"] if meta else "",
             "ytd": meta.get("ytd") if meta else None, "listDate": meta.get("date") if meta else None,
             "mubasherLast": mub_last, "gaps": gaps[-3:], "localPoints": len(local), "fundId": fid}

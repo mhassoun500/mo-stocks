@@ -7,8 +7,8 @@ DEFAULT = {
     "fundamentals": ["tvscan", "yahoo", "fmp", "alphavantage", "finnhub", "edgar"],
     "news": ["googlenews", "bingnews"],
     "dividends": ["yahoo"],
-    "sharia": ["argaam", "egsharia", "spus"],
-    "funds": ["mubasher"],
+    "sharia": ["argaam", "egsharia", "spus", "maqased"],
+    "funds": ["tadawul_funds", "mubasher"],   # Saudi: the exchange first; Mubasher stays for Egypt
 }
 
 

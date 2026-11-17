@@ -197,6 +197,26 @@ class MaqasedPurify(Connector):
         return purify.fetch_maqased(p["url"], p.get("period", ""))
 
 
+class TadawulFunds(Connector):
+    """Saudi Exchange's official fund screener and daily unit prices (Saudi funds only)."""
+    id, name = "tadawul_funds", "تداول السعودية (صناديق)"
+    kinds = ("funds",)
+    markets = ("SR",)
+    official = True
+    gap = 0.5
+    note = "قائمة الصناديق السعودية الرسمية وأسعار وحداتها اليومية، مع تصنيفها الشرعي في تداول"
+
+    def funds(self, op, country="SA", fid=None):
+        import funds
+        if op == "list":
+            if country != "SA":
+                raise NoData()
+            return funds.fetch_tadawul_list()
+        if not str(fid).upper().startswith("SA"):
+            raise NoData()
+        return funds.fetch_tadawul_history(fid)
+
+
 class MubasherFunds(Connector):
     id, name = "mubasher", "مباشر (صناديق)"
     kinds = ("funds",)
@@ -209,5 +229,5 @@ class MubasherFunds(Connector):
         return funds.fetch_fund_list(country) if op == "list" else funds.fetch_fund_history(fid)
 
 
-for _c in (Yahoo, TradingView, TVScan, Stooq, GoogleNews, BingNews, ArgaamSharia, EgyptSharia, SpusSharia, MaqasedPurify, MubasherFunds):
+for _c in (Yahoo, TradingView, TVScan, Stooq, GoogleNews, BingNews, ArgaamSharia, EgyptSharia, SpusSharia, MaqasedPurify, TadawulFunds, MubasherFunds):
     REG.register(_c())

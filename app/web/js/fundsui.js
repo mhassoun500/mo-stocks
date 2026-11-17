@@ -2,7 +2,7 @@
 const FL={items:[],byId:{},stats:{},loaded:false,loading:null,sort:{k:'ytdN',dir:'desc'},statsRun:0};
 const FCAT={money:'نقدي وسيولة',fixed:'دخل ثابت',metals:'ذهب ومعادن',equity:'أسهم',balanced:'متوازن',realestate:'عقاري',other:'متنوع'};
 const FCOUNTRY={SA:'السعودية',EG:'مصر'};
-const SHARIA_WHY={name:'اسم الصندوق أو نوعه ينص على توافقه مع الشريعة',sponsor:'صادر عن بنك إسلامي أو مدير صناديق متوافق مع الشريعة بالكامل'};
+const SHARIA_WHY={official:'مصنّف «موافق الشريعة» في قائمة صناديق تداول السعودية الرسمية',name:'اسم الصندوق أو نوعه ينص على توافقه مع الشريعة',sponsor:'صادر عن بنك إسلامي أو مدير صناديق متوافق مع الشريعة بالكامل'};
 const parsePct=s=>{if(s==null)return null;const v=parseFloat(String(s).replace('%','').replace('٪',''));return isFinite(v)?v/100:null;};
 const isYieldFund=c=>c==='money'||c==='fixed';
 
@@ -11,7 +11,7 @@ function loadFundList(force){
   if(FL.loaded&&!force)return Promise.resolve();
   if(FL.loading&&!force)return FL.loading;
   FL.loading=(async()=>{
-    if(!FL.loaded)$('#fundsMeta').textContent='جارٍ تحميل قائمة الصناديق من مباشر… قد يستغرق ذلك دقيقة في المرة الأولى.';
+    if(!FL.loaded)$('#fundsMeta').textContent='جارٍ تحميل قائمة الصناديق… قد يستغرق ذلك دقيقة في المرة الأولى.';
     const j=await api('/api/funds').catch(()=>null);
     if(!j||!j.ok){$('#fundsMeta').textContent=(j&&j.error)||'تعذّر جلب قائمة الصناديق.';
       if(!FL.loaded)$('#fund').innerHTML='<option value="">تعذّر تحميل قائمة الصناديق</option>';return;}
@@ -20,14 +20,14 @@ function loadFundList(force){
     fillFundSelect();
     const cats=[...new Set(FL.items.map(f=>f.category))];
     $('#fCat').innerHTML='<option value="">الكل</option>'+cats.map(c=>'<option value="'+c+'">'+FCAT[c]+'</option>').join('');
-    fundsMeta(j.offline);
+    FL.failed=j.failed||(j.offline?['SA','EG']:[]);FL.note=j.note||'';fundsMeta();
     renderFunds();
   })();
   return FL.loading;
 }
-function fundsMeta(offline){
-  const c=$('#fCountry').value,act=FL.items.filter(f=>(!c||f.country===c)&&!f.stale);
-  $('#fundsMeta').textContent=(c?FCOUNTRY[c]+': ':'')+act.length+' صندوقًا نشطًا، منها '+act.filter(f=>f.sharia).length+' متوافقة مع الشريعة'+(offline?' · أسعار محفوظة':'');
+function fundsMeta(){
+  const c=$('#fCountry').value,off=(FL.failed||[]).some(x=>!c||x===c),act=FL.items.filter(f=>(!c||f.country===c)&&!f.stale);
+  $('#fundsMeta').textContent=(c?FCOUNTRY[c]+': ':'')+act.length+' صندوقًا نشطًا، منها '+act.filter(f=>f.sharia).length+' متوافقة مع الشريعة'+(off?' · أسعار محفوظة':'')+(off&&FL.note?' — '+_t(FL.note):'');
 }
 function fillFundSelect(){
   const all=$('#fundAll').checked,cur=$('#fund').value,country=$('#fundCountry').value;

@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Egyptian and Saudi mutual funds (صناديق الاستثمار) from Mubasher Info.
+"""Egyptian and Saudi mutual funds (صناديق الاستثمار).
+
+Saudi funds (since 2.13.1): the Saudi Exchange's own fund screener, official and free:
+- Fund list:  https://www.saudiexchange.sa/wps/portal/saudiexchange/newsandreports/fund-screener?locale=ar
+  (one table in the page: name and fund code, manager, currency, Sharia compliance as the exchange lists it,
+  objective, unit price, change since the start of the year, valuation date, net assets, expense ratio)
+- History:    .../tadawul.eportal.charts.v2/MutualFundChartDataDownloader?...&mutualFundSymbol=<code>  (every valuation day)
+Saudi fund ids are "SA" + the exchange's code (e.g. SA003215), so they never collide with Mubasher's numbers.
+
+Egyptian funds: Mubasher Info (its new site asks visitors to sign in for funds, so the list may only be the last one saved).
 
 - Fund list with latest price:  https://www.mubasher.info/api/1/funds?country=eg|sa&size=2000
 - Full price history per fund:  https://static.mubasher.info/File.MubasherCharts/File.Mutual_Fund_Charts_Dir/priceChartFund_<id>.csv
@@ -30,7 +39,8 @@ SHARIA_FUNDS = {
     6250: "name", 2710: "name", 5784: "name", 2742: "name", 5823: "name", 6403: "name", 5958: "name", 5989: "name",
     6122: "name", 2721: "name",
 }
-SHARIA_NOTE = {"name": "اسم الصندوق أو نوعه ينص على توافقه مع الشريعة",
+SHARIA_NOTE = {"official": "مصنّف «موافق الشريعة» في قائمة صناديق تداول السعودية الرسمية",
+               "name": "اسم الصندوق أو نوعه ينص على توافقه مع الشريعة",
                "sponsor": "صادر عن بنك إسلامي أو مدير صناديق متوافق مع الشريعة بالكامل"}
 # Names that state compliance, or instruments that are Sharia-compliant by definition
 # (murabaha, sukuk, ijara, waqf, "pure"/purified equity funds).
@@ -41,7 +51,10 @@ SHARIA_SPONSORS_SA = ("الراجحي المالية", "الإنماء الما�
                       "جدوى للإستثمار")
 
 
-def fund_sharia(fid, name, manager, country):
+def fund_sharia(fid, name, manager, country, listed=None):
+    """listed: the exchange's own Sharia column for the fund, when there is one (Saudi Exchange)."""
+    if listed and "موافق" in listed and "غير" not in listed:
+        return "official"
     if country == "EG" and fid in SHARIA_FUNDS:
         return SHARIA_FUNDS[fid]
     if SHARIA_NAME_RE.search(name or ""):
@@ -169,3 +182,86 @@ def trim_days(rows, rng):
         return rows
     cut = rows[-1][0] - days * 86400000
     return [r for r in rows if r[0] >= cut]
+
+
+# ---------------------------------------------------------------- Saudi Exchange (official) fund list and history
+TADAWUL_LIST = "https://www.saudiexchange.sa/wps/portal/saudiexchange/newsandreports/fund-screener?locale=ar"
+TADAWUL_HIST = ("https://www.saudiexchange.sa/tadawul.eportal.charts.v2/MutualFundChartDataDownloader"
+                "?actionTarget=mutualFundChartData&mutualFundSymbol=%s&pageName=CompanyProfileMutualFund&methodType=parsingMethod")
+TADAWUL_CUR = {"ريال سعودي": "SAR", "دولار أمريكي": "USD", "دولار امريكي": "USD", "يورو": "EUR", "جنيه استرليني": "GBP"}
+_TAG = re.compile(r"<[^>]+>")
+
+
+def _cell(html):
+    import html as H
+    return " ".join(H.unescape(_TAG.sub(" ", html)).split())
+
+
+def _num(s):
+    s = (s or "").replace(",", "").strip()
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def parse_tadawul_list(page):
+    """Rows of the exchange's fund screener table -> the app's fund records."""
+    page = re.sub(r"<!--.*?-->", "", page or "", flags=re.S)       # a commented-out column hides a <td> in each row
+    out = []
+    stale_before = (time.time() - 365 * 86400) * 1000
+    for row in re.findall(r"<tr[^>]*>(.*?)</tr>", page, re.S):
+        m = re.search(r"selectedFund=(\d+)", row)
+        if not m:
+            continue
+        cells = [_cell(c) for c in re.findall(r"<td[^>]*>(.*?)</td>", row, re.S)]
+        if len(cells) < 8:
+            continue
+        name, manager, cur, sharia, goal, nav, ytd, date = cells[:8]
+        aum = _num(cells[8]) if len(cells) > 8 else None
+        fee = _num(cells[9]) if len(cells) > 9 else None
+        dm = re.match(r"(\d{4})/(\d{1,2})/(\d{1,2})", date)
+        d = calendar.timegm((int(dm.group(1)), int(dm.group(2)), int(dm.group(3)), 0, 0, 0)) * 1000 if dm else None
+        fid = "SA" + m.group(1)
+        price = _num(nav)
+        out.append({"id": fid, "name": name, "owner": "", "manager": manager, "price": price if price else None, "date": d,
+                    "country": "SA", "ytd": _num(ytd), "category": fund_category(name, "SA"),
+                    "currency": TADAWUL_CUR.get(cur) or fund_currency(name, "SA"), "sharia": fund_sharia(fid, name, manager, "SA", sharia),
+                    "goal": goal, "aum": aum, "fee": fee, "stale": not d or d < stale_before, "src": "tadawul"})
+    return out
+
+
+def fetch_tadawul_list():
+    from sources.base import format_changed
+    page = _get(TADAWUL_LIST, timeout=60)
+    rows = parse_tadawul_list(page)
+    if not rows and len(page) > 20000:
+        raise format_changed("tadawul_funds", "fund screener page has no fund rows", page[:400])
+    if len(rows) < 100:
+        raise ValueError("Saudi Exchange fund list looks incomplete (%d funds)" % len(rows))
+    return rows
+
+
+def parse_tadawul_history(text):
+    data = json.loads(text or "[]")
+    rows = {}
+    for r in data if isinstance(data, list) else []:
+        m = re.match(r"(\d{4})-(\d{2})-(\d{2})", str(r.get("valuationDate") or r.get("dateTime") or ""))
+        v = r.get("unitPrice") or r.get("mutualFundNav")
+        if not m or not isinstance(v, (int, float)) or v <= 0:
+            continue
+        t = calendar.timegm((int(m.group(1)), int(m.group(2)), int(m.group(3)), 0, 0, 0)) * 1000
+        rows[t] = [t, v, v, v, v, 0]
+    return [rows[t] for t in sorted(rows)]
+
+
+def fetch_tadawul_history(fid):
+    from sources.base import format_changed
+    code = str(fid)[2:] if str(fid).upper().startswith("SA") else str(fid)
+    if not re.match(r"^\d{3,8}$", code):
+        raise ValueError("bad Saudi Exchange fund code")
+    text = _get(TADAWUL_HIST % code, timeout=40)
+    try:
+        return parse_tadawul_history(text)
+    except ValueError:
+        raise format_changed("tadawul_funds", "fund history is not JSON", text[:300])

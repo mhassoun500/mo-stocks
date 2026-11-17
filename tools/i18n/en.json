@@ -1922,5 +1922,14 @@
  "صيغة التاريخ": "Date format",
  "يوم/شهر/سنة": "day/month/year",
  "شهر/يوم/سنة": "month/day/year",
- "أعمدة الملف": "File columns"
+ "أعمدة الملف": "File columns",
+ "مصنّف «موافق الشريعة» في قائمة صناديق تداول السعودية الرسمية": "Listed as “Sharia compliant” in the Saudi Exchange's official fund list",
+ "جارٍ تحميل قائمة الصناديق… قد يستغرق ذلك دقيقة في المرة الأولى.": "Loading the fund list… this can take a minute the first time.",
+ "تعذّر تحديث قائمة الصناديق المصرية: موقع مباشر صار يطلب تسجيل الدخول لعرض الصناديق، فتظهر آخر قائمة محفوظة.": "The Egyptian fund list could not be updated: Mubasher now asks visitors to sign in to see funds, so the last saved list is shown.",
+ "تعذّر تحديث قائمة الصناديق السعودية من تداول السعودية الآن، فتظهر آخر قائمة محفوظة.": "The Saudi fund list could not be updated from the Saudi Exchange right now, so the last saved list is shown.",
+ "تعذّر الاتصال بتداول السعودية.": "Could not reach the Saudi Exchange.",
+ "صندوق %s": "Fund %s",
+ "تداول السعودية": "Saudi Exchange",
+ "تداول السعودية (صناديق)": "Saudi Exchange (funds)",
+ "قائمة الصناديق السعودية الرسمية وأسعار وحداتها اليومية، مع تصنيفها الشرعي في تداول": "The official Saudi fund list and daily unit prices, with the exchange's Sharia classification"
 }
