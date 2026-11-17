@@ -52,13 +52,12 @@ if __name__ == "__main__":
     from sources.base import REG
     d = json.loads(filings.sec_get("https://data.sec.gov/submissions/CIK0000320193.json").decode())
     items = [x for x in filings.parse_sec_submissions(d) if x["form"] == "4"][:3]
-    for x in items:
-        st, hd, body = get(x["raw"], headers={"Accept": "application/xml,text/*"})
-        try:
-            n = len(filings.parse_form4(body.decode("utf-8", "replace")))
-        except Exception as e:
-            n = "parse error %s" % e
-        print("   Form 4 %s -> status %s, %d bytes, open-market rows: %s, start %r" % (x["raw"][-60:], st, len(body), n, body[:80]))
+    uas = ["MoStocks desktop app admin@mostocks.app", "MoStocks/2.14 (+https://github.com/mhassoun500/mo-stocks) contact@mostocks.app",
+           "Mozilla/5.0 (compatible; MoStocks/2.14; +https://github.com/mhassoun500/mo-stocks)", UA]
+    for ua in uas:
+        for u in ([x["raw"] for x in items[:1]] + ["https://data.sec.gov/submissions/CIK0000320193.json"]):
+            st, hd, body = get(u, headers={"User-Agent": ua, "Accept": "*/*"})
+            print("   SEC %-45s %-28s -> %s %d bytes %r" % (ua[:45], u[-28:], st, len(body), body[:40]))
     raise SystemExit(0)
     # TradingView: which interest and income columns have values
     from markets import tv_scan, TV_MARKET_OF
