@@ -305,6 +305,8 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
 .font-preview{font-size:16px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .prefs-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px;align-items:start}
 .prefs-grid>[hidden]{display:none!important}.prefs-grid>.wide{grid-column:1/-1}
+@media (min-width:900px){.prefs-grid>.span2{grid-column:span 2}}  /* twice the width of a normal settings card where the screen has room */
+.sh-two{grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))}.sh-two textarea{min-height:110px}
 .pref-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .pref-tabs button{font:inherit;font-size:14px;border:0;background:transparent;color:var(--muted);padding:8px 16px;border-radius:8px;cursor:pointer}
 .pref-tabs button:hover{background:var(--surface-2);color:var(--text)}
@@ -1160,11 +1162,13 @@ html{scroll-padding-top:96px}
         <p class="small muted">يُرسل عبر تيليجرام وإشعار سطح المكتب. يجب أن يكون البرنامج مفتوحًا أو مصغّرًا وقت الإرسال.</p>
       </section>
 
-      <section data-pg="data" class="card panel">
+      <section data-pg="data" class="card panel span2" id="shPanel">
         <h2>الضوابط الشرعية</h2>
         <p class="small muted">الصق رموز الأسهم المتوافقة وغير المتوافقة من أحدث قائمة تعتمدها (مثل قوائم الهيئات الشرعية في البنوك)، مفصولة بمسافات أو فواصل. تظهر الحالة بجانب اسم السهم وفي ماسح السوق.</p>
-        <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
+        <div class="form-grid sh-two">
+          <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
         <label class="field" for="pShNo"><span>غير متوافقة</span><textarea id="pShNo" data-pref="sharia.no" placeholder="1180 1050 ..."></textarea></label>
+        </div>
         <label class="field" for="pShDate"><span>تاريخ القائمة المعتمدة</span><input id="pShDate" type="text" data-pref="sharia.asOf" placeholder="مثال: الربع الثالث 2026"></label>
         <label class="field" for="pShPur"><span>نسب التطهير (رمز ثم النسبة، سطر لكل سهم)</span><textarea id="pShPur" data-pref="sharia.purify" placeholder="1120 2.5&#10;AAPL 1.1"></textarea></label>
         <p class="small muted">النسبة المئوية من كل ربح موزّع التي تُخرج للتطهير. تُملأ تلقائيًا للأسهم المصرية من القائمة المصرية إن توفرت، وما تكتبه هنا يتقدّم عليها. وللأسهم السعودية يُعرض مبلغ التطهير لكل سهم من دراسة مركز المقاصد السنوية. وما لا يغطيه أي مصدر (ومنه الأسهم الأمريكية) يُقدّره البرنامج تقديرًا تقريبيًا من دخل الفوائد ÷ الإيرادات ويكتب أنه تقدير، أو تُدخله يدويًا أو من «املأ الناقص بالمساعد» مع رابط المصدر.</p>
