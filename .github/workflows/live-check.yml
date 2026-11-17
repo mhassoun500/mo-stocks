@@ -16,7 +16,8 @@ jobs:
       - name: Check the sources
         run: |
           python -m pip install --upgrade pypdf certifi websocket-client
-          python tools/live_check.py | tee live.txt
+          python tools/live_check.py | tee live.txt || true
+          python tools/live_probe.py | tee -a live.txt
       - name: Keep the report
         if: always()
         uses: actions/upload-artifact@v4

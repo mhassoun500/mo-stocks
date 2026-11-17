@@ -190,6 +190,11 @@ def test_edgar_reads_revenue_and_interest():
         "InvestmentIncomeInterest": {"units": {"USD": [fy(12, "2025-12-31")]}}}}}
     f = edgar.from_facts(facts)
     assert f["total_revenue_fy"] == 1000 and f["non_oper_interest_income_fy"] == 12
+    # a 10-K also lists the last quarter on its own: that must not be taken for the year (the live check caught it)
+    q4 = dict(fy(300, "2025-12-31"), start="2025-10-01")
+    year = dict(fy(1000, "2025-12-31"), start="2025-01-01", filed="2026-01-01")
+    facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"]["units"]["USD"] = [year, dict(q4, filed="2026-01-02")]
+    assert edgar.from_facts(facts)["total_revenue_fy"] == 1000
 
 
 # ---------------------------------------------------------------- server and page

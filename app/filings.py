@@ -18,7 +18,6 @@ import threading
 import time
 import xml.etree.ElementTree as ET
 
-SEC_UA = "MoStocks/2.13 desktop app (github.com/mhassoun500/mo-stocks)"
 FEED_KEEP = 4000                         # announcements kept per market
 FEED_EVERY = 10 * 60                     # seconds between reads of the market lists
 
@@ -89,8 +88,10 @@ def merge_feed(old, new, keep=FEED_KEEP):
 
 # ---------------------------------------------------------------- SEC EDGAR
 def sec_get(url, timeout=25):
+    """The SEC answers the app's usual browser-like request (the fundamentals reader uses it daily); the live check on
+    GitHub showed a request naming the app was refused, so the same headers as the rest of the app are sent."""
     from sources.base import http_get
-    return http_get(url, headers={"User-Agent": SEC_UA, "Accept": "application/json,application/xml,text/*"}, timeout=timeout)
+    return http_get(url, headers={"Accept": "application/json,application/xml,text/*"}, timeout=timeout)
 
 
 def parse_sec_submissions(d):

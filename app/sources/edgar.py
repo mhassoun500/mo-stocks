@@ -10,10 +10,22 @@ def _core():
     return core
 
 
+def _whole_year(r):
+    """A 10-K also repeats quarter figures; a yearly figure covers about twelve months (balance-sheet values have no start)."""
+    import datetime as _d
+    if not r.get("start") or not r.get("end"):
+        return True
+    try:
+        days = (_d.date.fromisoformat(r["end"]) - _d.date.fromisoformat(r["start"])).days
+    except ValueError:
+        return True
+    return days >= 330
+
+
 def latest(facts, tag, unit, annual_only=False):
     """Newest value of a us-gaap tag: from the latest 10-K when annual_only, else from any filing."""
     node = ((facts.get("us-gaap") or {}).get(tag) or {}).get("units", {}).get(unit) or []
-    rows = [r for r in node if r.get("val") is not None and (not annual_only or (r.get("fp") == "FY" and r.get("form") == "10-K"))]
+    rows = [r for r in node if r.get("val") is not None and (not annual_only or (r.get("fp") == "FY" and r.get("form") == "10-K" and _whole_year(r)))]
     if not rows:
         return None
     rows.sort(key=lambda r: (r.get("end") or "", r.get("filed") or ""))
