@@ -102,7 +102,7 @@ const PREF_DEFAULTS={
   alerts:{enabled:true,interval:15,desktop:true,telegram:true},
   telegram:{enabled:false,chatId:''},
   report:{enabled:false,time:'09:30',days:[0,1,2,3,4]},
-  sharia:{ok:'',no:'',asOf:'',purify:''},
+  sharia:{ok:'',no:'',asOf:'',purify:'',gains:true},
   calc:{capital:100000,risk:1,fee:0.15},
   egpLocal:{},
   ai:{provider:'claude',models:{},base:'',web:true},
@@ -193,6 +193,30 @@ function purifyPopHTML(list){if(!list||!list.length)return'';
       +(e.src==='est'?'<br><em>'+esc(_t('تقدير تقريبي: دخل الفوائد ÷ إجمالي الإيرادات، ولا يشمل كل دخل غير مباح.'))+'</em>':'')+'</span>').join('')
     +(list.length>1&&list.some(e=>e.kind==='amt')&&list.some(e=>e.kind==='pct')?'<span class="sh-note muted">'+esc(_t('المبلغ للسهم والنسبة المئوية طريقتان مختلفتان للحساب؛ لا تجمع بينهما.'))+'</span>':'')
     +'<span class="sh-note muted">'+esc(_t('أرقام مساعدة حسابيًا؛ المرجع هو الهيئة الشرعية التي تتبعها.'))+'</span>';}
+/* purification owed on one holding, from the first figure available for it. Never mixes the two kinds:
+   'amt'  amount per share for a year  -> shares x amount x days held / 365
+   'pct'  share of income in percent   -> (cash dividends received while held + realised gain if counted) x percent
+   divs: [[time, amount per share], ...] or null when the dividends could not be read. */
+const PUR_CUR={SR:'SAR',CA:'EGP',US:'USD'};  /* codes, not words: the labels below are translated, the keys never are */
+const PUR_CUR_LABEL={SAR:'ر.س',EGP:'ج.م',USD:'$'};
+const purCurLabel=c=>PUR_CUR_LABEL[c]||c;
+function purifyDue(t,entries,divs,opt){opt=opt||{};const now=opt.now||Date.now();
+  const end=t.exit?t.exitDate:now,days=Math.max(0,Math.round((end-t.date)/DAY)),r={days,cur:PUR_CUR[t.ex]||'',fig:null,due:null,divs:null,gain:null,notes:[]};
+  if(!['SR','CA','US'].includes(t.ex)){r.status='skip';return r;}
+  const f=(entries||[])[0];if(!f){r.status='none';return r;}
+  r.fig=f;
+  if(f.kind==='amt'){r.due=t.qty*f.val*days/365;r.status='ok';return r;}
+  const gain=t.exit?(t.exit-t.entry)*t.qty:null;r.gain=gain;
+  let base=0;
+  if(divs){const got=divs.filter(d=>d[0]>=t.date&&d[0]<=end&&d[1]>0);r.divs=got.reduce((s,d)=>s+d[1],0)*t.qty;base+=r.divs;}
+  else r.notes.push('تعذّرت قراءة التوزيعات، فلم تُحسب.');
+  if(opt.gains!==false&&gain>0)base+=gain;
+  r.due=base*f.val/100;r.status=divs?'ok':'partial';return r;}
+function purifyTotals(rows,paid){const by={};
+  for(const x of rows){if(x.due==null)continue;(by[x.cur]=by[x.cur]||{due:0,paid:0}).due+=x.due;}
+  for(const p of paid||[]){if(!(p.amount>0))continue;(by[p.cur]=by[p.cur]||{due:0,paid:0}).paid+=p.amount;}
+  for(const k in by)by[k].left=Math.max(0,by[k].due-by[k].paid);
+  return by;}
 function shariaInfo(code,ex){const i=shariaInfo0(code,ex);if(!i)return i;const p=purifyEntries(code,ex,false);return p.length?Object.assign({},i,{pur:p}):i;}
 function shariaInfo0(code,ex){const u=shariaStatus(code);
   if(u)return{s:u,src:'list',word:SH_WORD[u],count:'',head:P.sharia.asOf?'قائمتك · '+P.sharia.asOf:'قائمتك في الإعدادات',refs:[['قائمتك',u==='ok'?'1':'0']]};

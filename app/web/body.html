@@ -519,6 +519,27 @@
         <tbody id="jOpen"></tbody></table>
       </div>
     </section>
+    <section class="card panel" id="purCard">
+      <div class="panel-head"><h2>التطهير المستحق</h2><span class="actions"><button class="btn sm local-only" id="purCalc" type="button">احسب مع التوزيعات</button></span></div>
+      <p class="small muted">لكل سهم في سجل صفقاتك (المفتوحة والمغلقة): إذا كان المصدر يعطي مبلغًا للسهم فالمستحق = عدد الأسهم × المبلغ × أيام التملك ÷ 365. وإذا كان يعطي نسبة مئوية فالمستحق = النسبة × (التوزيعات النقدية التي استلمتها أثناء التملك + الربح المحقق إن اخترت ذلك). كل عملة وحدها.</p>
+      <label class="field row" for="purGains"><input type="checkbox" id="purGains" data-pref="sharia.gains"><span>طبّق النسبة المئوية على الربح الرأسمالي المحقق أيضًا (اختلف فيه العلماء؛ اتبع هيئتك)</span></label>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>الأصل</th><th>الكمية</th><th>مدة التملك</th><th>أساس الحساب</th><th>التوزيعات المستلمة</th><th>الربح المحقق</th><th>المستحق</th></tr></thead>
+        <tbody id="purRows"></tbody></table>
+      </div>
+      <div class="kpis" id="purTotals"></div>
+      <p class="small muted" id="purMissing" hidden></p>
+      <h3 class="sub-h">سجل ما أخرجته</h3>
+      <div class="form-grid">
+        <label class="field" for="purAmt"><span>المبلغ</span><input id="purAmt" type="number" min="0" step="0.01"></label>
+        <label class="field" for="purCur"><span>العملة</span><select id="purCur"><option value="SAR">ريال سعودي</option><option value="EGP">جنيه مصري</option><option value="USD">دولار أمريكي</option></select></label>
+        <label class="field" for="purDate"><span>التاريخ</span><input id="purDate" type="date"></label>
+        <label class="field wide" for="purNote"><span>ملاحظة</span><input id="purNote" type="text" placeholder="مثال: تطهير أرباح 2025 لجهة خيرية"></label>
+      </div>
+      <div class="actions"><button class="btn primary" id="purAdd" type="button">سجّل الإخراج</button></div>
+      <ul class="list" id="purPaid"></ul>
+      <p class="edu">هذه أرقام مساعدة حسابيًا من المصادر المنشورة، وليست فتوى. المرجع هو الهيئة الشرعية التي تتبعها، وطريقة الحساب تختلف بين الهيئات.</p>
+    </section>
     <section class="card panel" id="jForm" hidden>
       <h2 id="jFormTitle">صفقة جديدة</h2>
       <div class="form-grid">

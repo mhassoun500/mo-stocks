@@ -20,7 +20,7 @@ function stub() {
   });
   return proxy;
 }
-function load(files = ['core', 'indicators', 'advanced', 'engine', 'plan']) {
+function load(files = ['core', 'indicators', 'advanced', 'engine', 'plan'], extra = []) {
   const s = stub();
   const store = {};
   const ctx = {
@@ -36,8 +36,10 @@ function load(files = ['core', 'indicators', 'advanced', 'engine', 'plan']) {
   vm.createContext(ctx);
   let src = (files.includes('views') ? '' : 'const S={};\n') + files.map(n => fs.readFileSync(path.join(ROOT, 'app', 'web', 'js', n + '.js'), 'utf8')).join('\n');
   /* expose the functions the tests need (they are top-level declarations inside the page's closure) */
-  src += '\n;globalThis.__T={rowsToData,computeInd,aggregateWeekly,analyzeCore,runBacktest,runTradeSim,pickTrades,resolveExit,resolveStaged,pickModes,scoreSplit,setupScore,signalAt,priceTrades,blendConfidence,adxCalc,obvCalc,obvRead,rsiDivergence,relVol,rsiCalc,tfBias,mtfVerdict,alignAt,alignSplit,fairValue,dcfPerShare,fvParams,FV_DEF,medianOf,mdLite,fp,pct,P,S,advCompute,advSummary,supertrendCalc,smcCalc,zigzagCalc,yearFib,ichimokuCalc,nwCalc,purifyEntries,purifyInfo,purifyPopHTML,purifyValHTML,SHL,PUR_EST};';
+  src += '\n;globalThis.__T={rowsToData,computeInd,aggregateWeekly,analyzeCore,runBacktest,runTradeSim,pickTrades,resolveExit,resolveStaged,pickModes,scoreSplit,setupScore,signalAt,priceTrades,blendConfidence,adxCalc,obvCalc,obvRead,rsiDivergence,relVol,rsiCalc,tfBias,mtfVerdict,alignAt,alignSplit,fairValue,dcfPerShare,fvParams,FV_DEF,medianOf,mdLite,fp,pct,P,S,advCompute,advSummary,supertrendCalc,smcCalc,zigzagCalc,yearFib,ichimokuCalc,nwCalc,purifyEntries,purifyInfo,purifyPopHTML,purifyValHTML,SHL,PUR_EST,purifyDue,purifyTotals};';
+  if (extra.length) src += '\n;Object.assign(globalThis.__T,{' + extra.join(',') + '});';
   vm.runInContext(src, ctx, { filename: 'page.js' });
+  ctx.__T.__store = store;
   return ctx.__T;
 }
 function fixture(name) {

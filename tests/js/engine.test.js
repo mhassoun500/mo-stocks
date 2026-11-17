@@ -525,3 +525,53 @@ test('purification: amounts and percentages are shown in their own units with th
   assert.match(mixed, /المرجع هو الهيئة الشرعية/);
   assert.equal(T.purifyPopHTML([]), '');
 });
+
+/* ---------- purification owed in the portfolio (phase 3 step 3) ---------- */
+const DAYMS = 864e5, T0 = Date.UTC(2025, 0, 1);
+const amtFig = [{ kind: 'amt', val: 0.54, src: 'maqased', by: 'x' }], pctFig = [{ kind: 'pct', val: 5, src: 'eg', by: 'y' }];
+test('purification owed: amount per share is shares x amount x days / 365', () => {
+  const t = { ex: 'SR', code: '2050', qty: 100, entry: 20, date: T0 };
+  const year = T.purifyDue(t, amtFig, null, { now: T0 + 365 * DAYMS });
+  assert.equal(year.status, 'ok'); assert.equal(+year.due.toFixed(6), 54); assert.equal(year.cur, 'SAR');
+  const part = T.purifyDue(Object.assign({}, t, { exit: 25, exitDate: T0 + 73 * DAYMS }), amtFig, null, { now: T0 + 999 * DAYMS });
+  assert.equal(part.days, 73, 'a closed trade counts only the days it was held'); assert.equal(+part.due.toFixed(6), 10.8);
+  assert.equal(part.divs, null, 'dividends are not needed for this kind');
+});
+test('purification owed: a percentage applies to dividends received while held, and to realised gains when chosen', () => {
+  const t = { ex: 'CA', code: 'ASCM', qty: 1000, entry: 10, date: T0, exit: 12, exitDate: T0 + 200 * DAYMS };
+  const divs = [[T0 - 5 * DAYMS, 1], [T0 + 50 * DAYMS, 0.4], [T0 + 150 * DAYMS, 0.6], [T0 + 300 * DAYMS, 9]];
+  const r = T.purifyDue(t, pctFig, divs, { gains: true });
+  assert.equal(r.divs, 1000, 'only the two dividends inside the holding period: (0.4 + 0.6) x 1000');
+  assert.equal(r.gain, 2000); assert.equal(r.due, (1000 + 2000) * 0.05); assert.equal(r.cur, 'EGP');
+  assert.equal(T.purifyDue(t, pctFig, divs, { gains: false }).due, 50, 'gains left out when the user says so');
+  const loss = T.purifyDue(Object.assign({}, t, { exit: 8 }), pctFig, divs, { gains: true });
+  assert.equal(loss.due, 50, 'a loss is never subtracted from the dividends');
+  const open = T.purifyDue(Object.assign({}, t, { exit: null, exitDate: null }), pctFig, divs, { now: T0 + 400 * DAYMS });
+  assert.equal(open.gain, null); assert.equal(open.divs, (0.4 + 0.6 + 9) * 1000, 'an open holding counts every dividend up to today');
+});
+test('purification owed: missing data is said, never filled in', () => {
+  const t = { ex: 'US', code: 'MSFT', qty: 10, entry: 300, date: T0 };
+  assert.equal(T.purifyDue(t, [], null).status, 'none');
+  assert.equal(T.purifyDue(t, [], null).due, null);
+  const p = T.purifyDue(t, pctFig, null, { now: T0 + 10 * DAYMS });
+  assert.equal(p.status, 'partial'); assert.equal(p.due, 0); assert.equal(p.notes.length, 1);
+  assert.equal(T.purifyDue({ ex: 'GOLD', code: 'XAU', qty: 1, entry: 1, date: T0 }, amtFig, null).status, 'skip');
+});
+test('purification totals: each currency on its own, payments subtracted, never below zero', () => {
+  const rows = [{ cur: 'SAR', due: 54 }, { cur: 'SAR', due: 6 }, { cur: 'EGP', due: 150 }, { cur: 'USD', due: null }];
+  const paid = [{ cur: 'SAR', amount: 20 }, { cur: 'EGP', amount: 500 }, { cur: 'SAR', amount: -5 }];
+  const tot = T.purifyTotals(rows, paid);
+  assert.deepEqual(JSON.parse(JSON.stringify(tot)), { SAR: { due: 60, paid: 20, left: 40 }, EGP: { due: 150, paid: 500, left: 0 } });
+});
+
+/* ---------- the trade journal is never overwritten before it has been read ---------- */
+test('journal: opening the app straight on the portfolio page cannot wipe the saved trades', async () => {
+  const JT = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'journal'], ['J', 'saveJournal', 'refreshJournalPrices', 'loadJournal', 'Store']);
+  JT.__store['stock-zones-v2:journal'] = JSON.stringify([{ id: 'a', code: '2050', ex: 'SR', qty: 10, entry: 20, date: 1 }]);
+  await JT.refreshJournalPrices();          /* what the page did first when opened on #journal */
+  await JT.saveJournal();
+  assert.equal(JSON.parse(JT.__store['stock-zones-v2:journal']).length, 1, 'the saved trade is still there');
+  JT.J.loaded = true; JT.J.trades = [];
+  await JT.saveJournal();
+  assert.equal(JSON.parse(JT.__store['stock-zones-v2:journal']).length, 0, 'once loaded, saving works as before');
+});
