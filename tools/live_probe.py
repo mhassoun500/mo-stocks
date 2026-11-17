@@ -47,6 +47,19 @@ if __name__ == "__main__":
     print("   around the first link: %r" % body[max(0, i - 200):i + 300])
     body = show("SEC submissions (browser-like)", "https://data.sec.gov/submissions/CIK0000320193.json", headers={"Accept": "application/json"})
     body = show("SEC submissions (named app)", "https://data.sec.gov/submissions/CIK0000320193.json", headers={"User-Agent": "MoStocks mo-stocks@users.noreply.github.com", "Accept": "application/json"})
+    # one Form 4 report: does its XML come back and read?
+    import filings
+    from sources.base import REG
+    d = json.loads(filings.sec_get("https://data.sec.gov/submissions/CIK0000320193.json").decode())
+    items = [x for x in filings.parse_sec_submissions(d) if x["form"] == "4"][:3]
+    for x in items:
+        st, hd, body = get(x["raw"], headers={"Accept": "application/xml,text/*"})
+        try:
+            n = len(filings.parse_form4(body.decode("utf-8", "replace")))
+        except Exception as e:
+            n = "parse error %s" % e
+        print("   Form 4 %s -> status %s, %d bytes, open-market rows: %s, start %r" % (x["raw"][-60:], st, len(body), n, body[:80]))
+    raise SystemExit(0)
     # TradingView: which interest and income columns have values
     from markets import tv_scan, TV_MARKET_OF
     cols = ["name", "total_revenue_fy", "non_oper_interest_income_fy", "interest_income_fy", "non_oper_income_fy",

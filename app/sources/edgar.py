@@ -22,6 +22,20 @@ def _whole_year(r):
     return days >= 330
 
 
+def newest(facts, tags, unit="USD"):
+    """The yearly value with the latest end date across several tags that mean the same thing."""
+    best = None
+    for tag in tags:
+        node = ((facts.get("us-gaap") or {}).get(tag) or {}).get("units", {}).get(unit) or []
+        for r in node:
+            if r.get("val") is None or r.get("fp") != "FY" or r.get("form") != "10-K" or not _whole_year(r):
+                continue
+            k = (r.get("end") or "", r.get("filed") or "")
+            if best is None or k > best[0]:
+                best = (k, r["val"])
+    return best[1] if best else None
+
+
 def latest(facts, tag, unit, annual_only=False):
     """Newest value of a us-gaap tag: from the latest 10-K when annual_only, else from any filing."""
     node = ((facts.get("us-gaap") or {}).get(tag) or {}).get("units", {}).get(unit) or []
@@ -42,16 +56,9 @@ def from_facts(d):
     sh = ((f.get("dei") or {}).get("EntityCommonStockSharesOutstanding") or {}).get("units", {}).get("shares") or []
     if sh:
         shares = sorted(sh, key=lambda r: (r.get("end") or "", r.get("filed") or ""))[-1]["val"]
-    rev = None
-    for tag in ("Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet"):
-        rev = latest(f, tag, "USD", True)
-        if rev is not None:
-            break
-    interest = None
-    for tag in ("InvestmentIncomeInterest", "InterestIncomeOther", "InvestmentIncomeInterestAndDividend"):
-        interest = latest(f, tag, "USD", True)
-        if interest is not None:
-            break
+    # a company switches tags over the years (Apple's "Revenues" stops in 2018): take the newest year among them all
+    rev = newest(f, ("Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet"))
+    interest = newest(f, ("InvestmentIncomeInterest", "InterestIncomeOther", "InvestmentIncomeInterestAndDividend"))
     return {"last_annual_eps": eps, "earnings_per_share_fy": eps,
             "total_revenue_fy": rev, "non_oper_interest_income_fy": interest,
             "net_income_fy": latest(f, "NetIncomeLoss", "USD", True),

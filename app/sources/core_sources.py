@@ -257,6 +257,9 @@ class EgxDisclosures(Connector):
         url = defs.feed("eg") % (_t.strftime("%d/%m/%Y", _t.gmtime(now - 3 * 86400)), _t.strftime("%d/%m/%Y", _t.gmtime(now + 86400)))
         page = http_get(url, headers={"Accept": "text/html"}, timeout=45).decode("utf-8", errors="replace")
         rows = filings.parse_egx_feed(page, int(now * 1000))
+        if not rows and "NewsDetails" not in page and len(page) < 20000:
+            # a short page with a script and a short-lived cookie: the site's bot protection, not a layout change
+            raise format_changed("egx_news", "the site answered with its protection page (%d bytes), not the disclosures" % len(page), page[:300])
         if not rows and "NewsDetails" not in page and len(page) > 20000:
             raise format_changed("egx_news", "disclosure search page has no news rows", page[:300])
         return rows

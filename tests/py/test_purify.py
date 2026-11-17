@@ -195,6 +195,9 @@ def test_edgar_reads_revenue_and_interest():
     year = dict(fy(1000, "2025-12-31"), start="2025-01-01", filed="2026-01-01")
     facts["facts"]["us-gaap"]["RevenueFromContractWithCustomerExcludingAssessedTax"]["units"]["USD"] = [year, dict(q4, filed="2026-01-02")]
     assert edgar.from_facts(facts)["total_revenue_fy"] == 1000
+    # an old tag that stopped years ago must not win over the one in use now (the live check caught Apple's 2018 figure)
+    facts["facts"]["us-gaap"]["Revenues"] = {"units": {"USD": [dict(fy(265, "2018-09-29"), start="2017-10-01")]}}
+    assert edgar.from_facts(facts)["total_revenue_fy"] == 1000
 
 
 # ---------------------------------------------------------------- server and page
