@@ -413,7 +413,17 @@
           <tbody id="watchBody"></tbody>
         </table>
       </div>
-      <p class="small muted">أضف أي سهم أو معدن من صفحة التحليل بزر «أضف إلى المراقبة». يفحص البرنامج القائمة دوريًا وينبّهك عند دخول منطقة شراء أو بيع، أو تأكيد اختراق أو نموذج، أو بلوغ تنبيه سعري، أو اقتراب حدث مهم، أو وصول صفقة مفتوحة إلى الهدف أو الوقف.</p>
+      <p class="small muted">أضف أي سهم أو معدن من صفحة التحليل بزر «أضف إلى المراقبة». يفحص البرنامج القائمة دوريًا وينبّهك عند دخول منطقة شراء أو بيع، أو اختراق مؤكد بحجم، أو اكتمال نموذج، أو تقاطع المتوسطات، أو خروج RSI من التشبع، أو بلوغ السعر العادل، أو بلوغ تنبيه سعري، أو اقتراب حدث مهم، أو وصول صفقة مفتوحة إلى الهدف أو الوقف. من «أنواع التنبيه» تختار ما تريده لكل أصل.</p>
+    </section>
+    <section class="card panel" id="calCard">
+      <div class="panel-head"><h2>تقويم الأحداث</h2>
+        <span class="actions"><span class="muted small" id="calMeta"></span><button class="btn sm" id="calRefresh" type="button">تحديث</button></span></div>
+      <div class="form-grid">
+        <label class="field" for="calFrom"><span>الأسهم</span><select id="calFrom"><option value="">المراقبة والمحفظة</option><option value="watch">المراقبة فقط</option><option value="port">المحفظة فقط</option></select></label>
+        <label class="field" for="calDays"><span>الفترة</span><select id="calDays"><option value="30">30 يومًا قادمة</option><option value="90" selected>90 يومًا قادمة</option><option value="180">180 يومًا قادمة</option></select></label>
+      </div>
+      <ul class="list" id="calList"></ul>
+      <p class="small muted">مواعيد النتائج والتوزيعات من <bdi>Yahoo Finance</bdi>. وللأسهم الأمريكية التي لا موعد لها هناك، يُقدَّر موعد النتائج من سجل إفصاحاتها في <bdi>SEC</bdi> ويُكتب بجانبه «تقدير». الجمعيات العمومية للأسهم السعودية والمصرية تظهر فقط إذا استطاع البرنامج قراءة إعلانات السوق، ويُذكر أنها تاريخ الإعلان. ويظهر أيضًا ما مضى من الأسبوع الأخير.</p>
     </section>
     <section class="grid-2 even">
       <div class="card panel">
@@ -424,6 +434,11 @@
         <div class="panel-head"><h2>التقرير الصباحي</h2><span class="actions"><button class="btn sm" id="reportNow" type="button">إنشاء الآن</button><button class="btn sm primary" id="reportSend" type="button">إرسال الآن</button></span></div>
         <p class="small muted" id="reportMeta"></p>
         <pre id="reportText" style="white-space:pre-wrap;font-family:var(--f-body);font-size:13.5px;margin:0;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;max-height:420px;overflow:auto"></pre>
+      </div>
+      <div class="card panel">
+        <div class="panel-head"><h2>التقرير الأسبوعي للمحفظة</h2><span class="actions"><button class="btn sm" id="weekNow" type="button">إنشاء الآن</button><button class="btn sm primary" id="weekSend" type="button">إرسال الآن</button></span></div>
+        <p class="small muted" id="weekMeta">القيمة والربح والخسارة لكل عملة، والأفضل والأضعف، وما أُغلق هذا الأسبوع، والتطهير والزكاة. الجدولة من الإعدادات &gt; التنبيهات.</p>
+        <pre id="weekText" style="white-space:pre-wrap;font-family:var(--f-body);font-size:13.5px;margin:0;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;max-height:420px;overflow:auto"></pre>
       </div>
     </section>
   </section>
@@ -463,6 +478,26 @@
         <p class="small muted wide" id="usShariaNote" hidden>الأسهم الأمريكية مصنّفة حسب موقع يقين (شرعي، غير شرعي، محل نظر). وما لم يصنّفه يقين يخضع لفحص شرعي مبدئي تلقائي (استبعاد البنوك والتأمين التقليدي والخمور والتبغ والقمار والترفيه والأسلحة، والديون والنقد كلٌّ أقل من 30% من القيمة السوقية). لا يشمل نسبة الإيراد غير المباح، فتأكد من مصدر موثوق.</p>
         <div class="actions"><button class="btn primary" id="scanGo" type="button">ابدأ الفحص</button><button class="btn ghost" id="scanStop" type="button" hidden>إيقاف</button></div>
       </div>
+      <details class="scan-adv" id="scanAdv"><summary>شروط إضافية (<span id="scanRuleN">0</span>)</summary>
+        <div id="scanRules"></div>
+        <button class="btn xs" id="scanAddRule" type="button">+ أضف شرطًا</button>
+        <p class="small muted">كل الشروط يجب أن تتحقق معًا. الشركة التي لا تتوفر لها قيمة الشرط تُستبعد ولا تُخمَّن قيمتها. الخصم عن السعر العادل موجب عندما يكون السعر أقل من العادل.</p>
+      </details>
+      <div class="form-grid scan-saved">
+        <label class="field" for="scanSaved"><span>الفحوص المحفوظة</span><select id="scanSaved"></select></label>
+        <label class="field" for="scanName"><span>اسم الفحص</span><input id="scanName" type="text" maxlength="60" placeholder="مثال: ارتداد من الدعم"></label>
+        <div class="actions"><button class="btn sm" id="scanSave" type="button">احفظ الشروط</button><button class="btn sm ghost" id="scanDel" type="button">احذف المختار</button></div>
+      </div>
+      <details class="scan-adv" id="scanAutoBox"><summary>التشغيل اليومي التلقائي</summary>
+        <div class="form-grid">
+          <label class="field row" for="scanAutoOn"><input id="scanAutoOn" type="checkbox" data-pref="scanAuto.on"><span>شغّل الفحص كل يوم وأرسل النتائج إلى تيليجرام</span></label>
+          <label class="field" for="scanAutoTime"><span>الوقت</span><input id="scanAutoTime" type="time" data-pref="scanAuto.time"></label>
+          <label class="field" for="scanAutoName"><span>الفحص</span><select id="scanAutoName"></select></label>
+          <label class="field" for="scanAutoTop"><span>عدد الشركات في الرسالة</span><input id="scanAutoTop" type="number" min="1" max="30" data-pref="scanAuto.top"></label>
+        </div>
+        <p class="small muted">يعمل والبرنامج مفتوح أو مصغّر، مرة واحدة في اليوم بعد الوقت المختار. تُرتّب النتائج بالثقة. فعّل تيليجرام من الإعدادات.</p>
+        <p class="small muted" id="scanAutoMeta"></p>
+      </details>
       <div class="progress" id="scanProg" hidden><i></i></div>
     </section>
     <section class="card panel">
@@ -481,12 +516,15 @@
             <th><button type="button" data-sort="stanceN">الحكم</button></th>
             <th><button type="button" data-sort="conf" data-dir="desc">الثقة</button></th>
             <th><button type="button" data-sort="distBuy">إلى منطقة الشراء</button></th>
+            <th><button type="button" data-sort="fairDisc" title="السعر العادل المحسوب من الأرقام المالية، ونسبة الخصم عنه (موجبة = السعر أقل من العادل). قد يختلف قليلًا عن صفحة التحليل لأن الماسح لا يستخدم المكرر التاريخي للسهم.">السعر العادل</button></th>
+            <th><button type="button" data-sort="rr">العائد للمخاطرة</button></th>
+            <th><button type="button" data-sort="q" title="درجة جودة إعداد الشراء من 100">الجودة</button></th>
             <th><button type="button" data-sort="rsi">القوة النسبية <bdi class="ar-only">RSI</bdi></button></th>
             <th><button type="button" data-sort="trendN">الاتجاه</button></th>
             <th>إشارة بارزة</th>
             <th><button type="button" data-sort="sector">القطاع</button></th>
           </tr></thead>
-          <tbody id="scanBody"><tr><td colspan="12" class="empty">اختر السوق واضغط «ابدأ الفحص». يستغرق فحص السوق السعودي أو المصري دقيقة تقريبًا، وأكبر 500 شركة أمريكية دقيقتين.</td></tr></tbody>
+          <tbody id="scanBody"><tr><td colspan="15" class="empty">اختر السوق واضغط «ابدأ الفحص». يستغرق فحص السوق السعودي أو المصري دقيقة تقريبًا، وأكبر 500 شركة أمريكية دقيقتين.</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -751,7 +789,9 @@
         <label class="field row" for="pAlerts"><input id="pAlerts" type="checkbox" data-pref="alerts.enabled"><span>تفعيل تنبيهات قائمة المراقبة</span></label>
         <div class="form-grid">
           <label class="field" for="pAlertInt"><span>الفحص كل (دقيقة)</span><input id="pAlertInt" type="number" min="5" max="240" step="5" data-pref="alerts.interval"></label>
+          <label class="field" for="pAlertEv"><span>نبّهني قبل إعلان النتائج والتوزيع بـ (يوم)</span><input id="pAlertEv" type="number" min="0" max="30" step="1" data-pref="alerts.evDays"></label>
         </div>
+        <p class="small muted">التنبيهات: دخول منطقة الشراء أو البيع، الاختراق المؤكد بحجم، اكتمال النماذج، تقاطع المتوسطات (50 و200، و20 و50)، خروج RSI من التشبع، بلوغ السعر العادل، اقتراب الأحداث، والسعر الذي تحدده. تختار أنواعها لكل أصل من «أنواع التنبيه» في قائمة المراقبة.</p>
         <label class="field row" for="pAlertDesk"><input id="pAlertDesk" type="checkbox" data-pref="alerts.desktop"><span>إشعار على سطح المكتب</span></label>
         <label class="field row" for="pAlertTg"><input id="pAlertTg" type="checkbox" data-pref="alerts.telegram"><span>إرسال إلى تيليجرام</span></label>
         <label class="field row" for="pBg"><input id="pBg" type="checkbox" data-pref="background"><span>عند إغلاق النافذة: صغّرها واستمر في التنبيهات</span></label>
@@ -784,6 +824,14 @@
         </div>
         <div class="field"><span>الأيام</span><div class="chips" id="pRepDays"></div></div>
         <p class="small muted">يُرسل عبر تيليجرام وإشعار سطح المكتب. يجب أن يكون البرنامج مفتوحًا أو مصغّرًا وقت الإرسال.</p>
+        <h3 class="sub-h">التقرير الأسبوعي للمحفظة</h3>
+        <label class="field row" for="pWeek"><input id="pWeek" type="checkbox" data-pref="report.weekly.on"><span>إرسال تقرير أسبوعي بالمحفظة</span></label>
+        <div class="form-grid">
+          <label class="field" for="pWeekDay"><span>اليوم</span><select id="pWeekDay" data-pref="report.weekly.day"><option value="6">السبت</option><option value="0">الأحد</option><option value="1">الاثنين</option><option value="2">الثلاثاء</option><option value="3">الأربعاء</option><option value="4">الخميس</option><option value="5">الجمعة</option></select></label>
+          <label class="field" for="pWeekTime"><span>الوقت</span><input id="pWeekTime" type="time" data-pref="report.weekly.time"></label>
+        </div>
+        <label class="field row" for="pRepAi"><input id="pRepAi" type="checkbox" data-pref="report.ai"><span>أضف ملخصًا يكتبه المساعد الذكي للتقريرين (اختياري)</span></label>
+        <p class="small muted">الملخص يستخدم مفتاح المساعد الذي حفظته في الإعدادات، ويُرسل نص التقرير إلى شركة المساعد فقط. قد تكون له تكلفة حسب اشتراكك.</p>
       </section>
 
       <section data-pg="data" class="card panel local-only" id="secPanel">

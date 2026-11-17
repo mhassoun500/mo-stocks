@@ -737,6 +737,143 @@ def us_sharia(code):
     return out
 
 
+def _scan_filters(ex, size):
+    filt = [{"left": "type", "operation": "equal", "right": "stock"},
+            {"left": "is_primary", "operation": "equal", "right": True}]
+    if ex == "US":
+        filt += [{"left": "exchange", "operation": "in_range", "right": ["NASDAQ", "NYSE", "AMEX"]},
+                 {"left": "subtype", "operation": "in_range", "right": ["common", "foreign-issuer"]}]
+        if size == "cap300":
+            filt.append({"left": "market_cap_basic", "operation": "greater", "right": 3e8})
+    return filt
+
+
+def medians_by_sector(rows):
+    """The same medians as _multiples (profitable companies, P/E 0.5-150), worked out from one market-wide read:
+    {sector: {pe, pb, dy, n, ndy}} plus "*" for the whole market."""
+    groups = {}
+    for f in rows:
+        pe = f.get("price_earnings_ttm")
+        if pe is None or not (0.5 <= pe <= 150):
+            continue
+        for k in (f.get("sector") or "", "*"):
+            if k:
+                groups.setdefault(k, []).append(f)
+    out = {}
+    for k, g in groups.items():
+        dys = [f.get("dividends_yield_current") for f in g if f.get("dividends_yield_current") and 0 < f["dividends_yield_current"] < 25]
+        out[k] = {"pe": _median([f["price_earnings_ttm"] for f in g]),
+                  "pb": _median([f.get("price_book_fq") for f in g if f.get("price_book_fq") and 0 < f["price_book_fq"] < 60]),
+                  "dy": _median(dys), "n": len(g), "ndy": len(dys)}
+    return out
+
+
+def scan_fundamentals(ex, size=None):
+    """Company figures for every stock of a market in one TradingView read, with sector medians, so the scanner can
+    work out each company's fair value the same way the analysis page does. Kept for 12 hours."""
+    market = TV_MARKET_OF.get(ex)
+    if not market:
+        return {"ok": False, "error": "unsupported"}
+    key = "scanf|%s|%s" % (ex, size or "all")
+    hit, _ = cache_get(key, max_age=12 * 3600)
+    if hit:
+        return hit
+    n = int(size) if str(size or "").isdigit() else 8000
+    cols = ["name"] + FUND_COLS
+    try:
+        d = tv_scan(market, {"filter": _scan_filters(ex, size), "columns": cols,
+                             "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"}, "range": [0, n]}, timeout=60)
+    except Exception as e:
+        record("WARN", "markets.scan_fundamentals %s" % ex, e)
+        stale, _ = cache_get(key)
+        return stale or {"ok": False, "error": "تعذّر جلب الأرقام المالية لحساب السعر العادل."}
+    f = {}
+    for row in d.get("data") or []:
+        v = (row.get("d") or []) + [None] * len(cols)
+        if v[0]:
+            f[str(v[0])] = {c: v[i + 1] for i, c in enumerate(FUND_COLS) if v[i + 1] is not None}
+    if not f:
+        return {"ok": False, "error": "تعذّر جلب الأرقام المالية لحساب السعر العادل."}
+    out = {"ok": True, "ex": ex, "f": f, "med": medians_by_sector(f.values()), "at": time.time(), "source": "TradingView",
+           "sectorAr": {k: TV_SECTOR_AR.get(k, k) for k in {x.get("sector") for x in f.values()} if k}}
+    cache_put(key, out)
+    return out
+
+
+# ---------------------------------------------------------------- events calendar (Phase 4, step 3)
+def _asset_events(code, ex, now_ms):
+    """Upcoming (and last week's) results, dividend and assembly dates of one stock, each with where it came from.
+    Results and dividend dates: Yahoo Finance. US: the next results date estimated from the SEC record when Yahoo has
+    none. Saudi and Egypt: assembly and dividend announcements the app has read from the market's list, when it could."""
+    import filings
+    out = []
+    week = 7 * 86400000
+    try:
+        p = get_profile(yahoo_symbol(code, ex))
+    except Exception as e:
+        record("WARN", "calendar.profile %s %s" % (ex, code), e)
+        p = {}
+    if p.get("ok"):
+        for t in p.get("earningsDates") or []:
+            if t * 1000 >= now_ms - week:
+                out.append({"t": int(t * 1000), "kind": "earn", "src": "Yahoo Finance"})
+                break
+        for k, kind in (("exDividendDate", "exdiv"), ("dividendDate", "divpay")):
+            t = p.get(k)
+            if t and t * 1000 >= now_ms - week:
+                out.append({"t": int(t * 1000), "kind": kind, "src": "Yahoo Finance"})
+    if ex == "US" and not any(e["kind"] == "earn" for e in out):
+        try:
+            due = ((filings.company_file(code, ex).get("record") or {}).get("due") or {})
+            if due.get("date"):
+                out.append({"t": due["date"], "kind": "earn", "src": "SEC EDGAR", "est": True})
+        except Exception as e:
+            record("WARN", "calendar.sec %s" % code, e)
+    if ex in ("SR", "CA"):
+        f = filings.company_file(code, ex)
+        for x in (f.get("items") or [])[:20]:
+            if x.get("type") in ("assembly", "dividend") and x.get("date", 0) >= now_ms - 30 * 86400000:
+                out.append({"t": x["date"], "kind": "ann_" + x["type"], "src": f.get("source") or "", "title": x.get("title", ""),
+                            "url": x.get("url", ""), "announced": True})
+    return out
+
+
+def events_calendar(items, now_ms=None):
+    """Events of up to 60 assets, read side by side (each source keeps its own cache)."""
+    now_ms = now_ms or int(time.time() * 1000)
+    seen, todo = set(), []
+    for it in items[:60]:
+        code, ex = str(it.get("code") or "").strip().upper(), str(it.get("ex") or "")
+        if ex in ("SR", "CA", "US") and re.match(r"^[A-Z0-9.\-]{1,12}$", code) and (code, ex) not in seen:
+            seen.add((code, ex))
+            todo.append((code, ex))
+    res = {}
+
+    def one(code, ex):
+        try:
+            res[(code, ex)] = _asset_events(code, ex, now_ms)
+        except Exception as e:
+            record("WARN", "calendar %s %s" % (ex, code), e)
+            res[(code, ex)] = None
+    ths = [threading.Thread(target=one, args=x, daemon=True) for x in todo]
+    for i, th in enumerate(ths):
+        th.start()
+        if i % 6 == 5:
+            th.join(30)            # a few at a time: Yahoo answers fewer requests when many arrive together
+    for th in ths:
+        th.join(45)
+    events, failed = [], []
+    for (code, ex) in todo:
+        evs = res.get((code, ex))
+        if evs is None:
+            failed.append(code)
+            continue
+        for e in evs:
+            events.append(dict(e, code=code, ex=ex))
+    events.sort(key=lambda e: e["t"])
+    return {"ok": True, "events": events, "failed": failed, "at": now_ms}
+
+
 def get_universe(ex, size=None):
     if ex in TV_MARKET_OF:
         key = "tvu2|%s|%s" % (ex, size or "all")

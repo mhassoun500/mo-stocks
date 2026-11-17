@@ -102,6 +102,24 @@ def sec_company_file():
     return "%d filings, %s, results due %s; all %d read: %s, %s" % (len(f["items"]), ins, (rec.get("due") or {}).get("date"), rec["n"], rec["byType"], span)
 
 
+def scanner_fair_values():
+    """Phase 4: one market-wide read gives the scanner what it needs for fair values."""
+    import markets
+    out = []
+    for ex in ("SR", "CA"):
+        d = markets.scan_fundamentals(ex)
+        assert d.get("ok"), d.get("error")
+        withpe = sum(1 for f in d["f"].values() if f.get("price_earnings_ttm"))
+        out.append("%s: %d companies, %d with P/E, %d sectors with medians" % (ex, len(d["f"]), withpe, len(d["med"]) - 1))
+    return "; ".join(out)
+
+
+def calendar_dates():
+    import markets
+    d = markets.events_calendar([{"code": "AAPL", "ex": "US"}, {"code": "2222", "ex": "SR"}, {"code": "COMI", "ex": "CA"}])
+    return "%d events, failed %s: %s" % (len(d["events"]), d["failed"], ", ".join("%s %s%s" % (e["code"], e["kind"], "*" if e.get("est") else "") for e in d["events"][:8]))
+
+
 def mubasher_funds():
     import funds
     rows = funds.fetch_fund_list("EG")
@@ -124,6 +142,8 @@ if __name__ == "__main__":
     check("Saudi Exchange announcements", saudi_announcements)
     check("EGX disclosures", egx_disclosures)
     check("SEC EDGAR filings and Form 4", sec_company_file, required=False)
+    check("Scanner fair values (TradingView, whole market)", scanner_fair_values, required=False)
+    check("Events calendar (Yahoo, SEC)", calendar_dates, required=False)
     check("Mubasher Egyptian fund list (old address)", mubasher_funds, required=False)
     check("Mubasher fund history files", mubasher_fund_history, required=False)
     for status, name, msg in RESULTS:

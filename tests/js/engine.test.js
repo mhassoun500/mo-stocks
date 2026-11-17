@@ -729,3 +729,155 @@ test('nine checks: a refused market says so instead of "nothing yet"', () => {
   const c = byKey(NC.nineChecks({ ex: 'SR', now: NOW, data: series(30, () => 10), file }));
   assert.equal(c.filings.status, 'na'); assert.match(c.filings.text || JSON.stringify(c.filings), /لا يسمح للبرامج/);
 });
+
+/* ---------------- Phase 4, step 1: alert conditions ---------------- */
+const AL = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'alerts', 'watch'], ['techAlerts', 'fairAlert', 'eventAlerts', 'alertFlags', 'alertWanted', 'ALERT_KINDS', 'DAY']);
+const bars = cs => cs.map((c, i) => ({ t: Date.UTC(2025, 0, 1) + i * 864e5, o: c, h: c * 1.01, l: c * 0.99, c, v: 1000 }));
+test('alerts: the 50/200 golden cross fires on the candle it happens, once', () => {
+  const cs = []; for (let i = 0; i < 260; i++) cs.push(i < 200 ? 100 - i * 0.1 : 80 + (i - 200) * 1.2);
+  let at = -1;
+  for (let n = 205; n <= 260; n++) { const f = AL.techAlerts(bars(cs.slice(0, n)), 'X').filter(x => /^ma50-200-up/.test(x.k)); if (f.length) { if (at < 0) at = n; else assert.fail('fired twice, at ' + at + ' and ' + n); } }
+  assert.ok(at > 0, 'the cross was found');
+  const msg = AL.techAlerts(bars(cs.slice(0, at)), 'X').find(x => /^ma50-200-up/.test(x.k)).msg;
+  assert.match(msg, /تقاطع ذهبي/);
+});
+test('alerts: RSI leaving overbought fires on the way out, not while it stays high', () => {
+  const up = []; for (let i = 0; i < 60; i++) up.push(100 + i * 2);
+  assert.equal(AL.techAlerts(bars(up), 'X').filter(x => x.g === 'rsi').length, 0, 'still overbought: nothing');
+  const out = up.concat([up[59] - 15, up[59] - 30]);
+  let got = null; for (let n = 61; n <= out.length; n++) { const f = AL.techAlerts(bars(out.slice(0, n)), 'X').find(x => /^rsi-ob/.test(x.k)); if (f) { got = f; break; } }
+  assert.ok(got && /التشبع الشرائي/.test(got.msg));
+});
+test('alerts: fair value is met when crossed or within 1%, said once per level', () => {
+  assert.equal(AL.fairAlert(bars([90, 95]), 'X', 100), null);
+  const a = AL.fairAlert(bars([98, 101]), 'X', 100); assert.ok(a && /صعد السعر إلى السعر العادل/.test(a.msg) && a.k === 'fair-10000');
+  assert.ok(/عند السعر العادل/.test(AL.fairAlert(bars([99.5, 99.6]), 'X', 100).msg));
+  assert.equal(AL.fairAlert(bars([1, 2]), 'X', null), null, 'no fair value, no alert');
+});
+test('alerts: events come within the chosen days', () => {
+  const now = Date.UTC(2026, 10, 17), ev = [{ t: now + 5 * AL.DAY, txt: 'إعلان النتائج' }];
+  assert.equal(AL.eventAlerts(ev, 'X', 3, now).length, 0);
+  assert.match(AL.eventAlerts(ev, 'X', 7, now)[0].msg, /بعد 5 أيام/);
+});
+test('alerts: an asset can turn kinds off', () => {
+  assert.equal(AL.alertWanted({ off: ['ma'] }, { g: 'ma' }), false);
+  assert.equal(AL.alertWanted({ off: ['ma'] }, { g: 'rsi' }), true);
+  assert.equal(AL.alertWanted({}, { g: 'zone' }), true);
+  assert.equal(AL.ALERT_KINDS.length, 9);
+});
+test('alerts: alertFlags on a real series groups every flag and honours the asset choice', () => {
+  const D = AL.rowsToData(fixture('1120').rows), I = AL.computeInd(D);
+  const A = AL.analyzeCore(D, I, { span: 250, sens: 5, zoneCount: 6 });
+  const close = D[D.length - 1].c;
+  const r = { A, D, j: {}, lastT: D[D.length - 1].t, fair: close * 1.005, events: [{ t: Date.now() + 864e5, txt: 'إعلان النتائج' }] };
+  const all = AL.alertFlags({ code: '1120', above: close * 0.5 }, r, []);
+  const groups = new Set(all.map(f => f.g));
+  for (const g of ['fair', 'ev', 'price']) assert.ok(groups.has(g), g);
+  assert.ok(all.every(f => AL.ALERT_KINDS.some(k => k.k === f.g)), 'every flag has a known kind');
+  const none = AL.alertFlags({ code: '1120', above: close * 0.5, off: AL.ALERT_KINDS.map(k => k.k) }, r, []);
+  assert.equal(none.length, 0);
+});
+
+/* ---------------- Phase 4, step 2: scanner ---------------- */
+const SN = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'alerts', 'watch', 'scan'], ['scanRuleOk', 'scanPass', 'scanExtras', 'scanFairInput', 'scanFairOf', 'scanDigest', 'SCAN_FIELDS']);
+test('scanner: conditions hold together, and a missing value does not pass', () => {
+  const r = { rsi: 50, conf: 70, fairDisc: 12, rr: null };
+  assert.ok(SN.scanRuleOk(r, { f: 'rsi', op: 'bt', a: 40, b: 60 }));
+  assert.ok(SN.scanRuleOk(r, { f: 'rsi', op: 'bt', a: 60, b: 40 }), 'a reversed range still works');
+  assert.ok(!SN.scanRuleOk(r, { f: 'conf', op: 'le', a: 60 }));
+  assert.ok(!SN.scanRuleOk(r, { f: 'rr', op: 'ge', a: 1 }), 'no value: left out, not guessed');
+  assert.ok(SN.scanPass(r, [{ f: 'rsi', op: 'ge', a: 45 }, { f: 'fairDisc', op: 'ge', a: 10 }]));
+  assert.ok(!SN.scanPass(r, [{ f: 'rsi', op: 'ge', a: 45 }, { f: 'fairDisc', op: 'ge', a: 20 }]));
+  assert.ok(SN.scanPass(r, []));
+  assert.ok(SN.SCAN_FIELDS.every(f => f.k && f.ar));
+});
+test('scanner: extras from a real series (averages, reward to risk, quality)', () => {
+  const D = SN.rowsToData(fixture('1120').rows), I = SN.computeInd(D), A = SN.analyzeCore(D, I, { span: 250, sens: 5, zoneCount: 6 });
+  const x = SN.scanExtras(D, I, A);
+  assert.ok(isFinite(x.ma50P) && isFinite(x.ma200P));
+  assert.ok(x.q == null || (x.q >= 0 && x.q <= 100));
+  assert.equal(x.rr, A.rr != null && isFinite(A.rr) ? A.rr : null);
+});
+test('scanner: fair value from the market-wide read matches the analysis page method', () => {
+  const one = fixture('AAPL_fund');
+  const d = { f: { AAPL: one.f }, med: { [one.f.sector]: { pe: one.sectorPE, pb: one.sectorPB, dy: one.sectorDY, n: one.sectorN, ndy: one.sectorNDY },
+    '*': { pe: one.marketPE, pb: one.marketPB, dy: one.marketDY, n: one.marketN || 0 } } };
+  const page = SN.fairValue(Object.assign({}, one, { epsHist: [] }), { ex: 'US' });
+  const scan = SN.scanFairOf(d, { code: 'AAPL', price: one.f.close }, 'US');
+  assert.ok(page.fair > 0 && scan && Math.abs(scan.fair - page.fair) < 1e-9, page.fair + ' vs ' + (scan && scan.fair));
+  assert.ok(Math.abs(scan.disc - (page.fair - one.f.close) / page.fair * 100) < 1e-9);
+  assert.equal(SN.scanFairOf(d, { code: 'MSFT', price: 1 }, 'US'), null, 'unknown company: no value');
+});
+test('scanner: the daily message lists the top companies and says when none match', () => {
+  const rows = [{ name: 'الراجحي', code: '1120', price: 90, stance: 'buy', conf: 72, fair: 100, fairDisc: 10 }, { name: 'B', code: 'B', price: 1, stance: 'neutral', conf: 50 }];
+  const t = SN.scanDigest(rows, 'ارتداد', 1, 'اليوم');
+  assert.match(t, /«ارتداد»/); assert.match(t, /الراجحي \(1120\)/); assert.match(t, /\+10%/); assert.ok(!t.includes('• B'));
+  assert.match(SN.scanDigest([], '', 5, 'x'), /لا توجد شركات تطابق/);
+});
+
+/* ---------------- Phase 4, step 3: events calendar ---------------- */
+const CL = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'alerts', 'watch', 'scan', 'calendar'], ['calAssets', 'calendarRows', 'calendarHTML', 'DAY', 'FOMC']);
+test('calendar: watchlist and open trades, each asset once, with where it comes from', () => {
+  const a = CL.calAssets([{ ex: 'SR', code: '1120', short: 'الراجحي' }, { ex: 'GOLD', code: 'XAU-USD-OZ', short: 'الذهب' }],
+    [{ ex: 'SR', code: '1120', name: 'x' }, { ex: 'US', code: 'AAPL', name: 'Apple' }, { ex: 'US', code: 'MSFT', exit: 5 }]);
+  assert.equal(JSON.stringify(a.map(x => x.code + ':' + [...x.from].join('+'))), JSON.stringify(['1120:watch+port', 'XAU-USD-OZ:watch', 'AAPL:port']));
+});
+test('calendar: events in the window, by day, filtered by source of the asset; gold gets the Fed dates', () => {
+  const now = Date.UTC(2026, 10, 17, 12), D = CL.DAY;
+  const assets = CL.calAssets([{ ex: 'SR', code: '1120', short: 'الراجحي' }, { ex: 'GOLD', code: 'XAU-USD-OZ', short: 'الذهب' }], [{ ex: 'US', code: 'AAPL', name: 'Apple' }]);
+  const ev = [{ t: now + 3 * D, kind: 'earn', code: '1120', ex: 'SR', src: 'Yahoo Finance' }, { t: now + 3 * D + 3600e3, kind: 'exdiv', code: 'AAPL', ex: 'US', src: 'Yahoo Finance' },
+    { t: now + 200 * D, kind: 'earn', code: 'AAPL', ex: 'US', src: 'SEC EDGAR', est: true }, { t: now - 3 * D, kind: 'divpay', code: 'AAPL', ex: 'US', src: 'Y' },
+    { t: now + 5 * D, kind: 'earn', code: 'ZZZ', ex: 'US', src: 'Y' }];
+  const g = CL.calendarRows(ev, assets, { now, days: 90 });
+  assert.equal(g[0].rows[0].past, true, 'last week shows, marked past');
+  assert.equal(g[1].rows.length, 2, 'same day grouped');
+  assert.ok(g.some(x => x.rows.some(r => r.kind === 'fomc')), 'the Fed for gold (9 Dec 2026)');
+  assert.ok(!g.some(x => x.rows.some(r => r.code === 'ZZZ')) && !g.some(x => x.rows.some(r => r.est)), 'unknown asset and out of window left out');
+  const port = CL.calendarRows(ev, assets, { now, days: 90, from: 'port' });
+  assert.ok(port.every(x => x.rows.every(r => r.code === 'AAPL')));
+  const html = CL.calendarHTML(CL.calendarRows(ev, assets, { now, days: 365 }));
+  assert.match(html, /تقدير/); assert.match(html, /إعلان النتائج/); assert.match(html, /المحفظة/);
+  assert.match(CL.calendarHTML([]), /لا توجد أحداث/);
+});
+
+/* ---------------- Phase 4, step 4: reports ---------------- */
+const RP = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'alerts', 'watch', 'scan', 'calendar', 'journal', 'jtools', 'reports'],
+  ['weekSummary', 'weeklyText', 'morningExtras', 'weekKey', 'withAi', 'weekDues', 'DAY']);
+test('weekly report: each currency on its own, best and weakest, this week\'s closed trades', () => {
+  const now = Date.UTC(2026, 10, 20), D = RP.DAY;
+  const tr = [{ ex: 'SR', code: '1120', name: 'الراجحي', entry: 80, qty: 100, last: 90, date: now - 40 * D },
+    { ex: 'SR', code: '2222', name: 'أرامكو', entry: 30, qty: 100, last: 27, date: now - 40 * D },
+    { ex: 'US', code: 'AAPL', name: 'Apple', entry: 200, qty: 10, date: now - 10 * D },
+    { ex: 'US', code: 'MSFT', name: 'Microsoft', entry: 400, qty: 2, exit: 450, exitDate: now - 2 * D, date: now - 30 * D },
+    { ex: 'SR', code: '7010', name: 'stc', entry: 40, qty: 10, exit: 35, exitDate: now - 20 * D, date: now - 60 * D }];
+  const s = RP.weekSummary(tr, now);
+  assert.equal(s.cur.SAR.value, 9000 + 2700); assert.equal(s.cur.SAR.pl, 1000 - 300);
+  assert.equal(s.cur.USD.noPrice, 1, 'no price: counted, not valued');
+  assert.equal(s.best.t.code, '1120'); assert.equal(s.worst.t.code, '2222');
+  assert.equal(s.closed.length, 1, 'only this week'); assert.equal(s.real.USD, 100);
+  const t = RP.weeklyText(s, { pur: { SAR: { due: 12, paid: 2, left: 10 } }, zak: { SAR: 290.25 } }, 'x');
+  assert.match(t, /الراجحي \+12\.5%/); assert.match(t, /أرامكو -10\.0%/); assert.match(t, /التطهير المتبقي/); assert.match(t, /الزكاة/);
+  assert.ok(!/USD.*SAR|SAR.*USD/.test(t.split('\n').find(l => l.includes('💼')) || ''), 'currencies are never added together');
+});
+test('morning report extras: last day\'s alerts and the coming week\'s events', () => {
+  const now = Date.UTC(2026, 10, 17, 8), D = RP.DAY;
+  const L = RP.morningExtras([{ t: now - 3600e3, msg: 'X دخل منطقة الشراء' }, { t: now - 3 * D, msg: 'old' }],
+    [{ t: now + 2 * D, kind: 'earn', name: 'الراجحي' }, { t: now + 20 * D, kind: 'earn', name: 'far' }, { t: now + D, kind: 'earn', name: 'Apple', est: true }], now).join('\n');
+  assert.match(L, /تنبيهات آخر 24 ساعة: 1/); assert.ok(!L.includes('old') && !L.includes('far'));
+  assert.match(L, /الراجحي: إعلان النتائج/); assert.match(L, /Apple: إعلان النتائج \(تقدير\)/);
+  assert.equal(RP.morningExtras([], [], now).length, 0);
+});
+test('weekly report: one per week (from Saturday), and the assistant summary is added or explained', () => {
+  assert.equal(RP.weekKey(new Date(2026, 10, 14)), RP.weekKey(new Date(2026, 10, 20)), 'Saturday to Friday');
+  assert.notEqual(RP.weekKey(new Date(2026, 10, 20)), RP.weekKey(new Date(2026, 10, 21)));
+  assert.equal(RP.withAi('T', null), 'T');
+  assert.match(RP.withAi('T', { ok: true, name: 'Claude', text: '• a' }), /ملخص المساعد \(Claude\):\n• a/);
+  assert.match(RP.withAi('T', { ok: false, error: 'no key' }), /تعذّر ملخص المساعد: no key/);
+});
+test('weekly report: zakat and purification are worked out like the portfolio page', () => {
+  const t = { id: 'g', ex: 'GOLD', code: 'XAU-USD-OZ', entry: 3000, qty: 2, last: 4000, date: Date.UTC(2025, 0, 1) };
+  const opt = { method: 'invest', cal: 'hijri', saPays: true, assets: RP.zakatAssetsMap(''), over: {} };
+  const d = RP.weekDues([t], { divs: {}, paid: [], gains: true, zakat: opt });
+  assert.ok(Math.abs(d.zak.USD - RP.zakatFor(t, opt).zakat) < 1e-9 && d.zak.USD > 0);
+  assert.equal(Object.keys(d.pur).length, 0, 'gold has no purification');
+});

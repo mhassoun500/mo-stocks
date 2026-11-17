@@ -121,6 +121,9 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/universe":
                 size = q.get("size") if re.match(r"^(\d+|cap300|all)$", q.get("size", "")) else None
                 return self._json(get_universe(q.get("ex", "SR"), None if size == "all" else size))
+            if p == "/api/scanfund":
+                size = q.get("size") if re.match(r"^(\d+|cap300|all)$", q.get("size", "")) else None
+                return self._json(scan_fundamentals(q.get("ex", "SR"), None if size == "all" else size))
             if p == "/api/ussharia":
                 return self._json(us_sharia(q.get("code", "")))
             if p == "/api/sharialists":
@@ -196,6 +199,8 @@ class Handler(BaseHTTPRequestHandler):
                     for k in [k for k in MEM if k.startswith("h|FUND|%d|" % fid)]:
                         del MEM[k]
                 return self._json({"ok": True, "added": len(pts)})
+            if p == "/api/calendar":
+                return self._json(events_calendar([x for x in (b.get("items") or []) if isinstance(x, dict)]))
             if p == "/api/sectors":
                 return self._json(get_sectors([s for s in (b.get("symbols") or []) if isinstance(s, str)][:600]))
             if p == "/api/notify":

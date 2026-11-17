@@ -188,3 +188,15 @@ def test_fundamentals_falls_back_to_yahoo_and_never_caches_failures(monkeypatch)
     monkeypatch.setattr(markets, "get_profile", lambda sym: {"ok": True, "price": 50, "trailingPE": 10, "targetMeanPrice": 60})
     r = main.get_fundamentals("NOPE1", "SR")  # the earlier failure was not cached
     assert r["ok"] and r["source"] == "Yahoo Finance" and r["f"]["price_target_average"] == 60
+
+
+# ---------------------------------------------------------------- Phase 4 routes
+def test_phase4_routes_reach_their_functions(server, monkeypatch):
+    seen = {}
+    monkeypatch.setattr(srvmod, "scan_fundamentals", lambda ex, size=None: seen.update(scan=(ex, size)) or {"ok": True, "f": {}})
+    monkeypatch.setattr(srvmod, "events_calendar", lambda items: seen.update(cal=items) or {"ok": True, "events": []})
+    assert json.loads(call(server, "/api/scanfund?ex=US&size=500")[1])["ok"] and seen["scan"] == ("US", "500")
+    call(server, "/api/scanfund?ex=SR&size=../x")
+    assert seen["scan"] == ("SR", None), "a strange size is ignored"
+    j = json.loads(call(server, "/api/calendar", "POST", {"items": [{"code": "AAPL", "ex": "US"}, "junk"]})[1])
+    assert j["ok"] and seen["cal"] == [{"code": "AAPL", "ex": "US"}]
