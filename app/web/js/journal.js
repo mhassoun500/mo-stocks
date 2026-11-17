@@ -18,21 +18,21 @@ function openTradeForm(pre){
   $('#jFormTitle').textContent='صفقة جديدة';$('#fCloseBox').hidden=true;
   $('#fCode').value=S.source!=='sample'?(S.code||''):'';$('#fName').value=S.source!=='sample'?(S.meta&&S.meta.short||S.name||''):'';$('#fEx').value=S.ex||'SR';
   $('#fQty').value=pre.qty||'';$('#fEntry').value=pre.entry!=null?+(+pre.entry).toFixed(4):'';$('#fStop').value=pre.stop!=null?+(+pre.stop).toFixed(4):'';$('#fTarget').value=pre.target!=null?+(+pre.target).toFixed(4):'';
-  $('#fDate').value=dateInput();$('#fReason').value=S.A&&S.A.stance==='buy'?'إشارة الأداة: '+$('#stanceText').textContent:'';
+  $('#fSetup').value=S.A&&S.A.buy&&S.A.buy.inside?_t('ارتداد من منطقة الشراء'):'';$('#fDate').value=dateInput();$('#fReason').value=S.A&&S.A.stance==='buy'?'إشارة الأداة: '+$('#stanceText').textContent:'';
   renderTagChips([]);$('#jForm').hidden=false;$('#fCode').focus();
 }
 function openCloseForm(id){
   const t=J.trades.find(x=>x.id===id);if(!t)return;J.closing=id;J.editing=null;
   $('#jFormTitle').textContent='إغلاق صفقة '+(t.name||t.code);
   $('#fCode').value=t.code;$('#fName').value=t.name||'';$('#fEx').value=t.ex;$('#fQty').value=t.qty;$('#fEntry').value=t.entry;$('#fStop').value=t.stop||'';$('#fTarget').value=t.target||'';
-  $('#fDate').value=dateInput(t.date);$('#fReason').value=t.reason||'';
+  $('#fDate').value=dateInput(t.date);$('#fReason').value=t.reason||'';$('#fSetup').value=t.setup||'';
   $('#fExit').value=t.last?+t.last.toFixed(4):'';$('#fExitDate').value=dateInput();$('#fExitReason').value='';
   $('#fCloseBox').hidden=false;renderTagChips(t.tags||[]);$('#jForm').hidden=false;$('#fExit').focus();
 }
 async function saveTradeForm(){
   const tags=$$('#fTags input:checked').map(i=>i.value);
   const base={code:$('#fCode').value.trim().toUpperCase(),name:$('#fName').value.trim(),ex:$('#fEx').value,qty:+$('#fQty').value,entry:+$('#fEntry').value,
-    stop:+$('#fStop').value||null,target:+$('#fTarget').value||null,date:parseDateInput($('#fDate').value),reason:$('#fReason').value.trim(),tags};
+    stop:+$('#fStop').value||null,target:+$('#fTarget').value||null,date:parseDateInput($('#fDate').value),reason:$('#fReason').value.trim(),setup:$('#fSetup').value.trim(),tags};
   if(!base.code||!(base.qty>0)||!(base.entry>0)){toast('أدخل الرمز والكمية وسعر الدخول.');return;}
   if(J.closing){const t=J.trades.find(x=>x.id===J.closing);const exit=+$('#fExit').value;if(!(exit>0)){toast('أدخل سعر الخروج.');return;}
     Object.assign(t,base,{exit,exitDate:parseDateInput($('#fExitDate').value),exitReason:$('#fExitReason').value.trim()});}
@@ -71,19 +71,19 @@ function renderJournal(){
   const k=(label,val,sub)=>'<div class="metric"><span class="k">'+label+'</span><span class="v">'+val+'</span>'+(sub?'<span class="s">'+sub+'</span>':'')+'</div>';
   $('#jKpis').innerHTML=k('الصفقات المفتوحة',NUM(open.length),'')+k('قيمة المحفظة الحالية',NUM(fmtMoney.format(mv)),cost?'التكلفة '+NUM(fmtMoney.format(cost)):'')+
     k('ربح غير محقق',cost?'<span style="color:'+(mv>=cost?'var(--up)':'var(--down)')+'">'+NUM(fmtMoney.format(mv-cost))+'</span>':'—',cost?chgSpan(mv/cost-1,1):'')+
-    k('صافي الربح المحقق',closed.length?'<span style="color:'+(gp>=gl?'var(--up)':'var(--down)')+'">'+NUM(fmtMoney.format(gp-gl))+'</span>':'—',closed.length+' صفقة مغلقة')+
+    k('صافي الربح المحقق',closed.length?Object.entries(realisedByCur(closed)).map(([c,v])=>'<span style="color:'+(v>=0?'var(--up)':'var(--down)')+'">'+NUM(fmtMoney.format(v))+' '+esc(purCurLabel(c))+'</span>').join('<br>'):'—',closed.length+' صفقة مغلقة')+
     k('نسبة النجاح',closed.length?NUM(Math.round(wins.length/closed.length*100)+'%'):'—',closed.length?wins.length+' رابحة · '+losses.length+' خاسرة':'')+
     k('متوسط المضاعف',Rs.length?NUM((Rs.reduce((a,b)=>a+b,0)/Rs.length).toFixed(2)+'R'):'—',gl>0?'معامل الربح '+NUM((gp/gl).toFixed(2)):'');
   /* recurring patterns */
-  const cnt={},lossCnt={};for(const t of closed)for(const tg of t.tags||[]){cnt[tg]=(cnt[tg]||0)+1;if(t.exit<=t.entry)lossCnt[tg]=(lossCnt[tg]||0)+1;}
+  const cnt={},lossCnt={};for(const t of closed)for(const tg0 of t.tags||[]){const tg=_t(tg0);cnt[tg]=(cnt[tg]||0)+1;if(t.exit<=t.entry)lossCnt[tg]=(lossCnt[tg]||0)+1;}  /* tags saved in either language count together */
   const items=[];
   const bad=TAGS_BAD.filter(t=>cnt[t]).sort((a,b)=>(lossCnt[b]||0)-(lossCnt[a]||0));
   for(const tg of bad)items.push('<li><span class="kind r">'+esc(tg)+'</span><span>تكرر في '+cnt[tg]+' صفقة، منها '+(lossCnt[tg]||0)+' خاسرة</span><span></span></li>');
-  const adh=closed.filter(t=>(t.tags||[]).includes('التزام بالخطة'));
+  const adh=closed.filter(t=>(t.tags||[]).some(x=>_t(x)===_t('التزام بالخطة')));
   if(closed.length){const aw=adh.filter(t=>t.exit>t.entry).length;items.push('<li><span class="kind s">الالتزام بالخطة</span><span>في '+adh.length+' من '+closed.length+' صفقة'+(adh.length?'، ونجح منها '+Math.round(aw/adh.length*100)+'%':'')+'</span><span></span></li>');}
   if(wins.length&&losses.length){const aw=wins.reduce((s,t)=>s+(t.exit/t.entry-1),0)/wins.length,al=losses.reduce((s,t)=>s+(t.exit/t.entry-1),0)/losses.length;
     items.push('<li><span class="kind n">الربح مقابل الخسارة</span><span>متوسط الصفقة الرابحة '+NUM(pct(aw))+' والخاسرة '+NUM(pct(al))+(Math.abs(al)>aw?'. خسائرك أكبر من أرباحك، فالتزم بوقف الخسارة.':'.')+'</span><span></span></li>');}
-  renderPurify();renderZakat();
+  renderPurify();renderZakat();if(typeof renderStats==='function')renderStats();
   $('#jMistakes').innerHTML=items.join('')||'<li class="plain"><p class="empty">بعد إغلاق عدة صفقات ووسمها، ستظهر هنا أخطاؤك المتكررة وأثرها على نتائجك.</p></li>';
 }
 async function exportJournal(){
@@ -193,7 +193,7 @@ function setupZakat(){
     ZK.divLog=ZK.divLog.filter(d=>d.id!==b.dataset.dvrm);await Store.set('divLog',ZK.divLog);renderZakat();});
   loadDivLog().then(renderZakat);}
 function setupJournal(){
-  setupPurify();setupZakat();
+  setupPurify();setupZakat();setupJTools();
   $('#jNew').addEventListener('click',()=>openTradeForm({}));
   $('#fSave').addEventListener('click',saveTradeForm);
   $('#fCancel').addEventListener('click',()=>{$('#jForm').hidden=true;J.closing=null;});

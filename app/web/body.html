@@ -582,6 +582,7 @@
         <label class="field" for="fDate"><span>تاريخ الدخول</span><input id="fDate" type="date"></label>
         <label class="field" for="fStop"><span>وقف الخسارة</span><input id="fStop" type="number" step="0.01"></label>
         <label class="field" for="fTarget"><span>الهدف</span><input id="fTarget" type="number" step="0.01"></label>
+        <label class="field" for="fSetup"><span>الإعداد</span><input id="fSetup" type="text" list="fSetupList" placeholder="اختر أو اكتب"><datalist id="fSetupList"></datalist></label>
         <label class="field wide" for="fReason"><span>سبب الدخول</span><input id="fReason" type="text" placeholder="مثال: ارتداد من منطقة الشراء مع تشبّع بيعي"></label>
       </div>
       <div id="fCloseBox" hidden class="form-grid">
@@ -604,6 +605,35 @@
         <h2>أنماطك المتكررة</h2>
         <ul class="list" id="jMistakes"></ul>
         <p class="edu">المضاعف R = الربح أو الخسارة مقسومة على المخاطرة الأصلية (الدخول ناقص الوقف). متوسط مضاعف موجب يعني أن أسلوبك رابح حتى لو خسرت أغلب الصفقات.</p>
+      </div>
+    </section>
+    <section class="card panel" id="stCard">
+      <div class="panel-head"><h2>إحصاءات سجل الصفقات</h2>
+        <label class="field row" for="stBy"><span>حسب</span><select id="stBy"><option value="setup">الإعداد</option><option value="market">السوق</option><option value="hold">مدة الاحتفاظ</option><option value="tag">الوسم</option><option value="stock">السهم</option></select></label></div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th id="stHead">الإعداد</th><th>الصفقات المغلقة</th><th>نسبة النجاح</th><th>متوسط العائد</th><th>متوسط المضاعف</th></tr></thead>
+        <tbody id="stBody"></tbody></table>
+      </div>
+      <div class="grid-2">
+        <div><h3 class="sub-h">الأفضل والأسوأ</h3><ul class="list" id="stBest"></ul></div>
+        <div><h3 class="sub-h">ثمن أخطائك المتكررة</h3><ul class="list" id="stMist"></ul></div>
+      </div>
+      <p class="edu">متوسط العائد نسبة مئوية، فيمكن مقارنة الأسواق والعملات معًا. المضاعف R يظهر فقط للصفقات التي سجّلت لها وقف خسارة.</p>
+    </section>
+    <section class="card panel local-only" id="impCard">
+      <h2>استيراد الصفقات من كشف الوسيط</h2>
+      <p class="small muted">صدّر كشف العمليات من موقع الوسيط بصيغة CSV (من Excel: حفظ باسم ← CSV). يقرأ البرنامج عمليات الشراء والبيع، ويحوّلها إلى صفقات بطريقة «الأقدم أولًا»، ويضيف العمولة إلى السعر. تُعرض المعاينة أولًا ولا يُحفظ شيء قبل موافقتك، والصفقات الموجودة مسبقًا لا تتكرر.</p>
+      <div class="form-grid">
+        <label class="field" for="impFile"><span>ملف الكشف</span><input id="impFile" type="file" accept=".csv,.txt"></label>
+        <label class="field" for="impEx"><span>السوق</span><select id="impEx"><option value="auto">تلقائي (4 أرقام = السعودية، وإلا أمريكا)</option><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select></label>
+        <label class="field" for="impFmt"><span>صيغة التاريخ</span><select id="impFmt"><option value="auto">تلقائي</option><option value="dmy">يوم/شهر/سنة</option><option value="mdy">شهر/يوم/سنة</option></select></label>
+      </div>
+      <div id="impBox" hidden>
+        <h3 class="sub-h">أعمدة الملف</h3>
+        <div class="form-grid" id="impMap"></div>
+        <p class="small" id="impSum"></p>
+        <div class="tbl-wrap"><table><thead><tr><th>الأصل</th><th>السوق</th><th>الكمية</th><th>الدخول</th><th>الخروج</th></tr></thead><tbody id="impPrev"></tbody></table></div>
+        <div class="actions"><button class="btn primary" id="impGo" type="button">أضف إلى السجل</button><button class="btn ghost" id="impCancel" type="button">إلغاء</button></div>
       </div>
     </section>
   </section>

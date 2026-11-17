@@ -617,3 +617,59 @@ test('total return adds the dividends received while held to the price change', 
   const n = T.totalReturn(Object.assign({}, t, { exit: null, exitDate: null, last: null }), null, null);
   assert.equal(n.total, null, 'no price: no total, not zero');
 });
+
+/* ---------- journal statistics and broker-statement import (phase 3 step 5) ---------- */
+const JX = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'journal', 'jtools'],
+  ['csvParse', 'impGuess', 'impNum', 'impDate', 'impSide', 'impTx', 'impTrades', 'impNew', 'groupStats', 'bestWorst', 'realisedByCur', 'mistakeCost']);
+const A = x => JSON.parse(JSON.stringify(x));
+test('import: CSV with quotes, semicolons, Windows line ends and a BOM', () => {
+  const rows = JX.csvParse('﻿التاريخ;الرمز;النوع;الكمية;السعر\r\n2025-01-05;1120;شراء;"1,000";"80,5"\r\n\r\n2025-02-01;1120;بيع;400;85\r\n');
+  assert.equal(rows.length, 3); assert.deepEqual(A(rows[1]), ['2025-01-05', '1120', 'شراء', '1,000', '80,5']);
+});
+test('import: columns are recognised in Arabic and English', () => {
+  assert.deepEqual(A(JX.impGuess(['التاريخ', 'رمز السهم', 'نوع العملية', 'الكمية', 'سعر التنفيذ', 'العمولة', 'اسم الشركة'])), { date: 0, code: 1, side: 2, qty: 3, price: 4, fee: 5, name: 6 });
+  assert.deepEqual(A(JX.impGuess(['Trade Date', 'Symbol', 'Action', 'Quantity', 'Price', 'Commission'])), { date: 0, code: 1, side: 2, qty: 3, price: 4, fee: 5 });
+});
+test('import: numbers, dates and buy/sell in the forms brokers use', () => {
+  assert.equal(JX.impNum('1,234.50'), 1234.5); assert.equal(JX.impNum('(12)'), -12); assert.equal(JX.impNum('١٢٣٫٥'), 123.5);
+  assert.equal(JX.impNum('80,5'), 80.5); assert.equal(JX.impNum('SAR 1,000'), 1000); assert.equal(JX.impNum(''), null);
+  const day = ms => new Date(ms).toISOString().slice(0, 10);
+  assert.equal(day(JX.impDate('2025-03-04', 'auto')), '2025-03-04');
+  assert.equal(day(JX.impDate('04/03/2025', 'auto')), '2025-03-04', 'day first unless it cannot be');
+  assert.equal(day(JX.impDate('03/14/2025', 'auto')), '2025-03-14', 'a second number above 12 means month first');
+  assert.equal(day(JX.impDate('04/03/2025', 'mdy')), '2025-04-03');
+  assert.equal(day(JX.impDate('٣١/١٢/٢٠٢٥', 'auto')), '2025-12-31');
+  assert.equal(JX.impDate('next week', 'auto'), null);
+  assert.equal(JX.impSide('شراء'), 'buy'); assert.equal(JX.impSide('BUY'), 'buy'); assert.equal(JX.impSide('بيع'), 'sell'); assert.equal(JX.impSide('Sell'), 'sell');
+  assert.equal(JX.impSide('', -5), 'sell'); assert.equal(JX.impSide('تحويل'), null);
+});
+test('import: first in, first out, fees in the prices, unmatched sales reported, bad lines explained', () => {
+  const rows = [['2025-01-05', '1120', 'شراء', '100', '10', '10'], ['2025-01-20', '1120', 'شراء', '50', '12', '0'], ['2025-03-01', '1120', 'بيع', '120', '15', '12'],
+    ['2025-03-02', 'AAPL', 'sell', '5', '200', '0'], ['bad', '1120', 'شراء', '1', '1', '0'], ['2025-03-03', '', 'شراء', '1', '1', '0']];
+  const { tx, bad } = JX.impTx(rows, { date: 0, code: 1, side: 2, qty: 3, price: 4, fee: 5 }, { fmt: 'auto', ex: 'auto' });
+  assert.equal(tx.length, 4); assert.deepEqual(A(bad.map(b => b.line)), [6, 7]);
+  const { trades, unmatched } = JX.impTrades(tx);
+  const closed = trades.filter(t => t.exit != null), open = trades.filter(t => t.exit == null);
+  assert.equal(closed.length, 2);
+  assert.deepEqual(A(closed.map(t => [t.qty, t.entry, t.exit, t.ex])), [[100, 10.1, 14.9, 'SR'], [20, 12, 14.9, 'SR']]);
+  assert.deepEqual(A(open.map(t => [t.qty, t.entry])), [[30, 12]]);
+  assert.deepEqual(A(unmatched.map(u => [u.code, u.qty])), [['AAPL', 5]]);
+  assert.equal(JX.impNew(trades, trades).length, 0, 'importing the same file twice adds nothing');
+  assert.equal(JX.impNew(trades, closed).length, 1);
+});
+test('statistics: groups by setup, market, holding period and tag, best and worst only with enough trades', () => {
+  const d = 864e5, T1 = Date.UTC(2025, 0, 1), mk = (setup, ex, ret, days, tags, stop) => ({ setup, ex, code: ex === 'SR' ? '1120' : 'AAPL', qty: 10, entry: 100, stop, date: T1, exit: 100 * (1 + ret), exitDate: T1 + days * d, tags });
+  const tr = [mk('اختراق', 'SR', 0.1, 3, [], 95), mk('اختراق', 'SR', 0.05, 20, [], 95), mk('اختراق', 'US', -0.02, 20, ['دخول متسرع'], 95),
+    mk('ارتداد', 'US', -0.05, 40, ['دخول متسرع'], null), mk('ارتداد', 'SR', 0.01, 200, [], null), mk('ارتداد', 'SR', -0.03, 5, [], null),
+    Object.assign(mk('ارتداد', 'SR', 0, 1, [], null), { exit: null })];
+  const s = JX.groupStats(tr, 'setup');
+  assert.deepEqual(A(s.map(x => [x.key, x.n])), [['اختراق', 3], ['ارتداد', 3]], 'open trades are not counted');
+  assert.equal(s[0].win, 2 / 3); assert.ok(Math.abs(s[0].avgR - (2 + 1 - 0.4) / 3) < 1e-9); assert.equal(s[1].avgR, null, 'no stop, no R');
+  const bw = JX.bestWorst(s, 3); assert.equal(bw.best.key, 'اختراق'); assert.equal(bw.worst.key, 'ارتداد');
+  assert.equal(JX.bestWorst(s, 4), null, 'too few trades to compare');
+  assert.deepEqual(A(JX.groupStats(tr, 'hold').map(x => x.key)).sort(), ['أسبوع أو أقل', 'أكثر من 3 أشهر', 'حتى 3 أشهر', 'حتى شهر'].sort());
+  assert.ok(JX.groupStats(tr, 'tag').some(x => x.key === 'دخول متسرع' && x.n === 2));
+  const by = JX.realisedByCur(tr); assert.ok(Math.abs(by.SAR - (100 + 50 + 10 - 30)) < 1e-9); assert.ok(Math.abs(by.USD - (-20 - 50)) < 1e-9);
+  const mc = JX.mistakeCost(tr, ['دخول متسرع', 'قرار عاطفي']);
+  assert.equal(mc.length, 1); assert.equal(mc[0].n, 2); assert.equal(mc[0].losses, 2); assert.ok(Math.abs(mc[0].avgWith - (-0.035)) < 1e-9);
+});
