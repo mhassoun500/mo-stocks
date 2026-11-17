@@ -65,6 +65,7 @@ function tourEnd(save){const card=$('#tour');if(!card||card.hidden)return;card.h
 function tourStart(){tourShow(0);}
 
 function setupUx(){
+  setupMoreTabs();
   document.addEventListener('keydown',onShortcut);
   const ko=$('#kbdOpen');if(ko)ko.addEventListener('click',()=>showShortcuts(true));
   const kh=$('#kbdHelp');if(kh)kh.addEventListener('click',e=>{if(e.target===kh||e.target.closest('[data-kclose]'))showShortcuts(false);});
@@ -77,4 +78,23 @@ function setupUx(){
   }
   glossApply();
   let t=0;new MutationObserver(()=>{clearTimeout(t);t=setTimeout(()=>glossApply(),400);}).observe(document.body,{childList:true,subtree:true});
+}
+
+/* ---------- analysis details in tabs: a tab whose panel is hidden (gold, short fund records) is hidden too ---------- */
+const MT={cur:null};
+function moreShow(t,save){const card=$('#moreCard');if(!card)return;
+  const btns=$$('#moreCard .more-tabs button'),vis=btns.filter(b=>!b.hidden);if(!vis.length){if(!card.hidden)card.hidden=true;return;}if(card.hidden)card.hidden=false;
+  if(!vis.some(b=>b.dataset.tab===t))t=vis[0].dataset.tab;MT.cur=t;
+  for(const b of btns)b.setAttribute('aria-selected',String(b.dataset.tab===t));
+  for(const p of $$('#moreCard .tab-panel'))p.classList.toggle('on',p.dataset.tab===t);
+  if(save)try{localStorage.setItem('mo-more-tab',t);}catch(e){}
+  if(t==='bt'&&typeof drawSimCanvas==='function')requestAnimationFrame(()=>{try{drawSimCanvas();}catch(e){}});}
+function moreSync(){for(const b of $$('#moreCard .more-tabs button')){const p=$('#moreCard .tab-panel[data-tab="'+b.dataset.tab+'"]'),h=!p||p.hidden||(b.classList.contains('local-only')&&!LOCAL);if(b.hidden!==h)b.hidden=h;}
+  moreShow(MT.cur);}
+function setupMoreTabs(){const card=$('#moreCard');if(!card)return;
+  let t='lv';try{t=localStorage.getItem('mo-more-tab')||'lv';}catch(e){}MT.cur=t;
+  card.querySelector('.more-tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(b)moreShow(b.dataset.tab,true);});
+  card.querySelector('.more-tabs').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;const v=$$('#moreCard .more-tabs button').filter(b=>!b.hidden);
+    const i=v.findIndex(b=>b.dataset.tab===MT.cur),d=(e.key==='ArrowLeft')===(document.dir==='rtl'||document.documentElement.dir==='rtl')?1:-1,n=v[(i+d+v.length)%v.length];if(n){moreShow(n.dataset.tab,true);n.focus();}});
+  new MutationObserver(moreSync).observe(card,{subtree:true,attributes:true,attributeFilter:['hidden']});moreSync();
 }

@@ -2401,5 +2401,9 @@
  "التنزيل جارٍ بالفعل.": "The download is already running.",
  "لا توجد بصمة لهذا الملف في الإصدار، فلن يُفتح.": "The release has no fingerprint for this file, so it will not be opened.",
  "بصمة الملف لا تطابق المنشورة مع الإصدار، فحُذف ولم يُفتح. حاول مرة أخرى.": "The file's fingerprint does not match the one published with the release, so it was deleted and not opened. Try again.",
- "تعذّر تنزيل التحديث. تحقق من الاتصال.": "Could not download the update. Check your connection."
+ "تعذّر تنزيل التحديث. تحقق من الاتصال.": "Could not download the update. Check your connection.",
+ "تفاصيل التحليل": "Analysis details",
+ "المستويات والإشارات": "Levels and signals",
+ "الشركة والأخبار": "Company and news",
+ "كيف تُحسب المناطق، ومصادر البيانات": "How the zones are worked out, and data sources"
 }

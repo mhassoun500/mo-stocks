@@ -424,4 +424,31 @@ kbd{font-family:ui-monospace,monospace;font-size:12px;border:1px solid var(--lin
 :focus-visible{outline:3px solid var(--accent,#2563eb);outline-offset:2px}
 .perf-box{margin:10px 0}
 .perf-key{display:inline-flex;align-items:center;gap:4px;margin-inline-end:12px}.perf-key i{width:12px;height:3px;display:inline-block;border-radius:2px}
+/* ---- analysis page layout (2.18): chart first, verdict beside its numbers, details in tabs ---- */
+.verdict-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.mtf.card-lite{margin-top:0;border:1px solid var(--line);border-top-style:solid;border-radius:14px;padding:12px 14px;background:var(--surface)}
+.top-align{align-items:start}
+.more-card{padding:12px 14px 16px}
+.more-tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+.more-tabs button{font:inherit;font-size:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.more-tabs button[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.more-tabs button[hidden]{display:none}
+.more-card .tab-panel:not(.on){display:none}
+.more-card .tab-panel>.card{border-color:transparent}
+.more-card .grid-2>.card{border-color:var(--line)}
+.calc-panel>.card{max-width:820px}
+.qual.card-lite{margin-top:0;border:1px solid var(--line);border-radius:14px;padding:12px 14px;background:var(--surface)}
+.qual-wide{grid-column:1/-1}
+@media (min-width:900px){.qual-wide .qual-parts{columns:2;column-gap:28px}.qual-wide .qual-parts li{break-inside:avoid}}
+/* company: the nine questions on one side, the file, the company's data and the news stacked on the other; without the file (gold) the rest sits side by side */
+.info-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto 1fr;gap:14px;align-items:start;grid-auto-flow:row dense}
+.rows-contents{display:contents}
+.rows-contents[hidden]{display:none!important}
+.info-grid .nine-card{grid-column:1;grid-row:span 3}
+.info-grid #fileRow>.card:not(.nine-card),.info-grid #companyRow>.card{grid-column:2}
+.info-grid:has(#fileRow[hidden]) #companyRow>.card{grid-column:auto}
+@media (max-width:900px){.info-grid{grid-template-columns:1fr}.info-grid .nine-card,.info-grid #fileRow>.card,.info-grid #companyRow>.card{grid-column:1!important;grid-row:auto!important}}
+.howto-box>summary{cursor:pointer;color:var(--muted);font-size:14px;padding:6px 2px}
+.howto-box[open]>summary{margin-bottom:10px}
+@media (min-width:1500px){.verdict{grid-template-columns:minmax(0,1fr) minmax(0,2.2fr)}.metrics{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}}
 </style>

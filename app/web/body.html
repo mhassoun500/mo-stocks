@@ -119,121 +119,6 @@
       <p class="edu">صناديق الاستثمار تُشترى وتُسترد بسعر الوثيقة، فلها سعر واحد يوميًا دون أعلى وأدنى وحجم تداول. أقصى تراجع = أكبر هبوط من قمة إلى قاع خلال السنة، ويقيس المخاطرة الفعلية التي مر بها المستثمر. التذبذب السنوي يقيس حدة تقلب السعر.</p>
     </section>
 
-    <section class="verdict" id="verdictSec">
-      <div class="stance" id="stance">
-        <span class="eyebrow">القراءة الآلية للوضع الحالي</span>
-        <strong id="stanceText">—</strong>
-        <p class="sub" id="stanceSub"></p>
-        <div class="conf">
-          <div class="conf-row"><span>درجة الثقة</span><b id="confVal">—</b></div>
-          <div class="meter"><i id="confBar" style="width:0%"></i></div>
-          <div class="conf-row"><span id="confNote"></span></div>
-        </div>
-        <div class="qual" id="qualBox" hidden>
-          <div class="conf-row"><span>جودة الإعداد (للشراء)</span><b id="qualVal">—</b></div>
-          <div class="meter"><i id="qualBar" style="width:0%"></i></div>
-          <ul class="qual-parts" id="qualParts"></ul>
-          <p class="small muted" id="qualNote"></p>
-        </div>
-        <div class="mtf" id="mtfBox" hidden>
-          <h4>توافق الأطر الزمنية</h4>
-          <div id="mtfRows"></div>
-          <p class="mtf-verdict" id="mtfVerdict"></p>
-          <button class="btn xs" type="button" id="mtfHourly" hidden>حمّل الإطار الساعي</button>
-          <details class="xi" id="xiBox"><summary>مؤشرات إضافية (اختيارية)</summary><ul id="xiList"></ul><p class="small muted" id="xiNote"></p></details>
-        </div>
-        <p class="edu">درجة الثقة تجمع قوة الأسباب المؤيدة والمعارضة، ونسبة نجاح نفس الإعداد على تاريخ السهم نفسه. أقل من 55% تعني إشارة ضعيفة.</p>
-        <ul class="reasons" id="reasons"></ul>
-        <div class="actions">
-          <button class="btn sm local-only" id="watchAdd" type="button">أضف إلى المراقبة</button>
-          <button class="btn sm" id="tradeFromView" type="button">سجّل صفقة</button>
-          <button class="btn sm ghost" id="exportBtn" type="button">حفظ التحليل كصورة</button><button class="btn sm ghost local-only" id="pdfBtn" type="button">تقرير PDF</button>
-        </div>
-      </div>
-      <details class="perf-box local-only" id="perfBox"><summary class="small">قارن أداء عدة أسهم على رسم واحد</summary>
-        <div class="ai-controls"><input id="perfList" type="text" class="ai-q" style="direction:ltr" placeholder="SR:2222, US:AAPL, CA:COMI" aria-label="الرموز">
-          <select id="perfRange" aria-label="الفترة"><option value="1y">سنة</option><option value="2y">سنتان</option><option value="5y">5 سنوات</option></select>
-          <button class="btn sm" id="perfGo" type="button">قارن</button></div>
-        <p class="small muted">حتى 4 رموز مع السهم المفتوح، تفصل بينها فاصلة. اكتب السوق قبل الرمز (SR أو CA أو US أو GOLD) إذا كان من سوق آخر.</p>
-        <canvas id="perfCv" style="width:100%;height:320px" aria-label="مقارنة أداء الأسهم" role="img"></canvas>
-        <div class="small" id="perfLegend"></div>
-      </details>
-      <div class="metrics">
-        <div class="metric"><span class="k">آخر سعر</span><span class="v" id="mPrice">—</span><span class="s" id="mPriceSub"></span></div>
-        <div class="metric buy"><span class="k"><i style="background:var(--buy)"></i>منطقة الشراء</span><span class="v" id="mBuy">—</span><span class="s" id="mBuySub"></span>
-          <p class="edu">أقرب منطقة دعم أسفل السعر: مستوى ارتد منه السعر أكثر من مرة. الشراء على دفعات داخلها أفضل من مطاردة السعر.</p></div>
-        <div class="metric sell"><span class="k"><i style="background:var(--sell)"></i>منطقة البيع (الهدف)</span><span class="v" id="mSell">—</span><span class="s" id="mSellSub"></span>
-          <p class="edu">أقرب مقاومة أعلى السعر: مستوى تراجع منه السعر سابقًا. مناسبة لجني الأرباح أو تخفيف الكمية.</p></div>
-        <div class="metric"><span class="k">وقف الخسارة المقترح</span><span class="v" id="mStop">—</span><span class="s" id="mStopSub"></span>
-          <p class="edu">السعر الذي تخرج عنده إذا كسر السعر منطقة الشراء، لتبقى الخسارة صغيرة ومحددة مسبقًا.</p></div>
-        <div class="metric"><span class="k">العائد إلى المخاطرة</span><span class="v" id="mRR">—</span><span class="s" id="mRRSub"></span>
-          <p class="edu">كم تربح مقابل كل ريال تخاطر به. 1 : 2 تعني ربحًا محتملًا ضعف الخسارة المحتملة.</p></div>
-        <div class="metric"><span class="k">مؤشر القوة النسبية <bdi class="small ar-only">(RSI)</bdi></span><span class="v" id="mRsi">—</span><div class="gauge" aria-hidden="true"><b id="mRsiBar" style="left:50%"></b></div><span class="s" id="mRsiSub"></span>
-          <p class="edu">يقيس سرعة الحركة من 0 إلى 100. فوق 70 تشبّع شرائي (ارتفع بسرعة)، وتحت 30 تشبّع بيعي (هبط بسرعة).</p></div>
-        <div class="metric"><span class="k">الاتجاه العام</span><span class="v" id="mTrend" style="font-family:var(--f-display)">—</span><span class="s" id="mTrendSub"></span>
-          <p class="edu">يُحكم عليه من موقع السعر بالنسبة للمتوسط المتحرك الطويل واتجاه ميله.</p></div>
-        <div class="metric"><span class="k">الماكد <bdi class="small ar-only">(MACD)</bdi></span><span class="v" id="mMacd">—</span><span class="s" id="mMacdSub"></span>
-          <p class="edu">يقيس الزخم بالفرق بين متوسطين أسيين. فوق خط الإشارة زخم صاعد، وتحته زخم هابط.</p>
-          <details class="explain"><summary>ما هو الماكد؟</summary>
-            <p>الماكد اختصار «تقارب وتباعد المتوسطات المتحركة»، ويقيس زخم السعر: قوة اندفاعه واتجاهه.</p>
-            <p>خط الماكد = متوسط السعر لـ 12 يومًا ناقص متوسطه لـ 26 يومًا. وخط الإشارة = متوسط خط الماكد لـ 9 أيام.</p>
-            <p>الرقم المعروض هو المسافة بين الخطين: الموجب زخم صاعد والسالب زخم هابط، وكلما كبر الرقم كانت الحركة أقوى. «يقوى» يعني أن المسافة اتسعت عن اليوم السابق، و«يضعف» أنها ضاقت، والضعف غالبًا يسبق تغيّر الاتجاه.</p>
-            <p>عبور الماكد فوق خط الإشارة إشارة شراء، وعبوره تحته إشارة بيع. لرؤيته على الرسم اختر «الماكد» في «اللوحة السفلية».</p>
-          </details></div>
-        <div class="metric local-only" id="mCmpCard"><span class="k" id="mCmpK">مقارنة بالمؤشر العام</span><span class="v" id="mCmp">—</span><span class="s" id="mCmpSub"></span>
-          <p class="edu">الفرق بين أداء السهم وأداء السوق كله في نفس الفترة. الموجب يعني أن السهم أقوى من السوق.</p></div>
-      </div>
-    </section>
-
-    <section class="card plan-card" id="planCard" hidden>
-      <div class="plan-head"><h2 id="planTitle">خطة السعر والقيمة العادلة</h2><span class="muted small" id="planNote"></span></div>
-      <div class="ladder" id="ladder"></div>
-      <div class="scale" id="planScale" aria-hidden="true"></div>
-      <div class="exit-plan" id="exitPlan"></div>
-      <p class="edu" id="planEdu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
-      <div class="plan-grid">
-        <div class="fair" id="fairBox"></div>
-        <div class="ai-box" id="aiBox">
-          <div class="ai-head"><b>رأي الذكاء الاصطناعي</b><span class="muted small" id="aiMeta"></span></div>
-          <input id="aiQ" type="text" class="ai-q" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
-          <div class="ai-way local-only">
-            <span class="ai-way-h">١. تحليل مباشر داخل البرنامج بمفتاحك</span>
-            <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
-            <div id="aiControls" class="ai-controls" hidden>
-              <select id="aiProv" aria-label="المساعد"></select>
-              <select id="aiTpl" aria-label="القالب" title="القارئ الذي يكتب له المساعد"></select>
-              <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
-              <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
-            </div>
-          </div>
-          <div class="ai-way">
-            <span class="ai-way-h"><span class="local-only">٢. </span>أو انسخ البرومبت والصقه في المساعد الذي تشترك فيه</span>
-            <div class="ai-controls"><button class="btn sm" id="aiCopy" type="button">نسخ البرومبت</button><span class="muted small">أو افتح مباشرة (يُنسخ تلقائيًا):</span></div>
-            <div class="ai-sites" id="aiSites"></div>
-            <p class="status" id="aiCopyNote" hidden></p>
-            <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
-          </div>
-          <div class="ai-out" id="aiOut" hidden></div>
-          <div class="ai-chat local-only" id="aiChatBox" hidden>
-            <div id="aiChat"></div>
-            <div class="ai-controls"><input id="aiChatQ" type="text" class="ai-q" placeholder="اسأل المساعد عن تحليله: مثلًا لماذا اخترت هذا الوقف؟"><button class="btn sm" id="aiChatGo" type="button">اسأل</button></div>
-          </div>
-          <details class="ai-hist local-only" id="aiCmp"><summary class="small">قارن مع سهم آخر</summary>
-            <div class="ai-controls"><select id="aiCmpEx" aria-label="السوق"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select>
-              <input id="aiCmpCode" type="text" class="ai-q" placeholder="رمز السهم الثاني، مثل 1120 أو COMI أو AAPL" style="direction:ltr"><button class="btn sm" id="aiCmpGo" type="button">قارن</button></div>
-            <div class="ai-out" id="aiCmpOut" hidden></div>
-          </details>
-          <details class="ai-hist local-only" id="aiHist"><summary class="small">سجل تحليلات هذا الأصل (<span id="aiHistN">0</span>)</summary><div id="aiHistList"></div></details>
-          <div class="ai-fill local-only" id="aiFill" hidden>
-            <div class="ai-head"><b>املأ الناقص بالمساعد الذكي</b><span class="badge off">من بحث المساعد</span></div>
-            <p class="small muted" id="aiFillMissing"></p>
-            <button class="btn sm" id="aiFillRun" type="button">ابحث عن الناقص</button>
-            <div id="aiFillOut" class="small"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <section class="card chart-card" id="chartCard">
       <div class="chart-head">
         <div class="chart-title"><h2 id="chartName">—</h2><button class="icon-btn" id="favBtn" type="button" aria-pressed="false" hidden>☆ أضف للمفضلة</button><span class="badge" id="srcBadge"></span><span class="badge" id="shariaBadge" hidden></span><span class="badge" id="purBadge" hidden></span><span class="badge seg" id="segBadge" hidden></span><span class="badge" id="ageBadge" hidden></span><span class="badge off" id="qualBadge" hidden></span><span class="badge off" id="offlineBadge" hidden>بيانات محفوظة</span></div>
@@ -314,8 +199,75 @@
         <span class="muted">اسحب الشارت للتنقل، واستخدم + و − أو عجلة الفأرة مع Ctrl للتكبير.</span>
       </div>
       <p class="edu">المناطق الخضراء دعم والحمراء مقاومة، وكلما كثرت لمسات السعر لها زادت قوتها. وسم «حجم» يعني أن تداولًا كثيفًا حدث داخل المنطقة، ووسم «أسبوعي» يعني أنها ظاهرة أيضًا على الإطار الأسبوعي، وكلاهما يقوّيها.</p>
+      <details class="perf-box local-only" id="perfBox"><summary class="small">قارن أداء عدة أسهم على رسم واحد</summary>
+        <div class="ai-controls"><input id="perfList" type="text" class="ai-q" style="direction:ltr" placeholder="SR:2222, US:AAPL, CA:COMI" aria-label="الرموز">
+          <select id="perfRange" aria-label="الفترة"><option value="1y">سنة</option><option value="2y">سنتان</option><option value="5y">5 سنوات</option></select>
+          <button class="btn sm" id="perfGo" type="button">قارن</button></div>
+        <p class="small muted">حتى 4 رموز مع السهم المفتوح، تفصل بينها فاصلة. اكتب السوق قبل الرمز (SR أو CA أو US أو GOLD) إذا كان من سوق آخر.</p>
+        <canvas id="perfCv" style="width:100%;height:320px" aria-label="مقارنة أداء الأسهم" role="img"></canvas>
+        <div class="small" id="perfLegend"></div>
+      </details>
     </section>
 
+    <section class="verdict" id="verdictSec">
+      <div class="stance" id="stance">
+        <span class="eyebrow">القراءة الآلية للوضع الحالي</span>
+        <strong id="stanceText">—</strong>
+        <p class="sub" id="stanceSub"></p>
+        <div class="conf">
+          <div class="conf-row"><span>درجة الثقة</span><b id="confVal">—</b></div>
+          <div class="meter"><i id="confBar" style="width:0%"></i></div>
+          <div class="conf-row"><span id="confNote"></span></div>
+        </div>
+        <p class="edu">درجة الثقة تجمع قوة الأسباب المؤيدة والمعارضة، ونسبة نجاح نفس الإعداد على تاريخ السهم نفسه. أقل من 55% تعني إشارة ضعيفة.</p>
+        <ul class="reasons" id="reasons"></ul>
+        <div class="actions">
+          <button class="btn sm local-only" id="watchAdd" type="button">أضف إلى المراقبة</button>
+          <button class="btn sm" id="tradeFromView" type="button">سجّل صفقة</button>
+          <button class="btn sm ghost" id="exportBtn" type="button">حفظ التحليل كصورة</button><button class="btn sm ghost local-only" id="pdfBtn" type="button">تقرير PDF</button>
+        </div>
+      </div>
+      <div class="verdict-side">
+      <div class="metrics">
+        <div class="metric"><span class="k">آخر سعر</span><span class="v" id="mPrice">—</span><span class="s" id="mPriceSub"></span></div>
+        <div class="metric buy"><span class="k"><i style="background:var(--buy)"></i>منطقة الشراء</span><span class="v" id="mBuy">—</span><span class="s" id="mBuySub"></span>
+          <p class="edu">أقرب منطقة دعم أسفل السعر: مستوى ارتد منه السعر أكثر من مرة. الشراء على دفعات داخلها أفضل من مطاردة السعر.</p></div>
+        <div class="metric sell"><span class="k"><i style="background:var(--sell)"></i>منطقة البيع (الهدف)</span><span class="v" id="mSell">—</span><span class="s" id="mSellSub"></span>
+          <p class="edu">أقرب مقاومة أعلى السعر: مستوى تراجع منه السعر سابقًا. مناسبة لجني الأرباح أو تخفيف الكمية.</p></div>
+        <div class="metric"><span class="k">وقف الخسارة المقترح</span><span class="v" id="mStop">—</span><span class="s" id="mStopSub"></span>
+          <p class="edu">السعر الذي تخرج عنده إذا كسر السعر منطقة الشراء، لتبقى الخسارة صغيرة ومحددة مسبقًا.</p></div>
+        <div class="metric"><span class="k">العائد إلى المخاطرة</span><span class="v" id="mRR">—</span><span class="s" id="mRRSub"></span>
+          <p class="edu">كم تربح مقابل كل ريال تخاطر به. 1 : 2 تعني ربحًا محتملًا ضعف الخسارة المحتملة.</p></div>
+        <div class="metric"><span class="k">مؤشر القوة النسبية <bdi class="small ar-only">(RSI)</bdi></span><span class="v" id="mRsi">—</span><div class="gauge" aria-hidden="true"><b id="mRsiBar" style="left:50%"></b></div><span class="s" id="mRsiSub"></span>
+          <p class="edu">يقيس سرعة الحركة من 0 إلى 100. فوق 70 تشبّع شرائي (ارتفع بسرعة)، وتحت 30 تشبّع بيعي (هبط بسرعة).</p></div>
+        <div class="metric"><span class="k">الاتجاه العام</span><span class="v" id="mTrend" style="font-family:var(--f-display)">—</span><span class="s" id="mTrendSub"></span>
+          <p class="edu">يُحكم عليه من موقع السعر بالنسبة للمتوسط المتحرك الطويل واتجاه ميله.</p></div>
+        <div class="metric"><span class="k">الماكد <bdi class="small ar-only">(MACD)</bdi></span><span class="v" id="mMacd">—</span><span class="s" id="mMacdSub"></span>
+          <p class="edu">يقيس الزخم بالفرق بين متوسطين أسيين. فوق خط الإشارة زخم صاعد، وتحته زخم هابط.</p>
+          <details class="explain"><summary>ما هو الماكد؟</summary>
+            <p>الماكد اختصار «تقارب وتباعد المتوسطات المتحركة»، ويقيس زخم السعر: قوة اندفاعه واتجاهه.</p>
+            <p>خط الماكد = متوسط السعر لـ 12 يومًا ناقص متوسطه لـ 26 يومًا. وخط الإشارة = متوسط خط الماكد لـ 9 أيام.</p>
+            <p>الرقم المعروض هو المسافة بين الخطين: الموجب زخم صاعد والسالب زخم هابط، وكلما كبر الرقم كانت الحركة أقوى. «يقوى» يعني أن المسافة اتسعت عن اليوم السابق، و«يضعف» أنها ضاقت، والضعف غالبًا يسبق تغيّر الاتجاه.</p>
+            <p>عبور الماكد فوق خط الإشارة إشارة شراء، وعبوره تحته إشارة بيع. لرؤيته على الرسم اختر «الماكد» في «اللوحة السفلية».</p>
+          </details></div>
+        <div class="metric local-only" id="mCmpCard"><span class="k" id="mCmpK">مقارنة بالمؤشر العام</span><span class="v" id="mCmp">—</span><span class="s" id="mCmpSub"></span>
+          <p class="edu">الفرق بين أداء السهم وأداء السوق كله في نفس الفترة. الموجب يعني أن السهم أقوى من السوق.</p></div>
+      </div>
+        <div class="mtf card-lite" id="mtfBox" hidden>
+          <h4>توافق الأطر الزمنية</h4>
+          <div id="mtfRows"></div>
+          <p class="mtf-verdict" id="mtfVerdict"></p>
+          <button class="btn xs" type="button" id="mtfHourly" hidden>حمّل الإطار الساعي</button>
+          <details class="xi" id="xiBox"><summary>مؤشرات إضافية (اختيارية)</summary><ul id="xiList"></ul><p class="small muted" id="xiNote"></p></details>
+        </div>
+      </div>
+        <div class="qual card-lite qual-wide" id="qualBox" hidden>
+          <div class="conf-row"><span>جودة الإعداد (للشراء)</span><b id="qualVal">—</b></div>
+          <div class="meter"><i id="qualBar" style="width:0%"></i></div>
+          <ul class="qual-parts" id="qualParts"></ul>
+          <p class="small muted" id="qualNote"></p>
+        </div>
+    </section>
     <section class="card panel" id="goldCard" hidden>
       <div class="panel-head"><h2>لوحة الذهب</h2><span class="muted small">عوامل تؤثر في سعر الذهب</span></div>
       <div class="kv" id="goldKv"></div>
@@ -326,7 +278,98 @@
       <p class="edu">نسبة الذهب إلى الفضة المرتفعة تعني أن الفضة رخيصة نسبيًا. مؤشر الدولار يتحرك غالبًا عكس الذهب. اجتماعات الفيدرالي الأمريكي تسبب تقلبات كبيرة في الذهب.</p>
     </section>
 
-    <section class="grid-2" id="levelsRow">
+    <section class="card plan-card" id="planCard" hidden>
+      <div class="plan-head"><h2 id="planTitle">خطة السعر والقيمة العادلة</h2><span class="muted small" id="planNote"></span></div>
+      <div class="ladder" id="ladder"></div>
+      <div class="scale" id="planScale" aria-hidden="true"></div>
+      <div class="exit-plan" id="exitPlan"></div>
+      <p class="edu" id="planEdu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
+      <div class="plan-grid">
+        <div class="fair" id="fairBox"></div>
+        <div class="ai-box" id="aiBox">
+          <div class="ai-head"><b>رأي الذكاء الاصطناعي</b><span class="muted small" id="aiMeta"></span></div>
+          <input id="aiQ" type="text" class="ai-q" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
+          <div class="ai-way local-only">
+            <span class="ai-way-h">١. تحليل مباشر داخل البرنامج بمفتاحك</span>
+            <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
+            <div id="aiControls" class="ai-controls" hidden>
+              <select id="aiProv" aria-label="المساعد"></select>
+              <select id="aiTpl" aria-label="القالب" title="القارئ الذي يكتب له المساعد"></select>
+              <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
+              <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
+            </div>
+          </div>
+          <div class="ai-way">
+            <span class="ai-way-h"><span class="local-only">٢. </span>أو انسخ البرومبت والصقه في المساعد الذي تشترك فيه</span>
+            <div class="ai-controls"><button class="btn sm" id="aiCopy" type="button">نسخ البرومبت</button><span class="muted small">أو افتح مباشرة (يُنسخ تلقائيًا):</span></div>
+            <div class="ai-sites" id="aiSites"></div>
+            <p class="status" id="aiCopyNote" hidden></p>
+            <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
+          </div>
+          <div class="ai-out" id="aiOut" hidden></div>
+          <div class="ai-chat local-only" id="aiChatBox" hidden>
+            <div id="aiChat"></div>
+            <div class="ai-controls"><input id="aiChatQ" type="text" class="ai-q" placeholder="اسأل المساعد عن تحليله: مثلًا لماذا اخترت هذا الوقف؟"><button class="btn sm" id="aiChatGo" type="button">اسأل</button></div>
+          </div>
+          <details class="ai-hist local-only" id="aiCmp"><summary class="small">قارن مع سهم آخر</summary>
+            <div class="ai-controls"><select id="aiCmpEx" aria-label="السوق"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select>
+              <input id="aiCmpCode" type="text" class="ai-q" placeholder="رمز السهم الثاني، مثل 1120 أو COMI أو AAPL" style="direction:ltr"><button class="btn sm" id="aiCmpGo" type="button">قارن</button></div>
+            <div class="ai-out" id="aiCmpOut" hidden></div>
+          </details>
+          <details class="ai-hist local-only" id="aiHist"><summary class="small">سجل تحليلات هذا الأصل (<span id="aiHistN">0</span>)</summary><div id="aiHistList"></div></details>
+          <div class="ai-fill local-only" id="aiFill" hidden>
+            <div class="ai-head"><b>املأ الناقص بالمساعد الذكي</b><span class="badge off">من بحث المساعد</span></div>
+            <p class="small muted" id="aiFillMissing"></p>
+            <button class="btn sm" id="aiFillRun" type="button">ابحث عن الناقص</button>
+            <div id="aiFillOut" class="small"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="info-grid local-only" id="infoRow">
+      <div class="rows-contents" id="fileRow" hidden>
+      <div class="card panel nine-card">
+        <div class="panel-head"><h2>تسعة أسئلة قبل القرار</h2><span class="muted small" id="nineNote"></span></div>
+        <ul class="list nine-list" id="nineList"></ul>
+        <p class="edu">كل سؤال جوابه من بيانات منشورة مع مصدرها. «يستحق القراءة» يعني أن هناك ما يُقرأ، لا أنه سبب للشراء أو البيع. وما لا تتوفر بياناته يُكتب أنه غير متوفر ولا يُخمَّن.</p>
+      </div>
+      <div class="card panel">
+        <div class="panel-head"><h2>ملف الشركة: الإفصاحات والداخليون</h2><span class="muted small" id="fileNote"></span></div>
+        <p class="small muted" id="fileWatch" hidden></p>
+        <ul class="list" id="fileList"></ul>
+        <div id="fileInsBox" hidden>
+          <h3 class="sub-h">تعاملات الداخليين (آخر سنة، من السوق)</h3>
+          <div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>الصفة</th><th>العملية</th><th>الأسهم</th><th>السعر</th><th>القيمة</th></tr></thead><tbody id="fileIns"></tbody></table></div>
+          <p class="small muted">تُعرض صفة المتعامل لا اسمه. المنح والخيارات لا تُحسب، فقط الشراء والبيع من السوق.</p>
+        </div>
+        <h3 class="sub-h">سجل الشركة</h3>
+        <div id="fileRec"></div>
+      </div>
+      </div>
+    <div class="local-only rows-contents" id="companyRow">
+      <div class="card panel">
+        <div class="panel-head"><h2>بيانات الشركة والأحداث</h2><span class="muted small" id="profileNote"></span></div>
+        <div class="kv" id="profileKv"></div>
+        <ul class="list" id="eventsList"></ul>
+        <details id="profileSummaryBox" hidden><summary>نبذة عن الشركة (بالإنجليزية)</summary><p class="small muted" id="profileSummary" dir="ltr" style="text-align:left;margin-top:6px"></p></details>
+        <p class="edu">مكرر الربحية = السعر ÷ ربح السهم السنوي، والأقل يعني سعرًا أرخص نسبيًا مقارنة بشركات القطاع. العائد التوزيعي = التوزيعات السنوية ÷ السعر.</p>
+      </div>
+      <div class="card panel">
+        <div class="panel-head"><h2>آخر الأخبار</h2>
+          <span class="actions"><input id="newsQ" class="small" style="font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:180px" aria-label="كلمات البحث عن الأخبار"><button class="btn xs" id="newsGo" type="button">بحث</button></span></div>
+        <ul class="list news" id="newsList"></ul>
+      </div>
+    </div>
+    </section>
+
+    <section class="card more-card" id="moreCard">
+      <div class="more-tabs" role="tablist" aria-label="تفاصيل التحليل">
+        <button type="button" role="tab" data-tab="lv">المستويات والإشارات</button>
+        <button type="button" role="tab" data-tab="bt">الاختبار التاريخي</button>
+        <button type="button" role="tab" data-tab="calc">حاسبة حجم الصفقة</button>
+      </div>
+    <section class="grid-2 tab-panel top-align" id="levelsRow" data-tab="lv">
       <div class="card panel">
         <div class="panel-head"><h2>سلّم المستويات</h2><span class="muted small">مرتبة من الأعلى إلى الأدنى</span></div>
         <div class="tbl-wrap">
@@ -342,21 +385,7 @@
       </div>
     </section>
 
-    <section class="grid-2 even" id="calcRow">
-      <div class="card panel">
-        <div class="panel-head"><h2>حاسبة حجم الصفقة</h2><span class="muted small">مبنية على وقف الخسارة</span></div>
-        <div class="form-grid">
-          <label class="field" for="cCap"><span>رأس المال</span><input id="cCap" type="number" min="0" step="100" inputmode="decimal"></label>
-          <label class="field" for="cRisk"><span>المخاطرة من رأس المال %</span><input id="cRisk" type="number" min="0.1" max="10" step="0.1" inputmode="decimal"></label>
-          <label class="field" for="cEntry"><span>سعر الدخول</span><input id="cEntry" type="number" step="0.01" inputmode="decimal"></label>
-          <label class="field" for="cStop"><span>وقف الخسارة</span><input id="cStop" type="number" step="0.01" inputmode="decimal"></label>
-          <label class="field" for="cTarget"><span>الهدف</span><input id="cTarget" type="number" step="0.01" inputmode="decimal"></label>
-          <label class="field" for="cFee"><span>العمولة % لكل اتجاه</span><input id="cFee" type="number" min="0" step="0.01" inputmode="decimal"></label>
-        </div>
-        <div class="kv" id="calcOut"></div>
-        <div class="actions"><button class="btn sm" id="calcReset" type="button">إعادة الأسعار من التحليل</button><button class="btn sm primary" id="calcToJournal" type="button">سجّل هذه الصفقة</button></div>
-        <p class="edu">القاعدة المهنية: لا تخاطر بأكثر من 1% إلى 2% من رأس مالك في الصفقة الواحدة. الحاسبة تحدد عدد الأسهم بحيث لا تتجاوز خسارتك هذه النسبة إذا ضُرب وقف الخسارة.</p>
-      </div>
+    <section class="tab-panel" id="calcRow" data-tab="bt">
       <div class="card panel">
         <div class="panel-head"><h2>الاختبار التاريخي</h2><span class="muted small" id="btNote">على تاريخ هذا الأصل نفسه</span></div>
         <div class="tbl-wrap">
@@ -383,42 +412,26 @@
         <p class="edu">يحاكي الاختبار ما كانت الأداة ستقوله في كل يوم من الماضي باستخدام البيانات المتاحة حتى ذلك اليوم فقط، ثم يقيس ماذا حدث بعدها.</p>
       </div>
     </section>
-
-    <section class="grid-2 even local-only" id="companyRow">
+    <section class="tab-panel calc-panel" id="calcBox" data-tab="calc">
       <div class="card panel">
-        <div class="panel-head"><h2>بيانات الشركة والأحداث</h2><span class="muted small" id="profileNote"></span></div>
-        <div class="kv" id="profileKv"></div>
-        <ul class="list" id="eventsList"></ul>
-        <details id="profileSummaryBox" hidden><summary>نبذة عن الشركة (بالإنجليزية)</summary><p class="small muted" id="profileSummary" dir="ltr" style="text-align:left;margin-top:6px"></p></details>
-        <p class="edu">مكرر الربحية = السعر ÷ ربح السهم السنوي، والأقل يعني سعرًا أرخص نسبيًا مقارنة بشركات القطاع. العائد التوزيعي = التوزيعات السنوية ÷ السعر.</p>
-      </div>
-      <div class="card panel">
-        <div class="panel-head"><h2>آخر الأخبار</h2>
-          <span class="actions"><input id="newsQ" class="small" style="font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:180px" aria-label="كلمات البحث عن الأخبار"><button class="btn xs" id="newsGo" type="button">بحث</button></span></div>
-        <ul class="list news" id="newsList"></ul>
-      </div>
-    </section>
-
-    <section class="grid-2 even local-only" id="fileRow" hidden>
-      <div class="card panel">
-        <div class="panel-head"><h2>تسعة أسئلة قبل القرار</h2><span class="muted small" id="nineNote"></span></div>
-        <ul class="list nine-list" id="nineList"></ul>
-        <p class="edu">كل سؤال جوابه من بيانات منشورة مع مصدرها. «يستحق القراءة» يعني أن هناك ما يُقرأ، لا أنه سبب للشراء أو البيع. وما لا تتوفر بياناته يُكتب أنه غير متوفر ولا يُخمَّن.</p>
-      </div>
-      <div class="card panel">
-        <div class="panel-head"><h2>ملف الشركة: الإفصاحات والداخليون</h2><span class="muted small" id="fileNote"></span></div>
-        <p class="small muted" id="fileWatch" hidden></p>
-        <ul class="list" id="fileList"></ul>
-        <div id="fileInsBox" hidden>
-          <h3 class="sub-h">تعاملات الداخليين (آخر سنة، من السوق)</h3>
-          <div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>الصفة</th><th>العملية</th><th>الأسهم</th><th>السعر</th><th>القيمة</th></tr></thead><tbody id="fileIns"></tbody></table></div>
-          <p class="small muted">تُعرض صفة المتعامل لا اسمه. المنح والخيارات لا تُحسب، فقط الشراء والبيع من السوق.</p>
+        <div class="panel-head"><h2>حاسبة حجم الصفقة</h2><span class="muted small">مبنية على وقف الخسارة</span></div>
+        <div class="form-grid">
+          <label class="field" for="cCap"><span>رأس المال</span><input id="cCap" type="number" min="0" step="100" inputmode="decimal"></label>
+          <label class="field" for="cRisk"><span>المخاطرة من رأس المال %</span><input id="cRisk" type="number" min="0.1" max="10" step="0.1" inputmode="decimal"></label>
+          <label class="field" for="cEntry"><span>سعر الدخول</span><input id="cEntry" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field" for="cStop"><span>وقف الخسارة</span><input id="cStop" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field" for="cTarget"><span>الهدف</span><input id="cTarget" type="number" step="0.01" inputmode="decimal"></label>
+          <label class="field" for="cFee"><span>العمولة % لكل اتجاه</span><input id="cFee" type="number" min="0" step="0.01" inputmode="decimal"></label>
         </div>
-        <h3 class="sub-h">سجل الشركة</h3>
-        <div id="fileRec"></div>
+        <div class="kv" id="calcOut"></div>
+        <div class="actions"><button class="btn sm" id="calcReset" type="button">إعادة الأسعار من التحليل</button><button class="btn sm primary" id="calcToJournal" type="button">سجّل هذه الصفقة</button></div>
+        <p class="edu">القاعدة المهنية: لا تخاطر بأكثر من 1% إلى 2% من رأس مالك في الصفقة الواحدة. الحاسبة تحدد عدد الأسهم بحيث لا تتجاوز خسارتك هذه النسبة إذا ضُرب وقف الخسارة.</p>
       </div>
     </section>
 
+
+    </section>
+    <details class="howto-box" id="howtoBox"><summary>كيف تُحسب المناطق، ومصادر البيانات</summary>
     <section class="howto">
       <div class="card panel">
         <h3>كيف تُحسب المناطق</h3>
@@ -440,6 +453,7 @@
         <p class="web-only">للجلب التلقائي والتنبيهات وماسح السوق استخدم نسخة سطح المكتب من البرنامج.</p>
       </div>
     </section>
+    </details>
   </section>
 
   <!-- ===================================================== WATCHLIST -->

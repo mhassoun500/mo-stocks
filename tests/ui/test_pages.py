@@ -141,3 +141,29 @@ def test_accessibility_wcag_aa(page_for, theme):
         if v:
             bad[view] = v
     assert bad == {}
+
+
+@pytest.mark.parametrize("width", [1440, 1920, 390])
+def test_analysis_layout_chart_first_details_in_tabs(page_for, width):
+    page = page_for("ar")
+    page.set_viewport_size({"width": width, "height": 1000 if width > 500 else 844})
+    open_stock(page, "SR", "1120")
+    y = lambda sel: page.evaluate("document.querySelector(%r).getBoundingClientRect().top+scrollY" % sel)
+    assert y("#chartCard") < y("#verdictSec") < y("#planCard") < y("#infoRow") < y("#moreCard"), "chart first, details last"
+    assert not page.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth"), "no sideways scrolling"
+    shown = lambda: page.evaluate("[...document.querySelectorAll('#moreCard .tab-panel')].filter(p=>p.offsetParent).map(p=>p.id)")
+    for tab, panel in (("bt", "calcRow"), ("calc", "calcBox"), ("lv", "levelsRow")):
+        page.click("#moreCard .more-tabs button[data-tab='%s']" % tab)
+        assert shown() == [panel]
+    if width >= 1440:
+        assert page.evaluate("document.body.scrollHeight") < 5200, "was about 6,700 before the new layout"
+        side, stance = page.evaluate("[document.querySelector('.verdict-side').getBoundingClientRect().height, document.querySelector('#stance').getBoundingClientRect().height]")
+        assert abs(side - stance) < 260, "the two halves of the verdict row are close in height"
+    assert page.errors == []
+
+
+def test_gold_hides_the_company_parts_and_keeps_its_news(page_for):
+    page = page_for("en")
+    open_stock(page, "GOLD", "")
+    assert page.is_hidden("#fileRow") and page.is_visible("#companyRow .card")
+    assert page.errors == []

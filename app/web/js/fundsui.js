@@ -108,7 +108,7 @@ async function loadFundStats(){
 /* ---------- fund card in the analysis view ---------- */
 function setFundSections(isFund,shortRecord){
   $('#fundCard').hidden=!isFund;
-  for(const id of ['verdictSec','chartCard','levelsRow','calcRow'])$('#'+id).hidden=!!(isFund&&shortRecord);
+  for(const id of ['verdictSec','chartCard','levelsRow','calcRow','calcBox'])$('#'+id).hidden=!!(isFund&&shortRecord);
 }
 function renderFundCard(){
   const j=S.meta;if(!S.isFund||!j){setFundSections(false);return;}
