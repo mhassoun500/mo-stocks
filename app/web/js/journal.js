@@ -5,7 +5,8 @@ const TAGS_BAD=['دخول متسرع','مطاردة السعر','تجاهل وق
 const dateInput=t=>{const d=new Date(t||Date.now());return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const parseDateInput=s=>s?Date.parse(s+'T12:00:00'):Date.now();
 
-async function loadJournal(){J.trades=await Store.get('journal',[]);J.loaded=true;renderJournal();purFetchEst();}
+async function loadJournal(){J.trades=await Store.get('journal',[]);J.loaded=true;renderJournal();purFetchEst();
+  if((location.hash||'')==='#journal')refreshJournalPrices();}  /* opened straight on this page: the refresh skipped while loading runs now */
 async function saveJournal(){if(!J.loaded)return;await Store.set('journal',J.trades);}
 function tradeR(t,px){const risk=t.entry-(t.stop||0);return t.stop&&risk>0?(px-t.entry)/risk:null;}
 
@@ -82,7 +83,7 @@ function renderJournal(){
   if(closed.length){const aw=adh.filter(t=>t.exit>t.entry).length;items.push('<li><span class="kind s">الالتزام بالخطة</span><span>في '+adh.length+' من '+closed.length+' صفقة'+(adh.length?'، ونجح منها '+Math.round(aw/adh.length*100)+'%':'')+'</span><span></span></li>');}
   if(wins.length&&losses.length){const aw=wins.reduce((s,t)=>s+(t.exit/t.entry-1),0)/wins.length,al=losses.reduce((s,t)=>s+(t.exit/t.entry-1),0)/losses.length;
     items.push('<li><span class="kind n">الربح مقابل الخسارة</span><span>متوسط الصفقة الرابحة '+NUM(pct(aw))+' والخاسرة '+NUM(pct(al))+(Math.abs(al)>aw?'. خسائرك أكبر من أرباحك، فالتزم بوقف الخسارة.':'.')+'</span><span></span></li>');}
-  renderPurify();
+  renderPurify();renderZakat();
   $('#jMistakes').innerHTML=items.join('')||'<li class="plain"><p class="empty">بعد إغلاق عدة صفقات ووسمها، ستظهر هنا أخطاؤك المتكررة وأثرها على نتائجك.</p></li>';
 }
 async function exportJournal(){
@@ -103,9 +104,8 @@ async function savePurPaid(){await Store.set('purifyPaid',PUR.paid);}
 /* cash dividends per share for each stock that is valued by a percentage (5 years of history, once per session) */
 async function purFetchDivs(){if(!LOCAL||PUR.busy)return;PUR.busy=true;const b=$('#purCalc');if(b){b.disabled=true;b.textContent=_t('جارٍ جلب التوزيعات…');}
   try{for(const t of J.trades){const k=purTradeKey(t);if(k in PUR.divs||!['SR','CA','US'].includes(t.ex))continue;
-      const e=purifyEntries(t.code,t.ex,true);if(!e.length||e[0].kind!=='pct'){continue;}
       const j=await api('/api/history',{code:t.code,ex:t.ex,range:'5y'}).catch(()=>null);PUR.divs[k]=j&&j.ok?(j.dividends||[]):null;}}
-  finally{PUR.busy=false;if(b){b.disabled=false;b.textContent=_t('احسب مع التوزيعات');}renderPurify();}}
+  finally{PUR.busy=false;if(b){b.disabled=false;b.textContent=_t('احسب مع التوزيعات');}renderPurify();renderZakat();}}
 async function purFetchEst(){if(!LOCAL)return;let changed=false;
   for(const t of J.trades){if(!['SR','CA','US'].includes(t.ex))continue;const k=purTradeKey(t);
     if(purifyEntries(t.code,t.ex,false).length||k in PUR_EST)continue;PUR_EST[k]={ok:false,loading:true};
@@ -144,8 +144,56 @@ function setupPurify(){
     if(b.dataset.confirm!=='1'){b.dataset.confirm='1';b.textContent=_t('تأكيد الحذف');setTimeout(()=>{if(b.isConnected){b.dataset.confirm='';b.textContent=_t('حذف');}},3500);return;}
     PUR.paid=PUR.paid.filter(p=>p.id!==b.dataset.purrm);await savePurPaid();renderPurify();});
   loadPurPaid().then(renderPurify);}
+/* ---------- zakat on open holdings, total return, and dividends you record yourself ---------- */
+const ZK={divLog:[]};
+const ZMETHOD={trade:'مضارب',invest:'مستثمر'};
+async function loadDivLog(){ZK.divLog=await Store.get('divLog',[]);}
+function manualDivs(id){const l=ZK.divLog.filter(d=>d.tradeId===id);return l.length?l.reduce((s,d)=>s+d.amount,0):null;}
+function renderZakat(){if(!$('#zakRows'))return;
+  const opt={method:P.zakat.method,cal:P.zakat.cal,saPays:P.zakat.saPays!==false,assets:zakatAssetsMap(P.zakat.assets),over:P.zakat.over||{}};
+  const money=(v,cur)=>NUM(fmtMoney.format(v))+' '+esc(purCurLabel(cur));
+  const open=J.trades.filter(t=>!t.exit),rows=open.map(t=>({t,z:zakatFor(t,opt)})).filter(x=>x.z.status!=='skip');
+  const ST={noprice:'اضغط «تحديث الأسعار»',company:'تدفعها الشركة',needassets:'أدخل الوعاء الزكوي للسهم'};
+  $('#zakRows').innerHTML=rows.length?rows.map(({t,z})=>{
+      const sel=t.ex==='GOLD'?'<span class="small">'+esc(_t('بالقيمة'))+'</span>':'<select class="zk-m" data-zid="'+esc(t.id)+'" aria-label="'+esc(_t('الطريقة'))+'">'+Object.keys(ZMETHOD).map(k=>'<option value="'+k+'"'+(z.method===k?' selected':'')+'>'+esc(_t(ZMETHOD[k]))+'</option>').join('')+'</select>';
+      const base=z.base!=null&&z.status==='ok'?money(z.base,z.cur):'<span class="muted small">'+esc(_t(ST[z.status]||'—'))+'</span>';
+      const zk=z.status==='ok'?'<b>'+money(z.zakat,z.cur)+'</b>':z.status==='company'?NUM('0')+' <span class="small muted">('+esc(_t('تدفعها الشركة'))+')</span>':'—';
+      return '<tr><td><b>'+esc(t.name||t.code)+'</b><br><span class="small muted num">'+esc(t.code)+'</span></td><td>'+NUM(fmtMoney.format(t.qty))+'</td><td>'+(t.last>0?NUM(fp(t.last)):'—')+'</td><td>'+sel+'</td><td>'+base+'</td><td>'+zk+'</td></tr>';}).join('')
+    :'<tr><td colspan="6" class="empty">'+esc(_t('لا توجد صفقات مفتوحة.'))+'</td></tr>';
+  const by={};for(const {z} of rows)if(z.status==='ok'){(by[z.cur]=by[z.cur]||{base:0,zakat:0}).base+=z.base;by[z.cur].zakat+=z.zakat;}
+  const k=(label,val,sub)=>'<div class="metric"><span class="k">'+label+'</span><span class="v">'+val+'</span>'+(sub?'<span class="s">'+sub+'</span>':'')+'</div>';
+  $('#zakTotals').innerHTML=Object.keys(by).map(c=>k(esc(_t('الزكاة'))+' ('+esc(purCurLabel(c))+')',money(by[c].zakat,c),esc(_t('على وعاء'))+' '+money(by[c].base,c))).join('');
+  const miss=rows.filter(x=>x.z.status==='noprice'||x.z.status==='needassets').length,zn=$('#zakNote');
+  zn.hidden=!miss;zn.innerHTML=miss?esc(_t('صفقات لم تدخل في المجموع لنقص السعر أو الوعاء الزكوي:'))+' '+NUM(miss)+'.':'';
+  /* total return, open and closed */
+  const all=J.trades.filter(t=>['SR','CA','US','GOLD'].includes(t.ex));
+  $('#retRows').innerHTML=all.length?all.map(t=>{const cur=t.ex==='GOLD'?(String(t.code).split('-')[1]||'USD'):PUR_CUR[t.ex],k2=purTradeKey(t);
+      const r=totalReturn(t,k2 in PUR.divs?PUR.divs[k2]:null,manualDivs(t.id));
+      const noDiv=t.ex==='GOLD';
+      const dv=noDiv?'<span class="muted small">'+esc(_t('لا يلزم'))+'</span>':r.divs==null?'<span class="muted small">'+esc(_t(k2 in PUR.divs?'تعذّرت القراءة':'اضغط «احسب مع التوزيعات»'))+'</span>':money(r.divs,cur)+(r.src==='manual'?' <span class="small muted">('+esc(_t('يدوي'))+')</span>':'');
+      const tot=r.total==null?'—':'<b style="color:'+(r.total>=0?'var(--up)':'var(--down)')+'">'+money(r.total,cur)+'</b> '+(r.pct!=null?chgSpan(r.pct,1):'')+(r.divs==null&&!noDiv?'<br><span class="small muted">'+esc(_t('بدون التوزيعات'))+'</span>':'');
+      return '<tr><td><b>'+esc(t.name||t.code)+'</b>'+(t.exit?' <span class="tag">'+esc(_t('مغلقة'))+'</span>':'')+'</td><td>'+money(r.cost,cur)+'</td><td>'+(r.value!=null?money(r.value,cur):'—')+'</td><td>'+(r.gain!=null?money(r.gain,cur):'—')+'</td><td>'+dv+'</td><td>'+tot+'</td></tr>';}).join('')
+    :'<tr><td colspan="6" class="empty">'+esc(_t('لا توجد أسهم في سجل صفقاتك بعد.'))+'</td></tr>';
+  /* dividends you recorded */
+  const sel=$('#dvTrade'),cur=sel.value;sel.innerHTML=J.trades.filter(t=>t.ex!=='GOLD').map(t=>'<option value="'+esc(t.id)+'">'+esc((t.name||t.code)+' · '+fmtDate.format(t.date))+'</option>').join('');if(cur)sel.value=cur;
+  const name=id=>{const t=J.trades.find(x=>x.id===id);return t?(t.name||t.code):'—';};
+  $('#dvList').innerHTML=ZK.divLog.length?ZK.divLog.slice().sort((a,b)=>b.date-a.date).map(d=>{const t=J.trades.find(x=>x.id===d.tradeId);
+      return '<li><span class="kind s">'+money(d.amount,t?PUR_CUR[t.ex]:'')+'</span><span>'+esc(name(d.tradeId))+' · '+fmtDate.format(d.date)+'</span><span><button class="btn xs ghost danger" type="button" data-dvrm="'+d.id+'">'+esc(_t('حذف'))+'</button></span></li>';}).join('')
+    :'<li class="plain"><p class="empty">'+esc(_t('لم تسجّل توزيعات بنفسك.'))+'</p></li>';}
+function setupZakat(){
+  $('#dvDate').value=dateInput();
+  ['#zMethod','#zCal','#zSaPays','#zAssets'].forEach(s=>$(s).addEventListener('change',()=>setTimeout(renderZakat,0)));
+  $('#zakRows').addEventListener('change',e=>{const s=e.target.closest('.zk-m');if(!s)return;P.zakat.over=Object.assign({},P.zakat.over,{[s.dataset.zid]:s.value});savePrefs();renderZakat();});
+  $('#dvAdd').addEventListener('click',async()=>{const amount=+$('#dvAmt').value,tradeId=$('#dvTrade').value;
+    if(!tradeId){toast(_t('سجّل صفقة أولًا.'));return;}if(!(amount>0)){toast(_t('أدخل مبلغًا أكبر من صفر.'));return;}
+    ZK.divLog.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),tradeId,amount,date:parseDateInput($('#dvDate').value)});
+    await Store.set('divLog',ZK.divLog);$('#dvAmt').value='';renderZakat();toast(_t('سُجّل التوزيع.'));});
+  $('#dvList').addEventListener('click',async e=>{const b=e.target.closest('[data-dvrm]');if(!b)return;
+    if(b.dataset.confirm!=='1'){b.dataset.confirm='1';b.textContent=_t('تأكيد الحذف');setTimeout(()=>{if(b.isConnected){b.dataset.confirm='';b.textContent=_t('حذف');}},3500);return;}
+    ZK.divLog=ZK.divLog.filter(d=>d.id!==b.dataset.dvrm);await Store.set('divLog',ZK.divLog);renderZakat();});
+  loadDivLog().then(renderZakat);}
 function setupJournal(){
-  setupPurify();
+  setupPurify();setupZakat();
   $('#jNew').addEventListener('click',()=>openTradeForm({}));
   $('#fSave').addEventListener('click',saveTradeForm);
   $('#fCancel').addEventListener('click',()=>{$('#jForm').hidden=true;J.closing=null;});

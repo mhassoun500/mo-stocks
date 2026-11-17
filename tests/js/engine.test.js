@@ -575,3 +575,45 @@ test('journal: opening the app straight on the portfolio page cannot wipe the sa
   await JT.saveJournal();
   assert.equal(JSON.parse(JT.__store['stock-zones-v2:journal']).length, 0, 'once loaded, saving works as before');
 });
+
+/* ---------- zakat and total return (phase 3 step 4) ---------- */
+test('zakat: trader pays on market value, at the hijri or gregorian rate', () => {
+  const t = { id: 'a', ex: 'CA', code: 'COMI', qty: 100, entry: 70, last: 80, date: 1 };
+  const h = T.zakatFor(t, { method: 'trade', cal: 'hijri' });
+  assert.equal(h.status, 'ok'); assert.equal(h.base, 8000); assert.equal(+h.zakat.toFixed(6), 200); assert.equal(h.cur, 'EGP');
+  const g = T.zakatFor(t, { method: 'trade', cal: 'greg' });
+  assert.ok(Math.abs(g.zakat / 8000 - 0.02577) < 0.00001, 'gregorian rate is about 2.577%');
+  assert.equal(T.zakatFor(Object.assign({}, t, { last: null }), { method: 'trade' }).status, 'noprice', 'no price, no number');
+});
+test('zakat: investor pays on the zakatable assets per share, never guessed', () => {
+  const t = { id: 'b', ex: 'US', code: 'AAPL', qty: 10, entry: 180, last: 230, date: 1 };
+  assert.equal(T.zakatFor(t, { method: 'invest' }).status, 'needassets');
+  const r = T.zakatFor(t, { method: 'invest', assets: T.zakatAssetsMap('aapl 9.8\n١١٢٠ ٤') });
+  assert.equal(r.base, 98); assert.equal(+r.zakat.toFixed(6), 2.45);
+  assert.equal(T.zakatAssetsMap('١١٢٠ ٤')['1120'], 4, 'Arabic digits are read');
+});
+test('zakat: Saudi companies pay for their investors unless you turn it off; your entry and choices still win', () => {
+  const t = { id: 'c', ex: 'SR', code: '2050', qty: 100, entry: 20, last: 25, date: 1 };
+  const c = T.zakatFor(t, { method: 'invest', saPays: true });
+  assert.equal(c.status, 'company'); assert.equal(c.zakat, 0);
+  assert.equal(T.zakatFor(t, { method: 'invest', saPays: false }).status, 'needassets');
+  assert.equal(T.zakatFor(t, { method: 'invest', saPays: true, assets: { '2050': 6 } }).base, 600, 'an entered base is used');
+  assert.equal(T.zakatFor(t, { method: 'invest', over: { c: 'trade' } }).base, 2500, 'one holding can be set as trading');
+});
+test('zakat: gold always at value in its own currency; closed trades and funds are left out', () => {
+  const g = T.zakatFor({ id: 'g', ex: 'GOLD', code: 'XAU-SAR-21', qty: 50, entry: 300, last: 320, date: 1 }, { method: 'invest' });
+  assert.equal(g.method, 'trade'); assert.equal(g.base, 16000); assert.equal(g.cur, 'SAR');
+  assert.equal(T.zakatFor({ id: 'x', ex: 'SR', code: '2050', qty: 1, entry: 1, last: 1, exit: 2, exitDate: 2, date: 1 }, {}).status, 'closed');
+  assert.equal(T.zakatFor({ id: 'f', ex: 'FUND', code: '1', qty: 1, entry: 1, last: 1, date: 1 }, {}).status, 'skip');
+});
+test('total return adds the dividends received while held to the price change', () => {
+  const D0 = Date.UTC(2025, 0, 1), d = 864e5;
+  const t = { id: 'r', ex: 'SR', code: '2050', qty: 100, entry: 20, date: D0, exit: 22, exitDate: D0 + 200 * d };
+  const divs = [[D0 - d, 5], [D0 + 30 * d, 0.5], [D0 + 300 * d, 9]];
+  const r = T.totalReturn(t, divs, null);
+  assert.equal(r.cost, 2000); assert.equal(r.gain, 200); assert.equal(r.divs, 50); assert.equal(r.total, 250); assert.equal(r.pct, 0.125); assert.equal(r.src, 'data');
+  const m = T.totalReturn(t, divs, 80);
+  assert.equal(m.divs, 80); assert.equal(m.src, 'manual', 'what you recorded replaces what was read');
+  const n = T.totalReturn(Object.assign({}, t, { exit: null, exitDate: null, last: null }), null, null);
+  assert.equal(n.total, null, 'no price: no total, not zero');
+});

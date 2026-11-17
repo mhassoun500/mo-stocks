@@ -103,6 +103,7 @@ const PREF_DEFAULTS={
   telegram:{enabled:false,chatId:''},
   report:{enabled:false,time:'09:30',days:[0,1,2,3,4]},
   sharia:{ok:'',no:'',asOf:'',purify:'',gains:true},
+  zakat:{method:'invest',cal:'hijri',saPays:true,assets:'',over:{}},
   calc:{capital:100000,risk:1,fee:0.15},
   egpLocal:{},
   ai:{provider:'claude',models:{},base:'',web:true},
@@ -217,6 +218,29 @@ function purifyTotals(rows,paid){const by={};
   for(const p of paid||[]){if(!(p.amount>0))continue;(by[p.cur]=by[p.cur]||{due:0,paid:0}).paid+=p.amount;}
   for(const k in by)by[k].left=Math.max(0,by[k].due-by[k].paid);
   return by;}
+/* zakat on the holdings still open, at today's price. Two methods, as the Sharia boards describe them:
+   trader   ('trade')  : market value x rate
+   investor ('invest') : zakatable assets per share (from the company's statements, entered by you) x shares x rate;
+                         Saudi listed companies pay their zakat to the Zakat, Tax and Customs Authority, so a Saudi
+                         investor owes nothing more on them unless you turn that off. Gold is always valued at market. */
+const ZAKAT_RATE={hijri:0.025,greg:0.025*365.2425/354.367};
+function zakatAssetsMap(text){const m={};String(text||'').split(/[\n;،]+/).forEach(l=>{const r=normDigits(l).trim().match(/^([A-Za-z0-9.]+)\s*[=:\s]\s*(\d+(?:\.\d+)?)$/);if(r)m[r[1].toUpperCase().replace(/\.(SR|CA)$/,'')]=+r[2];});return m;}
+function zakatFor(t,opt){opt=opt||{};const rate=ZAKAT_RATE[opt.cal]||ZAKAT_RATE.hijri,cur=t.ex==='GOLD'?(String(t.code).split('-')[1]||'USD'):(PUR_CUR[t.ex]||''),r={cur,rate,base:null,zakat:null,method:null};
+  if(t.exit){r.status='closed';return r;}
+  if(!['SR','CA','US','GOLD'].includes(t.ex)){r.status='skip';return r;}
+  const m=t.ex==='GOLD'?'trade':((opt.over||{})[t.id]||opt.method||'invest');r.method=m;
+  if(m==='trade'){if(!(t.last>0)){r.status='noprice';return r;}r.base=t.qty*t.last;r.zakat=r.base*rate;r.status='ok';return r;}
+  const a=(opt.assets||{})[purCode(t.code)];
+  if(a!=null){r.base=t.qty*a;r.zakat=r.base*rate;r.status='ok';return r;}
+  if(t.ex==='SR'&&opt.saPays!==false){r.base=0;r.zakat=0;r.status='company';return r;}
+  r.status='needassets';return r;}
+/* total return of one trade: price change plus the cash dividends received while it was held */
+function totalReturn(t,divs,manual,now){const end=t.exit?t.exitDate:(now||Date.now()),px=t.exit||t.last,cost=t.qty*t.entry;
+  const r={cost,value:px>0?t.qty*px:null,divs:null,src:null};
+  if(manual!=null){r.divs=manual;r.src='manual';}
+  else if(divs){r.divs=divs.filter(d=>d[0]>=t.date&&d[0]<=end&&d[1]>0).reduce((s,d)=>s+d[1],0)*t.qty;r.src='data';}
+  r.gain=r.value!=null?r.value-cost:null;
+  r.total=r.gain!=null?r.gain+(r.divs||0):null;r.pct=r.total!=null&&cost>0?r.total/cost:null;return r;}
 function shariaInfo(code,ex){const i=shariaInfo0(code,ex);if(!i)return i;const p=purifyEntries(code,ex,false);return p.length?Object.assign({},i,{pur:p}):i;}
 function shariaInfo0(code,ex){const u=shariaStatus(code);
   if(u)return{s:u,src:'list',word:SH_WORD[u],count:'',head:P.sharia.asOf?'قائمتك · '+P.sharia.asOf:'قائمتك في الإعدادات',refs:[['قائمتك',u==='ok'?'1':'0']]};
