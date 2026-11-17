@@ -2,6 +2,9 @@
 
 برنامج سطح مكتب لويندوز وماك للتحليل الفني للأسهم والذهب: يجلب الأسعار تلقائيًا، ويحدد مناطق الدعم والمقاومة والشراء والبيع، ويرسل التنبيهات.
 
+## 2.14.2
+- ملف الشركة: سطر واضح يقول متى قرأ البرنامج إعلانات السوق آخر مرة وهل نجحت القراءة (Company file: clear line on the last market reading and whether it worked).
+
 ## 2.14.1
 - إعداد اختياري: بريد التعريف لدى SEC لعرض تعاملات الداخليين الأمريكية (Optional SEC contact e-mail for US insider dealings).
 - إصلاح: موعد النتائج المتوقع لم يكن يظهر عند وجود إفصاح نتائج منفرد (Fix: expected results date was hidden by a one-off filing).

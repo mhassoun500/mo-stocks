@@ -113,6 +113,9 @@ def test_refresh_reads_both_markets_and_logs_failures(monkeypatch):
     assert f["ok"] and not f["complete"] and f["watching"] and f["items"][0]["type"] == "board"
     assert f["link"].endswith("cs=2330") and f["record"]["n"] == 1
     assert filings.company_file("1120", "SR")["items"] == []
+    assert f["status"]["ok"] and f["status"]["n"] == 2, "the last reading is shown, so an empty list is understood"
+    eg = filings.company_file("COMI", "CA")
+    assert eg["status"] == {"at": eg["status"]["at"], "ok": False, "why": "OSError"} and not eg["watching"]
 
 
 # ---------------------------------------------------------------- SEC

@@ -74,13 +74,20 @@ async function loadCompanyFile(seq){S.cfile=null;const row=$('#fileRow');if(!row
   row.hidden=false;$('#fileNote').textContent=_t('جارٍ التحميل…');$('#fileList').innerHTML='';$('#fileIns').innerHTML='';$('#fileRec').innerHTML='';renderNine();
   const j=await api('/api/filings',{code:purCode(S.code),ex:S.ex}).catch(()=>null);if(seq!==S.loadSeq)return;
   S.cfile=j&&j.ok?j:{ok:false,error:j&&j.error||'تعذّر جلب ملف الشركة.'};renderCompanyFile();renderNine();}
+/* Saudi and Egyptian markets give only the newest announcements of the whole market, so the app reads them every
+   10 minutes and keeps them. This line says plainly whether the last reading worked, so an empty list is understood. */
+function feedStatusHTML(j){const st=j.status,site=_t(j.ex==='SR'?'موقع تداول':'موقع البورصة المصرية');
+  if(!st)return esc(_t('يبدأ البرنامج قراءة إعلانات السوق بعد دقيقة من فتحه، ثم كل 10 دقائق.'));
+  if(!st.ok)return '<b>'+esc(_t('تعذّرت قراءة إعلانات السوق'))+'</b> ('+NUM(fmtLocalTime.format(st.at))+'). '+esc(_t('سيحاول البرنامج مرة أخرى بعد 10 دقائق.'));
+  return esc(_t('آخر قراءة لإعلانات السوق'))+': '+NUM(fmtLocalTime.format(st.at))+' ('+NUM(st.n)+' '+esc(_t('إعلانًا للسوق كله'))+'). '
+    +esc(site)+' '+esc(_t('لا يعطي الإعلانات القديمة، لذلك تظهر هنا الإعلانات منذ'))+' '+NUM(fmtDate.format(j.since||st.at))+' '+esc(_t('فقط.'));}
 function renderCompanyFile(){const j=S.cfile;if(!j)return;
   if(!j.ok){$('#fileNote').textContent=_t(j.error||'');return;}
   $('#fileNote').innerHTML=esc(_t('المصدر'))+': <a href="'+esc(j.link)+'" data-url="'+esc(j.link)+'">'+esc(_t(j.source))+'</a>';
   $('#fileWatch').hidden=j.complete;
-  if(!j.complete)$('#fileWatch').textContent=j.watching?_t('هذا السوق لا يتيح سجل شركة واحدة، فالبرنامج يقرأ إعلانات السوق كل 10 دقائق أثناء تشغيله ويحفظها. السجل هنا منذ')+' '+fmtDate.format(j.since)+'.':_t('سيبدأ البرنامج قراءة إعلانات هذا السوق بعد دقيقة من تشغيله، ثم كل 10 دقائق.');
+  if(!j.complete)$('#fileWatch').innerHTML=feedStatusHTML(j);
   $('#fileList').innerHTML=(j.items||[]).slice(0,15).map(x=>'<li><span class="kind n">'+esc(_t(FILE_TYPE[x.type]||FILE_TYPE.other))+'</span><span><a href="'+esc(x.url)+'" data-url="'+esc(x.url)+'">'+fileTitle(x)+'</a></span><span class="small muted">'+(x.date?(x.dated?'':esc(_t('رُصد في'))+' ')+fmtDate.format(x.date):'')+'</span></li>').join('')
-    ||'<li class="plain"><p class="empty">'+esc(_t(j.complete?'لا توجد إفصاحات.':'لم يُرصد إفصاح لهذه الشركة بعد.'))+'</p></li>';
+    ||'<li class="plain"><p class="empty">'+esc(_t(j.complete?'لا توجد إفصاحات.':'لا يوجد إعلان لهذه الشركة منذ بدأ البرنامج المتابعة.'))+'</p></li>';
   const ins=j.insiders;
   $('#fileInsBox').hidden=!ins&&j.insidersNeed!=='contact';
   if(!ins&&j.insidersNeed==='contact')$('#fileIns').innerHTML='<tr><td colspan="6" class="empty">'+esc(_t('لعرضها أضف بريد التعريف لدى SEC في الإعدادات > مصادر البيانات.'))+'</td></tr>';

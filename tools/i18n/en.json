@@ -2032,5 +2032,15 @@
  "لعرضها أضف بريد التعريف لدى SEC في الإعدادات > مصادر البيانات.": "To see them, add the SEC contact e-mail in Settings > Data sources.",
  "تعاملات الداخليين الأمريكية (اختياري)": "US insider dealings (optional)",
  "أرشيف هيئة الأوراق المالية الأمريكية (SEC) لا يجيب البرامج إلا إذا عرّفت نفسها ببريد للتواصل. اكتب بريدًا هنا لتظهر تعاملات مسؤولي الشركات الأمريكية في «ملف الشركة». يُرسل البريد إلى SEC وحدها مع كل طلب، ولا يُرسل إلى أي جهة أخرى. وبدونه تبقى بقية الإفصاحات تعمل.": "The SEC's archive only answers programs that name themselves with a contact e-mail. Enter one here to see US company insiders' dealings in the company file. The e-mail is sent to the SEC alone with each request, and nowhere else. Without it the other disclosures still work.",
- "بريد التعريف لدى SEC": "Contact e-mail for the SEC"
+ "بريد التعريف لدى SEC": "Contact e-mail for the SEC",
+ "موقع تداول": "The Saudi Exchange site",
+ "موقع البورصة المصرية": "The EGX site",
+ "يبدأ البرنامج قراءة إعلانات السوق بعد دقيقة من فتحه، ثم كل 10 دقائق.": "The app starts reading the market's announcements a minute after it opens, then every 10 minutes.",
+ "تعذّرت قراءة إعلانات السوق": "Could not read the market's announcements",
+ "سيحاول البرنامج مرة أخرى بعد 10 دقائق.": "The app will try again in 10 minutes.",
+ "آخر قراءة لإعلانات السوق": "Last reading of the market's announcements",
+ "إعلانًا للسوق كله": "announcements for the whole market",
+ "لا يعطي الإعلانات القديمة، لذلك تظهر هنا الإعلانات منذ": "does not give old announcements, so this shows announcements since",
+ "فقط.": "only.",
+ "لا يوجد إعلان لهذه الشركة منذ بدأ البرنامج المتابعة.": "No announcement from this company since the app started following."
 }

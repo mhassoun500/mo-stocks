@@ -675,7 +675,7 @@ test('statistics: groups by setup, market, holding period and tag, best and wors
 });
 
 /* ---------- nine checks before deciding (step 6) ---------- */
-const NC = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'company'], ['nineChecks']);
+const NC = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'company'], ['nineChecks', 'feedStatusHTML']);
 const NOW = Date.UTC(2026, 10, 17), D1 = 864e5;
 const series = (n, f) => Array.from({ length: n }, (_, i) => ({ t: NOW - (n - i) * D1, o: 1, h: 1, l: 1, c: f(i), v: 50000 }));
 const byKey = l => Object.fromEntries([...l].map(x => [x.key, x]));
@@ -706,4 +706,12 @@ test('nine checks: banks are not judged on debt, and an estimated results date i
   assert.equal(c.insiders.status, 'usual'); assert.ok(c.insiders.partial, 'a record that only starts when the app began watching is marked partial');
   assert.equal(c.coming.status, 'usual'); assert.equal(c.coming.facts[0][1], NOW + 60 * D1);
   assert.equal(c.volatility.status, 'na', '30 sessions are too few');
+});
+
+test('company file: the market reading says whether it worked, so an empty list is understood', () => {
+  const at = Date.UTC(2026, 10, 17, 17, 40);
+  assert.match(NC.feedStatusHTML({ ex: 'SR', status: null }), /بعد دقيقة/);
+  assert.match(NC.feedStatusHTML({ ex: 'CA', status: { at, ok: false, why: 'HTTPError' } }), /تعذّرت قراءة إعلانات السوق/);
+  const ok = NC.feedStatusHTML({ ex: 'SR', since: at, status: { at, ok: true, n: 25 } });
+  assert.match(ok, /آخر قراءة لإعلانات السوق/); assert.match(ok, /25/); assert.match(ok, /موقع تداول/);
 });

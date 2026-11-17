@@ -213,6 +213,7 @@ def refresh_feeds():
             new = REG.call_one(cid, "filings", op="feed")
         except Exception as e:
             core.record("WARN", "filings.feed %s" % ex, e)
+            core.cache_put("feedst|" + ex, {"at": int(time.time() * 1000), "ok": False, "why": type(e).__name__})
             res[ex] = False
             continue
         with FEED_LOCK:
@@ -220,6 +221,7 @@ def refresh_feeds():
             merged = merge_feed((old or {}).get("items"), new)
             since = (old or {}).get("since") or int(time.time() * 1000)
             core.cache_put("feed|" + ex, {"items": merged, "since": since, "at": int(time.time() * 1000)})
+        core.cache_put("feedst|" + ex, {"at": int(time.time() * 1000), "ok": True, "n": len(new)})
         res[ex] = len(new)
     return res
 
@@ -264,5 +266,6 @@ def company_file(code, ex):
     feed, _ = core.cache_get("feed|" + ex)
     items = [dict(x, type=classify(x["title"])) for x in (feed or {}).get("items") or [] if x["code"] == c]
     out.update(source="تداول السعودية" if ex == "SR" else "البورصة المصرية", items=items[:40], record=record_of(items),
-               since=(feed or {}).get("since"), complete=False, watching=bool(feed))
+               since=(feed or {}).get("since"), complete=False, watching=bool(feed),
+               status=core.cache_get("feedst|" + ex)[0])      # the last reading, so "nothing yet" is told apart from "could not read"
     return out
