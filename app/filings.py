@@ -183,9 +183,14 @@ def record_of(items, now=None):
         for d in res:
             k = max(1, int((now - d) // year) + 1)
             cands.append(d + k * year)
-        nxt = min(c for c in cands if c > now)
-        near = [c for c in cands if abs(c - nxt) < 21 * 86400000]
-        if len(near) >= 2:          # one past date is a coincidence, not a habit
+        win = 21 * 86400000
+        for nxt in sorted(c for c in cands if c > now):
+            near = [c for c in cands if abs(c - nxt) < win]
+            if len(near) >= 2:      # one past date is a coincidence, not a habit: an odd one-off filing is skipped
+                break
+        else:
+            near = []
+        if near:
             due = {"date": int(sum(near) / len(near)), "from": len(near),
                    "basis": "متوسط مواعيد إعلان النتائج في نفس الفترة من الأعوام السابقة"}
     return {"n": len(items), "byType": by, "first": min(dated) if dated else None, "last": max(dated) if dated else None, "due": due}

@@ -1,3 +1,4 @@
+import time
 """Step 6: company file: disclosures (Saudi Exchange, EGX, SEC EDGAR), insiders (Form 4), record and expected results date."""
 import calendar
 import copy
@@ -210,3 +211,14 @@ def test_route(server, monkeypatch):
     c = http.client.HTTPConnection("127.0.0.1", server, timeout=10)
     c.request("GET", "/api/filings?code=COMI&ex=CA", headers={"Host": "127.0.0.1:%d" % server, "X-Mo-Token": main.API_TOKEN})
     assert json.loads(c.getresponse().read()) == {"ok": True, "code": "COMI", "ex": "CA"}
+
+
+def test_a_one_off_filing_does_not_hide_the_usual_results_date():
+    import calendar
+    now = calendar.timegm((2026, 11, 17, 0, 0, 0)) * 1000
+    day = lambda y, m, d: calendar.timegm((y, m, d, 0, 0, 0)) * 1000
+    items = [{"date": day(y, m, d), "type": "results"} for y in (2023, 2024, 2025) for m, d in ((1, 30), (5, 2), (7, 31), (10, 30))]
+    items += [{"date": day(2026, m, d), "type": "results"} for m, d in ((1, 29), (4, 30), (7, 30), (10, 29))]
+    items.append({"date": day(2025, 11, 20), "type": "results"})        # an amended report, once
+    due = filings.record_of(items, now)["due"]
+    assert due and time.gmtime(due["date"] / 1000)[:2] == (2027, 1) and due["from"] >= 3

@@ -4,6 +4,7 @@
 
 ## 2.14.1
 - إعداد اختياري: بريد التعريف لدى SEC لعرض تعاملات الداخليين الأمريكية (Optional SEC contact e-mail for US insider dealings).
+- إصلاح: موعد النتائج المتوقع لم يكن يظهر عند وجود إفصاح نتائج منفرد (Fix: expected results date was hidden by a one-off filing).
 
 ## الأسواق
 - السعودية (تداول) برقم السهم مثل `1120`، ومصر برمز السهم مثل `COMI`، والأسواق الأمريكية مثل `AAPL`.
