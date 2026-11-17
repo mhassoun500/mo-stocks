@@ -265,6 +265,8 @@ TV_INDEX = {"^TASI.SR": "TADAWUL:TASI", "^CASE30": "EGX:EGX30", "^GSPC": "SP:SPX
 TV_METAL = {"GC=F": "TVC:GOLD", "SI=F": "TVC:SILVER", "SAR=X": "FX_IDC:USDSAR", "EGP=X": "FX_IDC:USDEGP"}
 ACCOUNT = tvdata.Account(os.path.join(DATA_DIR, "tv_session.bin"))
 AI = ai_providers.AIHub(DATA_DIR)
+import ai_usage  # noqa: E402
+AI.meter = ai_usage
 
 
 def prefer_tv():

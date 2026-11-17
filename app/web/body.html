@@ -172,6 +172,7 @@
             <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
             <div id="aiControls" class="ai-controls" hidden>
               <select id="aiProv" aria-label="المساعد"></select>
+              <select id="aiTpl" aria-label="القالب" title="القارئ الذي يكتب له المساعد"></select>
               <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
               <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
             </div>
@@ -184,6 +185,16 @@
             <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
           </div>
           <div class="ai-out" id="aiOut" hidden></div>
+          <div class="ai-chat local-only" id="aiChatBox" hidden>
+            <div id="aiChat"></div>
+            <div class="ai-controls"><input id="aiChatQ" type="text" class="ai-q" placeholder="اسأل المساعد عن تحليله: مثلًا لماذا اخترت هذا الوقف؟"><button class="btn sm" id="aiChatGo" type="button">اسأل</button></div>
+          </div>
+          <details class="ai-hist local-only" id="aiCmp"><summary class="small">قارن مع سهم آخر</summary>
+            <div class="ai-controls"><select id="aiCmpEx" aria-label="السوق"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select>
+              <input id="aiCmpCode" type="text" class="ai-q" placeholder="رمز السهم الثاني، مثل 1120 أو COMI أو AAPL" style="direction:ltr"><button class="btn sm" id="aiCmpGo" type="button">قارن</button></div>
+            <div class="ai-out" id="aiCmpOut" hidden></div>
+          </details>
+          <details class="ai-hist local-only" id="aiHist"><summary class="small">سجل تحليلات هذا الأصل (<span id="aiHistN">0</span>)</summary><div id="aiHistList"></div></details>
           <div class="ai-fill local-only" id="aiFill" hidden>
             <div class="ai-head"><b>املأ الناقص بالمساعد الذكي</b><span class="badge off">من بحث المساعد</span></div>
             <p class="small muted" id="aiFillMissing"></p>
@@ -414,6 +425,11 @@
         </table>
       </div>
       <p class="small muted">أضف أي سهم أو معدن من صفحة التحليل بزر «أضف إلى المراقبة». يفحص البرنامج القائمة دوريًا وينبّهك عند دخول منطقة شراء أو بيع، أو اختراق مؤكد بحجم، أو اكتمال نموذج، أو تقاطع المتوسطات، أو خروج RSI من التشبع، أو بلوغ السعر العادل، أو بلوغ تنبيه سعري، أو اقتراب حدث مهم، أو وصول صفقة مفتوحة إلى الهدف أو الوقف. من «أنواع التنبيه» تختار ما تريده لكل أصل.</p>
+    </section>
+    <section class="card panel local-only" id="aiNewsCard">
+      <div class="panel-head"><h2>ملخص أخبار المراقبة بالمساعد الذكي</h2><button class="btn sm" id="aiNewsGo" type="button">لخّص الأخبار</button></div>
+      <p class="small muted">يجمع البرنامج عناوين آخر أسبوعين لكل أصل في قائمة المراقبة (حتى 15 أصلًا) من مصادر الأخبار، ثم يلخّصها المساعد الذي اخترته. يُرسل العناوين فقط.</p>
+      <div class="ai-out" id="aiNewsOut" hidden></div>
     </section>
     <section class="card panel" id="calCard">
       <div class="panel-head"><h2>تقويم الأحداث</h2>
@@ -665,6 +681,11 @@
         <p class="edu">المضاعف R = الربح أو الخسارة مقسومة على المخاطرة الأصلية (الدخول ناقص الوقف). متوسط مضاعف موجب يعني أن أسلوبك رابح حتى لو خسرت أغلب الصفقات.</p>
       </div>
     </section>
+    <section class="card panel local-only" id="aiPortCard">
+      <div class="panel-head"><h2>حلّل محفظتي بالمساعد الذكي</h2><button class="btn sm" id="aiPortGo" type="button">حلّل المحفظة</button></div>
+      <p class="small muted">يُرسل إلى المساعد صفقاتك المفتوحة بآخر سعر، وملخص ما أُغلق في آخر سنة، وكل عملة على حدة. لا تُرسل ملاحظاتك ولا أسباب دخولك.</p>
+      <div class="ai-out" id="aiPortOut" hidden></div>
+    </section>
     <section class="card panel" id="stCard">
       <div class="panel-head"><h2>إحصاءات سجل الصفقات</h2>
         <label class="field row" for="stBy"><span>حسب</span><select id="stBy"><option value="setup">الإعداد</option><option value="market">السوق</option><option value="hold">مدة الاحتفاظ</option><option value="tag">الوسم</option><option value="stock">السهم</option></select></label></div>
@@ -782,6 +803,28 @@
           </ul>
         </details>
         <p class="small muted">تُحفظ المفاتيح مشفّرة بنظام التشغيل على جهازك فقط، ولا يُرسل كل مفتاح إلا إلى شركته. لا يرسل البرنامج أي بيانات إلا عند ضغطك الزر.</p>
+      </section>
+
+      <section data-pg="ai" class="card panel local-only" id="aiCostPanel">
+        <div class="panel-head"><h2>الاستهلاك والتكلفة</h2><button class="btn xs ghost" id="aiUsageRefresh" type="button">تحديث</button></div>
+        <div id="aiUsageBox" class="small"></div>
+        <label class="field row" for="pAiCap"><input id="pAiCap" type="checkbox" data-pref="aiCap.on"><span>حد شهري للتكلفة</span></label>
+        <div class="form-grid"><label class="field" for="pAiCapUsd"><span>الحد بالدولار</span><input id="pAiCapUsd" type="number" min="0" step="0.5" data-pref="aiCap.usd"></label></div>
+        <p class="small muted">عند بلوغ تقدير الشهر الحد يتوقف البرنامج عن إرسال الطلبات، ويعرض زرًا لإرسال الطلب رغم الحد إن أردت. التقدير محسوب من الرموز التي تذكرها الخدمة وجدول الأسعار.</p>
+        <details><summary class="small">أسعارك الخاصة (اختياري)</summary>
+          <label class="field" for="aiPrices"><span>نموذج في كل سطر: الاسم، ثم سعر مليون رمز مُرسل، ثم سعر مليون رمز مستلم، بالدولار</span><textarea id="aiPrices" rows="4" class="ltr-auto" placeholder="deepseek-chat 0.27 1.1"></textarea></label>
+        </details>
+      </section>
+
+      <section data-pg="ai" class="card panel local-only" id="aiHitPanel">
+        <div class="panel-head"><h2>نسبة إصابة المساعدين</h2><button class="btn xs ghost" id="aiHitGo" type="button">احسب الآن</button></div>
+        <div id="aiHitBox"></div>
+      </section>
+
+      <section data-pg="ai" class="card panel local-only" id="aiTplPanel">
+        <h2>قوالب التحليل</h2>
+        <p class="small muted">يختار القالب القارئ الذي يكتب له المساعد. عدّل النص كما تريد، ويُحفظ تلقائيًا. القالب «عام» بلا إضافة.</p>
+        <div id="aiTplEdit"></div>
       </section>
 
       <section data-pg="alerts" class="card panel local-only">

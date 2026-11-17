@@ -881,3 +881,59 @@ test('weekly report: zakat and purification are worked out like the portfolio pa
   assert.ok(Math.abs(d.zak.USD - RP.zakatFor(t, opt).zakat) < 1e-9 && d.zak.USD > 0);
   assert.equal(Object.keys(d.pur).length, 0, 'gold has no purification');
 });
+
+/* ---------------- Phase 5: AI assistant ---------------- */
+const AIx = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'alerts', 'watch', 'scan', 'calendar', 'journal', 'jtools', 'reports', 'aitools'],
+  ['stripVerdict', 'evalVerdict', 'hitRates', 'HIT_MIN', 'tplSystem', 'tplText', 'AI_TPL', 'parsePrices', 'pricesText', 'aiUsageLine', 'aiHistHTML', 'portfolioPayload', 'newsPayload', 'hitHTML', 'DAY']);
+test('AI: the verdict line is read and taken out of the answer', () => {
+  const v = AIx.stripVerdict('## الخلاصة\nنص\n\nVERDICT: Up; DAYS: 45');
+  assert.equal(v.text, '## الخلاصة\nنص'); assert.equal(v.verdict.dir, 'up'); assert.equal(v.verdict.days, 45);
+  assert.equal(AIx.stripVerdict('x\n**VERDICT: down; DAYS: 900**').verdict.days, 365, 'days kept within 5-365');
+  assert.equal(AIx.stripVerdict('no verdict here').verdict, null);
+  assert.equal(AIx.stripVerdict('VERDICT: maybe; DAYS: 3').verdict, null, 'only up, down or flat');
+});
+test('AI: a verdict is judged on the first close after its days, with a 3% band', () => {
+  const t0 = Date.UTC(2026, 0, 1), D = AIx.DAY, rows = n => Array.from({ length: 60 }, (_, i) => [t0 + i * D, 0, 0, 0, 100 + n * i]);
+  const e = { t: t0, price: 100, verdict: { dir: 'up', days: 30 } };
+  const r = AIx.evalVerdict(e, rows(0.2));
+  assert.ok(r.done && r.actual === 'up' && r.hit && Math.abs(r.chg - 0.06) < 1e-9);
+  assert.equal(AIx.evalVerdict(e, rows(0.05)).actual, 'flat', '+1.5% is flat');
+  assert.equal(AIx.evalVerdict(e, rows(0.05)).hit, false);
+  assert.equal(AIx.evalVerdict(e, rows(0.2).slice(0, 20)).done, false, 'not yet due');
+  assert.equal(AIx.evalVerdict({ t: t0, price: 100 }, rows(1)), null);
+});
+test('AI: hit rate per assistant, hidden until enough answers are judged', () => {
+  const j = hit => ({ verdict: { dir: 'up', days: 5 }, judged: { done: true, hit } });
+  const l = [...[1, 1, 1, 0, 1].map(h => Object.assign({ name: 'Claude' }, j(!!h))), Object.assign({ name: 'Gemini' }, j(true)), { name: 'Gemini', verdict: { dir: 'up', days: 9 } }, { name: 'X' }];
+  const r = AIx.hitRates(l), c = r.find(x => x.name === 'Claude'), g = r.find(x => x.name === 'Gemini');
+  assert.equal(c.rate, 0.8); assert.equal(g.rate, null); assert.equal(g.pending, 1); assert.ok(!r.some(x => x.name === 'X'));
+  assert.match(AIx.hitHTML(r), /80%/); assert.match(AIx.hitHTML(r), /تظهر بعد/);
+});
+test('AI: templates add the reader\'s angle, the user\'s own text first', () => {
+  assert.equal(AIx.tplSystem('BASE', 'general'), 'BASE');
+  assert.match(AIx.tplSystem('BASE', 'trader'), /^BASE\n\nمنظور القارئ: القارئ مضارب/);
+  AIx.P.aiTpl = { sel: 'income', texts: { income: 'نصي الخاص' } };
+  assert.equal(AIx.tplSystem('B'), 'B\n\nمنظور القارئ: نصي الخاص');
+  AIx.P.aiTpl = { sel: 'general', texts: {} };
+  assert.equal(Object.keys(AIx.AI_TPL).length, 4);
+});
+test('AI: own prices, usage line and history list', () => {
+  const p = AIx.parsePrices('deepseek-chat 0.27 1.1\nbad line\nX = 1, 2\nneg -1 2');
+  assert.equal(JSON.stringify(p), JSON.stringify({ 'deepseek-chat': [0.27, 1.1], x: [1, 2] }));
+  assert.equal(AIx.pricesText(p), 'deepseek-chat 0.27 1.1\nx 1 2');
+  const u = AIx.aiUsageLine({ ok: true, usage: { in: 12000, out: 800 }, cost: 0.0042, monthCost: 1.5 });
+  assert.match(u, /12,000/); assert.match(u, /\$0\.0042/); assert.match(u, /\$1\.50/);
+  assert.match(AIx.aiUsageLine({ ok: true, cost: null }), /غير معروفة/);
+  const h = AIx.aiHistHTML([{ id: 'a1', t: Date.UTC(2026, 9, 1), name: 'Claude', price: 100, tpl: 'trader', verdict: { dir: 'up', days: 30 }, judged: { done: true, hit: true }, cost: 0.01, chat: [{ q: 'x', a: 'y' }] }], 110);
+  assert.match(h, /\+10\.0%/); assert.match(h, /أصاب/); assert.match(h, /مضارب/); assert.match(h, /data-aih="a1"/);
+});
+test('AI: portfolio and news payloads keep currencies apart and stay small', () => {
+  const now = Date.UTC(2026, 10, 20), D = AIx.DAY;
+  const p = AIx.portfolioPayload([{ ex: 'SR', code: '1120', name: 'الراجحي', entry: 80, qty: 100, last: 90, date: now - 10 * D, reason: 'secret' },
+    { ex: 'US', code: 'AAPL', name: 'Apple', entry: 200, qty: 10, last: 220, date: now - 5 * D },
+    { ex: 'US', code: 'MSFT', entry: 400, qty: 1, exit: 440, exitDate: now - 30 * D, date: now - 90 * D }], now);
+  assert.equal(p.open.length, 2); assert.equal(p.open[0].weightInCurrencyPct, 100); assert.equal(p.totalsByCurrency.SAR.unrealised, 1000);
+  assert.equal(p.closedLast12Months.realisedByCurrency.USD, 40); assert.ok(!JSON.stringify(p).includes('secret'), 'notes are not sent');
+  const n = AIx.newsPayload([{ name: 'A', code: 'A', ex: 'SR', items: Array.from({ length: 8 }, (_, i) => ({ title: 't' + i, source: 's', date: new Date(now - i * D).toISOString(), link: 'u' })).concat([{ title: 'old', date: new Date(now - 30 * D).toISOString() }]) }], now);
+  assert.equal(n[0].headlines.length, 5); assert.ok(!JSON.stringify(n).includes('old') && !JSON.stringify(n).includes('"link"'));
+});

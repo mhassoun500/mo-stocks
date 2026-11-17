@@ -54,6 +54,31 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj):
         self._send(200, json.dumps(obj, ensure_ascii=False), "application/json; charset=utf-8")
 
+    def _ai_stream(self, prov, b):
+        """The answer as it is written: one JSON line per piece ({"t": text}), then a last line with the result.
+        The body ends when the connection closes, so no length is needed up front."""
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+        alive = [True]
+
+        def out(obj):
+            if not alive[0]:
+                return
+            try:
+                self.wfile.write((json.dumps(obj, ensure_ascii=False) + "\n").encode("utf-8"))
+                self.wfile.flush()
+            except OSError:
+                alive[0] = False              # the page went away; the answer is still finished and counted
+        res = AI.stream(prov, b.get("model"), str(b.get("system") or "")[:12000], str(b.get("user") or "")[:60000],
+                        lambda t: out({"t": t}), bool(b.get("web")), base=b.get("base"),
+                        messages=b.get("messages") if isinstance(b.get("messages"), list) else None,
+                        kind=str(b.get("kind") or "ask")[:20], override=bool(b.get("override")))
+        out(dict(res, done=True))
+
     def _body(self):
         n = int(self.headers.get("Content-Length") or 0)
         if not n:
@@ -274,8 +299,16 @@ class Handler(BaseHTTPRequestHandler):
                                                           [str(x) for x in (b.get("missing") or [])][:4]))
                 if act == "ask":
                     log("  ai %s %s" % (prov, b.get("model") or ""))
-                    return self._json(AI.ask(prov, b.get("model"), str(b.get("system") or "")[:8000],
-                                             str(b.get("user") or "")[:60000], bool(b.get("web")), base=b.get("base")))
+                    return self._json(AI.ask(prov, b.get("model"), str(b.get("system") or "")[:12000],
+                                             str(b.get("user") or "")[:60000], bool(b.get("web")), base=b.get("base"),
+                                             messages=b.get("messages") if isinstance(b.get("messages"), list) else None,
+                                             kind=str(b.get("kind") or "ask")[:20], override=bool(b.get("override"))))
+                if act == "stream":
+                    log("  ai stream %s %s" % (prov, b.get("model") or ""))
+                    return self._ai_stream(prov, b)
+                if act == "usage":
+                    import ai_usage
+                    return self._json(ai_usage.summary())
                 return self._json({"ok": False, "error": "إجراء غير معروف."})
             if p == "/api/shariaimport":
                 import base64

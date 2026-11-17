@@ -121,7 +121,7 @@ def fill(AI, prov, model, base, code, name, ex, missing):
     if not PROVIDERS.get(prov, {}).get("web"):
         return {"ok": False, "error": "هذه الميزة تحتاج بحثًا على الإنترنت، وهو غير متاح مع هذا الاختيار. استخدم Claude أو Gemini بحساب يدعم البحث."}
     system, user = build_prompt(code, name, ex, missing)
-    r = AI.ask(prov, model, system, user, True, base=base, max_tokens=1500)
+    r = AI.ask(prov, model, system, user, True, base=base, max_tokens=1500, kind="fill")
     if not r.get("ok"):
         return r
     if r.get("noWeb"):

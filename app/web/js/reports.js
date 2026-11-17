@@ -65,7 +65,7 @@ async function reportAiSummary(text){
   const st=AI.status||await loadAiStatus().catch(()=>null),pv=(st&&st.providers)||{};
   const prov=pv[P.ai.provider]&&pv[P.ai.provider].hasKey?P.ai.provider:Object.keys(pv).find(k=>pv[k].hasKey);
   if(!prov)return{ok:false,error:_t('لم يُضف مفتاح لأي مساعد ذكي في الإعدادات.')};
-  const r=await apiPost('/api/ai',{action:'ask',provider:prov,model:(P.ai.models||{})[prov]||'',base:prov==='custom'?P.ai.base:'',web:false,system:REPORT_AI_SYS,user:text}).catch(()=>null);
+  const r=await apiPost('/api/ai',{action:'ask',provider:prov,model:(P.ai.models||{})[prov]||'',base:prov==='custom'?P.ai.base:'',web:false,system:REPORT_AI_SYS,user:text,kind:'report'}).catch(()=>null);
   return r&&r.ok&&r.text?{ok:true,text:r.text,name:r.name||pv[prov].name||prov}:{ok:false,error:(r&&r.error)||_t('لم يصل رد من المساعد.')};
 }
 const withAi=(text,ai)=>!ai?text:ai.ok?text+'\n\n🤖 '+_t('ملخص المساعد')+' ('+ai.name+'):\n'+ai.text:text+'\n\n('+_t('تعذّر ملخص المساعد')+': '+ai.error+')';

@@ -108,6 +108,7 @@ const PREF_DEFAULTS={
   calc:{capital:100000,risk:1,fee:0.15},
   egpLocal:{},
   ai:{provider:'claude',models:{},base:'',web:true},
+  aiCap:{on:false,usd:10},aiPrices:{},aiTpl:{sel:'general',texts:{}},
 };
 let P=JSON.parse(JSON.stringify(PREF_DEFAULTS));
 function deepMerge(a,b){for(const k in b){if(b[k]&&typeof b[k]==='object'&&!Array.isArray(b[k])&&a[k]&&typeof a[k]==='object'&&!Array.isArray(a[k]))deepMerge(a[k],b[k]);else if(b[k]!==undefined)a[k]=b[k];}return a;}

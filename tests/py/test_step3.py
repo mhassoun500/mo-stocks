@@ -205,7 +205,7 @@ def test_parse_reply_keeps_to_what_was_asked():
 
 class FakeAI:
     def __init__(self, res): self.res, self.seen = res, None
-    def ask(self, prov, model, system, user, web=False, key=None, base=None, max_tokens=1800):
+    def ask(self, prov, model, system, user, web=False, key=None, base=None, max_tokens=1800, **kw):
         self.seen = (prov, system, user, web)
         return self.res
 

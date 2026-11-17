@@ -275,13 +275,16 @@ function renderAiBox(){
     const sel=$('#aiProv'),cur=conn.some(([k])=>k===P.ai.provider)?P.ai.provider:(conn[0]||[''])[0];
     sel.innerHTML=conn.map(([k,v])=>'<option value="'+k+'"'+(k===cur?' selected':'')+'>'+esc(v.name)+'</option>').join('');
     const pv=conn.find(([k])=>k===cur);const canWeb=!!(pv&&pv[1].web);$('#aiWeb').disabled=!canWeb;$('#aiWebLbl').title=canWeb?'':_t('البحث في الأخبار متاح مع Claude وGemini فقط');}
-  renderAiFill();
-  if(!c){out.hidden=true;$('#aiMeta').textContent='';return;}
+  renderAiFill();if(typeof aiHistMaybe==='function')aiHistMaybe();
+  if(!c){out.hidden=true;$('#aiMeta').textContent='';if(typeof renderAiChat==='function')renderAiChat();return;}
   out.hidden=false;
-  if(c.busy){out.innerHTML='<p class="muted">'+esc(c.name||'')+' '+_t('يقرأ بيانات السهم… قد يستغرق ذلك نصف دقيقة.')+'</p>';return;}
-  if(!c.ok){out.innerHTML='<p class="err">'+esc(c.error)+'</p>';return;}
-  out.innerHTML=mdLite(c.text||_t('لا يوجد رد.'));
-  $('#aiMeta').innerHTML='<bdi>'+esc(c.name)+' · '+esc(c.model||'')+'</bdi>'+(c.searches?' · '+NUM(c.searches)+' بحث':'')+(c.noWeb?' · بدون بحث (غير مفعّل في حسابك)':'')+' · '+NUM(esc(c.at));
+  if(c.busy&&!c.text){out.innerHTML='<p class="muted">'+esc(c.name||'')+' '+_t('يقرأ بيانات السهم… قد يستغرق ذلك نصف دقيقة.')+'</p>';renderAiChat();return;}
+  if(c.busy){out.innerHTML=mdLite(stripVerdict(c.text).text)+'<p class="muted small">'+esc(_t('يكتب…'))+'</p>';return;}
+  if(!c.ok){out.innerHTML=(c.text?mdLite(c.text):'')+'<p class="err">'+esc(c.error)+'</p>'+(c.capped?'<button class="btn sm" type="button" data-aiover>'+esc(_t('أرسل هذا الطلب رغم الحد'))+'</button>':'');renderAiChat();return;}
+  const vd=c.verdict?'<p class="small"><b>'+esc(_t('خلاصة المساعد'))+':</b> '+esc(_t({up:'صعود',down:'هبوط',flat:'حياد'}[c.verdict.dir]))+' '+esc(_t('خلال'))+' '+NUM(c.verdict.days)+' '+esc(_t('يومًا'))+' <span class="muted">('+esc(_t('تُقارن بما يحدث فعلًا بعد انتهاء المدة'))+')</span></p>':'';
+  out.innerHTML=(c.old?'<p class="small muted">'+esc(_t('تحليل محفوظ من'))+' '+NUM(fmtLocalTime.format(new Date(c.old)))+'</p>':'')+mdLite(c.text||_t('لا يوجد رد.'))+vd+'<p class="small muted">'+aiUsageLine(c)+'</p>';
+  $('#aiMeta').innerHTML='<bdi>'+esc(c.name)+' · '+esc(c.model||'')+'</bdi>'+(c.searches?' · '+NUM(c.searches)+' بحث':'')+(c.noWeb?' · بدون بحث (غير مفعّل في حسابك)':'')+' · '+NUM(esc(c.at||''));
+  renderAiChat();
 }
 /* small, safe markdown: ## headings, - bullets, **bold** */
 function mdLite(t){
@@ -328,15 +331,7 @@ function aiPayload(){
     sharia:sh?{verdict:sh.s,count:sh.count||null,references:(sh.refs||[]).map(x=>x[0]+': '+x[1])}:null,
     last60Closes:last};
 }
-async function runAi(){
-  if(!S.A&&!S.isFund)return;const prov=$('#aiProv').value;if(!prov)return;const st=AI.status.providers[prov];
-  const code=S.code,ex=S.ex,pr=buildPrompt(false);S.ai={code,ex,busy:true,name:st.name};renderAiBox();$('#aiRun').disabled=true;
-  try{const r=await apiPost('/api/ai',{action:'ask',provider:prov,model:(P.ai.models||{})[prov]||'',base:prov==='custom'?P.ai.base:'',web:$('#aiWeb').checked&&st.web,system:pr.system,user:pr.user});
-    if(S.code!==code||S.ex!==ex)return;
-    S.ai=Object.assign({code,ex,name:st.name,at:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})},r||{ok:false,error:'لا يوجد رد.'});}
-  catch(e){S.ai={code,ex,ok:false,error:'تعذّر الاتصال بالبرنامج.'};}
-  finally{$('#aiRun').disabled=false;renderAiBox();}
-}
+/* runAi (the analysis with the assistant) lives in ai.js: it streams the answer, keeps the history and the follow-up chat */
 function openExt(url){if(LOCAL)api('/api/open',{url}).catch(()=>{});else{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();}}
 function setupPlan(){
   /* copy-a-prompt works everywhere, even without the installed app */
