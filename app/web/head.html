@@ -8,12 +8,12 @@
 :root{
   --bg:#eef1f3; --surface:#ffffff; --surface-2:#f5f7f8; --ink:#14212b; --muted:#5b6975; --line:#d5dde3; --grid:#e7ecef;
   --accent:#2747c4; --accent-ink:#ffffff; --accent-soft:#2747c414;
-  --up:#138a6b; --down:#c4402c;
-  --buy:#0e7f62; --sell:#bd3b28; --neutral:#93660f;
-  --buy-soft:#0e7f6214; --sell-soft:#bd3b2814; --neutral-soft:#93660f14;
-  --buy-zone:#0e7f622b; --sell-zone:#bd3b282b;
+  --up:#0f7a5e; --down:#b5381f;
+  --buy:#0b7056; --sell:#ab311e; --neutral:#93660f;
+  --buy-soft:#0b705614; --sell-soft:#ab311e14; --neutral-soft:#93660f14;
+  --buy-zone:#0b70562b; --sell-zone:#ab311e2b;
   --ma1:#2747c4; --ma2:#c98a12; --fib:#7a52b3; --bb:#6b7a88; --cmp:#b5368a; --vp:#2747c42e; --trend:#0b6fa4;
-  --vol-up:#138a6b30; --vol-down:#c4402c30; --label-bg:#ffffffeb;
+  --vol-up:#0f7a5e30; --vol-down:#b5381f30; --label-bg:#ffffffeb;
   --f-display:"Cairo","Segoe UI",Tahoma,sans-serif;
   --f-body:"Cairo","Segoe UI",Tahoma,sans-serif;
   --f-num:"Cairo","Segoe UI",Tahoma,sans-serif;
@@ -310,7 +310,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
 .pref-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px;padding:6px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .pref-tabs button{font:inherit;font-size:14px;border:0;background:transparent;color:var(--muted);padding:8px 16px;border-radius:8px;cursor:pointer}
 .pref-tabs button:hover{background:var(--surface-2);color:var(--text)}
-.pref-tabs button[aria-selected="true"]{background:var(--accent);color:#fff;font-weight:600}
+.pref-tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
 .pref-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #srcList{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:0 28px}
 .src-chips{display:flex;flex-wrap:wrap;gap:4px 6px;margin:2px 0 6px}.src-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11.5px;color:var(--muted)}
@@ -379,7 +379,7 @@ html{scroll-padding-top:96px}
 .sh-float .sh-note{display:block;margin-bottom:4px}
 .sh-float .pur-row{padding-inline-start:8px;border-inline-start:2px solid var(--accent)} .sh-float .pur-row em,#purBadge em{font-style:normal;opacity:.8}
 #scanTable td.pur{white-space:nowrap}
-.nine-list li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start}.nine-list li.na{opacity:.7}.nine-list .kind{white-space:nowrap}
+.nine-list li{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start}.nine-list li.na b{color:var(--muted)}.nine-list .kind{white-space:nowrap}
 .sh-float .sh-list{display:flex;flex-direction:column;gap:3px}
 .sh-float .sh-r{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:8px}
 .sh-float .sh-r i{font-style:normal;font-weight:700;text-align:center}
@@ -410,4 +410,18 @@ html{scroll-padding-top:96px}
 .ai-q-line{margin:0 0 4px}
 .ai-hist{margin-top:8px}
 #aiChatQ{flex:1;min-width:200px}
+.gl{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+.tour{position:fixed;z-index:60;inset-inline-start:16px;bottom:16px;max-width:380px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.tour p{margin:0 0 8px;line-height:1.7}
+.tour-bar{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tour-hl{outline:3px solid var(--accent,#2563eb)!important;outline-offset:3px;border-radius:6px}
+.kbd-help{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;padding:16px}
+.kbd-help[hidden]{display:none}
+.kbd-help .card{max-width:520px;width:100%}
+.kbd-list{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:0}
+.kbd-list dt{white-space:nowrap}.kbd-list dd{margin:0}
+kbd{font-family:ui-monospace,monospace;font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:var(--surface-2)}
+:focus-visible{outline:3px solid var(--accent,#2563eb);outline-offset:2px}
+.perf-box{margin:10px 0}
+.perf-key{display:inline-flex;align-items:center;gap:4px;margin-inline-end:12px}.perf-key i{width:12px;height:3px;display:inline-block;border-radius:2px}
 </style>

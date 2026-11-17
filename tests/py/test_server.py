@@ -200,3 +200,50 @@ def test_phase4_routes_reach_their_functions(server, monkeypatch):
     assert seen["scan"] == ("SR", None), "a strange size is ignored"
     j = json.loads(call(server, "/api/calendar", "POST", {"items": [{"code": "AAPL", "ex": "US"}, "junk"]})[1])
     assert j["ok"] and seen["cal"] == [{"code": "AAPL", "ex": "US"}]
+
+
+# ---------------------------------------------------------------- Phase 6: one-click update
+import hashlib as _hl
+import io as _io
+
+import system as _sys
+
+
+class _Resp(_io.BytesIO):
+    def __init__(self, data):
+        super().__init__(data)
+        self.headers = {"Content-Length": str(len(data))}
+
+
+def _fetcher(files):
+    return lambda u: _Resp(files[u])
+
+
+REL = "https://github.com/mhassoun500/mo-stocks/releases/download/v9.9.9/"
+
+
+def test_update_is_opened_only_when_its_fingerprint_matches(tmp_path, monkeypatch):
+    monkeypatch.setattr(_sys, "downloads_dir", lambda: str(tmp_path))
+    data = b"installer bytes" * 1000
+    good = _hl.sha256(data).hexdigest()
+    opened = []
+    sums = ("%s  MoStocks_Setup_v9.9.9.exe\n%s *MoStocks_v9.9.9_mac_intel.dmg\n" % (good, "0" * 64)).encode()
+    r = _sys.download_update(REL + "MoStocks_Setup_v9.9.9.exe", "MoStocks_Setup_v9.9.9.exe", REL + "SHA256SUMS.txt",
+                             opener=lambda p: opened.append(p) or True, fetch=_fetcher({REL + "SHA256SUMS.txt": sums, REL + "MoStocks_Setup_v9.9.9.exe": data}))
+    assert r["ok"] and r["sha256"] == good and r["quits"] and opened == [str(tmp_path / "MoStocks_Setup_v9.9.9.exe")]
+    assert _sys.UPD["state"] == "done" and _sys.UPD["done"] == len(data)
+    opened.clear()
+    r = _sys.download_update(REL + "MoStocks_v9.9.9_mac_intel.dmg", "MoStocks_v9.9.9_mac_intel.dmg", REL + "SHA256SUMS.txt",
+                             opener=lambda p: opened.append(p), fetch=_fetcher({REL + "SHA256SUMS.txt": sums, REL + "MoStocks_v9.9.9_mac_intel.dmg": data}))
+    assert not r["ok"] and "بصمة" in r["error"] and opened == [] and not list(tmp_path.glob("*.dmg*")), "deleted, never opened"
+
+
+def test_update_refuses_other_addresses_and_files_without_a_fingerprint(tmp_path, monkeypatch):
+    monkeypatch.setattr(_sys, "downloads_dir", lambda: str(tmp_path))
+    bad = _sys.download_update("https://evil.example/x.exe", "x.exe", REL + "SHA256SUMS.txt", opener=lambda p: 1 / 0)
+    assert not bad["ok"] and "GitHub" in bad["error"]
+    assert not _sys.download_update(REL + "a.exe", "b.exe", REL + "SHA256SUMS.txt")["ok"], "the name must be the file's"
+    r = _sys.download_update(REL + "a.exe", "a.exe", REL + "SHA256SUMS.txt", opener=lambda p: 1 / 0,
+                             fetch=_fetcher({REL + "SHA256SUMS.txt": b"", REL + "a.exe": b"x"}))
+    assert not r["ok"] and "بصمة" in r["error"]
+    assert _sys.sums_for("ABC  x", "x") is None and _sys.sums_for("a" * 64 + "  dist/x.exe", "x.exe") == "a" * 64

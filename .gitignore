@@ -8,3 +8,4 @@ dist/
 dmg/
 icon.iconset/
 missing.txt
+node_modules/

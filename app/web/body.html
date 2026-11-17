@@ -9,6 +9,7 @@
     </div>
     <div class="top-tools">
       <nav class="nav" aria-label="أقسام البرنامج">
+        <a href="#home" data-view="home" class="local-only">الرئيسية</a>
         <a href="#analysis" data-view="analysis">التحليل</a>
         <a href="#watch" data-view="watch" class="local-only">المراقبة والتنبيهات</a>
         <a href="#scanner" data-view="scanner" class="local-only">ماسح السوق</a>
@@ -24,10 +25,30 @@
 
   <div class="banner local-only" id="updateBanner" hidden>
     <span id="updateText"></span>
-    <span class="actions"><button class="btn sm primary" id="updateGo" type="button">تنزيل التحديث</button><button class="btn sm ghost" id="updateHide" type="button">لاحقًا</button></span>
+    <span class="actions"><button class="btn sm primary" id="updateGo" type="button">حدّث الآن</button><button class="btn sm ghost" id="updateHide" type="button">لاحقًا</button></span>
   </div>
 
   <!-- ===================================================== ANALYSIS -->
+  <!-- ===================================================== DASHBOARD -->
+  <section class="view local-only" id="view-home" hidden>
+    <section class="card panel">
+      <div class="panel-head"><h2>لوحة القيادة</h2><span class="actions"><span class="muted small" id="homeMeta"></span>
+        <button class="btn sm" id="homeCheck" type="button">افحص المراقبة الآن</button><button class="btn sm ghost" id="homeScan" type="button">افتح الماسح</button></span></div>
+      <h3 class="sub-h">الأسواق</h3>
+      <div class="metrics" id="homeMarkets"></div>
+      <p class="small muted">حسب ساعات التداول المعتادة لكل سوق، ولا يعرف البرنامج العطل الرسمية. التغير من آخر جلستين للمؤشر.</p>
+    </section>
+    <section class="grid-2 even">
+      <div class="card panel"><div class="panel-head"><h2>المحفظة</h2></div><div class="metrics" id="homePort"></div>
+        <p class="small muted">بآخر سعر معروف لكل صفقة، وكل عملة على حدة.</p></div>
+      <div class="card panel"><div class="panel-head"><h2>أقوى الفرص</h2></div><div id="homeOpp"></div></div>
+    </section>
+    <section class="grid-2 even">
+      <div class="card panel"><div class="panel-head"><h2>آخر التنبيهات</h2></div><div id="homeAlerts"></div></div>
+      <div class="card panel"><div class="panel-head"><h2>أحداث الأسبوع</h2></div><ul class="list" id="homeEvents"></ul></div>
+    </section>
+  </section>
+
   <section class="view" id="view-analysis">
     <section class="card source">
       <div class="src-row">
@@ -126,9 +147,17 @@
         <div class="actions">
           <button class="btn sm local-only" id="watchAdd" type="button">أضف إلى المراقبة</button>
           <button class="btn sm" id="tradeFromView" type="button">سجّل صفقة</button>
-          <button class="btn sm ghost" id="exportBtn" type="button">حفظ التحليل كصورة</button>
+          <button class="btn sm ghost" id="exportBtn" type="button">حفظ التحليل كصورة</button><button class="btn sm ghost local-only" id="pdfBtn" type="button">تقرير PDF</button>
         </div>
       </div>
+      <details class="perf-box local-only" id="perfBox"><summary class="small">قارن أداء عدة أسهم على رسم واحد</summary>
+        <div class="ai-controls"><input id="perfList" type="text" class="ai-q" style="direction:ltr" placeholder="SR:2222, US:AAPL, CA:COMI" aria-label="الرموز">
+          <select id="perfRange" aria-label="الفترة"><option value="1y">سنة</option><option value="2y">سنتان</option><option value="5y">5 سنوات</option></select>
+          <button class="btn sm" id="perfGo" type="button">قارن</button></div>
+        <p class="small muted">حتى 4 رموز مع السهم المفتوح، تفصل بينها فاصلة. اكتب السوق قبل الرمز (SR أو CA أو US أو GOLD) إذا كان من سوق آخر.</p>
+        <canvas id="perfCv" style="width:100%;height:320px" aria-label="مقارنة أداء الأسهم" role="img"></canvas>
+        <div class="small" id="perfLegend"></div>
+      </details>
       <div class="metrics">
         <div class="metric"><span class="k">آخر سعر</span><span class="v" id="mPrice">—</span><span class="s" id="mPriceSub"></span></div>
         <div class="metric buy"><span class="k"><i style="background:var(--buy)"></i>منطقة الشراء</span><span class="v" id="mBuy">—</span><span class="s" id="mBuySub"></span>
@@ -974,11 +1003,68 @@
         </div>
         <p class="font-preview" id="fontPreview">Mo Stocks — مصرف الراجحي <span class="num">1120 · 60.15</span> ريال، منطقة الشراء <span class="num">57.48 – 57.82</span></p>
         <label class="field row" for="pEdu"><input id="pEdu" type="checkbox" data-pref="edu"><span>وضع التعلم: شرح مبسط تحت كل مؤشر</span></label>
+              <div class="actions"><button class="btn sm ghost local-only" id="tourAgain" type="button">أعد الجولة التعريفية</button><button class="btn sm ghost" id="kbdOpen" type="button">اختصارات لوحة المفاتيح</button></div>
+        <p class="small muted">قف بالمؤشر على أي مصطلح مسطّر بنقاط (مثل RSI أو السعر العادل) لترى شرحه.</p>
       </section>
     </div>
   </section>
 
-  <p class="disclaimer">هذه الأداة تحليل فني آلي يعتمد على السعر والحجم، للمساعدة والتعلّم وليست توصية استثمارية. راجع الأخبار والقوائم المالية وإدارة المخاطر قبل أي قرار.</p>
+  <!-- ===================================================== ABOUT AND METHOD -->
+  <section class="view" id="view-about" hidden>
+    <section class="card panel about">
+      <div class="panel-head"><h2>حول البرنامج ومنهجيته</h2><span class="muted small" id="aboutVer"></span></div>
+      <p>Mo Stocks برنامج على جهازك لتحليل الأسهم السعودية والمصرية والأمريكية والذهب والصناديق. كل رقم فيه محسوب من بيانات منشورة، ومعه مصدره، وما لا تتوفر بياناته يُكتب أنه غير متوفر ولا يُخمَّن.</p>
+      <h3 class="sub-h">مناطق الشراء والبيع</h3>
+      <p>تُرصد القمم والقيعان المحلية، وتُجمع المتقاربة منها في منطقة واحدة عرضها من متوسط المدى اليومي (ATR). تزيد قوة المنطقة بعدد مرات لمسها وحداثتها وحجم التداول فيها، وبظهورها على الإطار الأسبوعي، وبتبادلها دور الدعم والمقاومة. منطقة الشراء أقرب منطقة قوية تحت السعر، ومنطقة البيع أقرب منطقة قوية فوقه.</p>
+      <h3 class="sub-h">الاختراق المؤكد</h3>
+      <p>إغلاق واضح خلف المنطقة بحجم تداول يزيد 40% على الأقل عن متوسط 20 يومًا، ثم ثبات السعر بعدها. الاختراق الذي يعود السعر بعده إلى داخل المنطقة يُعد كاذبًا.</p>
+      <h3 class="sub-h">الحكم والثقة</h3>
+      <p>الحكم (شراء أو بيع أو انتظار) يجمع موقع السعر من المناطق والاتجاه والزخم والحجم والعائد إلى المخاطرة. الثقة تجمع قوة هذه الأسباب مع نسبة نجاح نفس الإعداد على السهم نفسه في الاختبار التاريخي. الثقة ليست احتمال ربح مضمون.</p>
+      <h3 class="sub-h">خطة السعر والعائد إلى المخاطرة</h3>
+      <p>الدخول عند منطقة الشراء، والوقف تحتها بجزء من المدى اليومي، والأهداف الثلاثة هي مناطق المقاومة التالية بالترتيب. العائد إلى المخاطرة = (الهدف الأول − الدخول) ÷ (الدخول − الوقف).</p>
+      <h3 class="sub-h">درجة الجودة</h3>
+      <p>درجة من 100 لإعداد الشراء، مقسمة على أجزاء مكتوبة في صفحة السهم: القرب من الدعم، والاتجاه، والزخم، والحجم، والعائد إلى المخاطرة.</p>
+      <h3 class="sub-h">السعر العادل</h3>
+      <p>وسيط عدة طرق، كل منها مذكور مع أرقامه: متوسط أهداف المحللين (يُحسب مرتين لأنه يشمل التوقعات والأخبار)، وربحية السهم × مكرر القطاع، والقيمة الدفترية × مضاعف القطاع للبنوك، وعائد التوزيعات مقارنة بالقطاع، ومعادلة جراهام، وربحية السنة القادمة، والمكرر التاريخي للسهم، والتدفق النقدي المخصوم المبسط. تُستبعد الطريقة التي تعطي رقمًا بعيدًا جدًا عن السعر. درجة الثقة تعكس اتفاق الطرق. في الماسح يُحسب بنفس الطريقة دون المكرر التاريخي.</p>
+      <h3 class="sub-h">التنبيهات والماسح</h3>
+      <p>تُفحص قائمة المراقبة كل فترة تختارها. كل تنبيه يُرسل مرة واحدة لنفس الحدث. تقاطع المتوسطات وخروج RSI من التشبع يُحسبان على آخر شمعة يومية. الماسح يطبق شروطك معًا، والشركة التي لا تتوفر لها قيمة الشرط تُستبعد.</p>
+      <h3 class="sub-h">الضوابط الشرعية والتطهير</h3>
+      <p>التصنيف من المصادر المنشورة: للأسهم السعودية قوائم الراجحي المالية والبلاد المالية ود. محمد العصيمي كما ينشرها موقع أرقام، وللمصرية قائمة «أسهم حلال» ومؤشر الشريعة EGX33، وللأمريكية موقع يقين ومؤشر S&P 500 الشرعي، مع فحص مبدئي تلقائي لما لم يُصنَّف. يُذكر كل مصدر وعدد من وافق منها، وتستطيع إضافة قائمتك من الإعدادات. التطهير بالمبلغ المنشور للسهم (دراسة المقاصد للأسهم السعودية) أو بالنسبة من الأرباح، والتقدير التقريبي من الإيراد ودخل الفوائد يُكتب بجانبه «تقريبي».</p>
+      <h3 class="sub-h">الزكاة</h3>
+      <p>ربع العشر (2.5%) للسنة الهجرية، أو 2.577% للسنة الميلادية. للمضارب على القيمة السوقية، وللمستثمر على حصته من الوعاء الزكوي للشركة إذا أدخلته، وإذا كانت الشركة تدفع الزكاة عنك (السعودية) يُكتب ذلك.</p>
+      <h3 class="sub-h">المساعد الذكي ونسبة إصابته</h3>
+      <p>لا يُرسل شيء إلى أي مساعد إلا بضغطك أو بتفعيلك الملخص التلقائي. يكتب المساعد خلاصة (صعود أو هبوط أو حياد خلال مدة)، وبعد انتهائها يُقارن سعر الإغلاق بسعر يوم التحليل: أكثر من 3% صعود، وأقل من 3%- هبوط. لا تظهر النسبة قبل 5 تحليلات. التكلفة تقريبية من جدول أسعار مؤرخ.</p>
+      <h3 class="sub-h">مصادر البيانات وحدودها</h3>
+      <p>الأسعار من TradingView ثم Yahoo Finance ثم Stooq، والأرقام المالية من TradingView وYahoo وSEC، والإفصاحات من SEC وتداول السعودية والبورصة المصرية، والصناديق من تداول السعودية ومباشر. موقعا تداول والبورصة المصرية لا يسمحان للبرامج حاليًا، فتظهر روابط لفتحهما في المتصفح. مواعيد التداول في لوحة القيادة هي المعتادة، دون العطل الرسمية.</p>
+      <h3 class="sub-h">بياناتك وخصوصيتك</h3>
+      <p>صفقاتك وإعداداتك محفوظة على جهازك فقط، ومفاتيح المساعدين وتيليجرام مشفرة بنظام التشغيل. لا يرسل البرنامج بياناتك إلى أي جهة إلا عند طلبك.</p>
+      <h3 class="sub-h">أول تشغيل: تحذير النظام</h3>
+      <p>البرنامج غير موقّع بشهادة مدفوعة، فيظهر تحذير عند أول تشغيل فقط. في ويندوز: «More info» ثم «Run anyway». في ماك: زر الفأرة الأيمن على البرنامج ثم «فتح»، أو من إعدادات النظام ثم «الخصوصية والأمان» ثم «فتح على أي حال». التحديث من داخل البرنامج يتحقق من بصمة الملف (SHA-256) قبل فتحه.</p>
+      <h3 class="sub-h">الأداء</h3>
+      <p id="perfStats" class="small muted"></p>
+      <h3 class="sub-h">إخلاء المسؤولية</h3>
+      <p><b>هذا البرنامج أداة تحليل وتعلّم، وليس توصية بالشراء أو البيع ولا استشارة مالية أو شرعية.</b> الأرقام قد تتأخر أو تخطئ مصادرها، والأداء السابق لا يضمن المستقبل. القرار ومسؤوليته عليك، فراجع القوائم المالية والأخبار وأهل الاختصاص قبل أي قرار.</p>
+    </section>
+  </section>
+
+  <p class="disclaimer"><a href="#about" class="about-link">حول البرنامج ومنهجيته وإخلاء المسؤولية</a> · هذه الأداة تحليل فني آلي يعتمد على السعر والحجم، للمساعدة والتعلّم وليست توصية استثمارية. راجع الأخبار والقوائم المالية وإدارة المخاطر قبل أي قرار.</p>
 </div>
 <div class="drop-hint" id="dropHint" hidden>أفلت ملف البيانات هنا</div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="tour" id="tour" role="dialog" aria-live="polite" aria-label="جولة تعريفية" hidden>
+  <p id="tourText"></p>
+  <div class="tour-bar"><span class="small muted num" id="tourStep"></span>
+    <span class="actions"><button class="btn xs ghost" id="tourSkip" type="button">تخطَّ</button><button class="btn xs ghost" id="tourPrev" type="button">السابق</button><button class="btn xs primary" id="tourNext" type="button">التالي</button></span></div>
+</div>
+<div class="kbd-help" id="kbdHelp" role="dialog" aria-modal="true" aria-labelledby="kbdTitle" hidden>
+  <div class="card panel">
+    <div class="panel-head"><h2 id="kbdTitle">اختصارات لوحة المفاتيح</h2><button class="btn xs ghost" type="button" data-kclose>إغلاق</button></div>
+    <dl class="kbd-list">
+      <dt><kbd>/</kbd></dt><dd>ابحث عن سهم</dd>
+      <dt><kbd>Alt</kbd> + <kbd>1</kbd> … <kbd>7</kbd></dt><dd>الرئيسية، التحليل، المراقبة، الماسح، الصناديق، الصفقات، الإعدادات</dd>
+      <dt><kbd>?</kbd></dt><dd>هذه القائمة</dd>
+      <dt><kbd>Esc</kbd></dt><dd>إغلاق القوائم والجولة</dd>
+      <dt><kbd>Tab</kbd></dt><dd>التنقل بين الأزرار والحقول</dd>
+    </dl>
+  </div>
+</div>

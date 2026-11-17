@@ -59,7 +59,7 @@ function bindPrefs(){
   $('#quitBtn').addEventListener('click',()=>{api('/api/quit').catch(()=>{});document.body.innerHTML='<p style="padding:40px;text-align:center;font-family:sans-serif">أُغلق البرنامج.</p>';});
   $('#aboutText').innerHTML='الإصدار '+NUM(esc(LOCAL.version))+' · '+(LOCAL.platform==='win32'?'ويندوز':LOCAL.platform==='darwin'?'ماك':'لينكس')+(LOCAL.frozen?'':' · تشغيل من الكود');
   $('#updateCheck').addEventListener('click',()=>checkUpdate(true));
-  $('#updateGo').addEventListener('click',()=>{if(S.updateUrl)openExternal(S.updateUrl);});
+  $('#updateGo').addEventListener('click',runUpdate);
   $('#updateHide').addEventListener('click',()=>{$('#updateBanner').hidden=true;Store.set('updateSnooze',todayKey());});
 }
 /* ---------- Saudi and Egyptian lists ---------- */
@@ -136,9 +136,24 @@ async function checkUpdate(manual){
   const st=$('#updateStatus');if(manual){st.textContent='جارٍ التحقق…';st.className='status';}
   const j=await api('/api/update').catch(()=>null);
   if(!j||!j.ok){if(manual){st.textContent=(j&&j.error)||'تعذّر التحقق.';st.className='status err';}return;}
-  if(j.newer){S.updateUrl=j.url;$('#updateText').innerHTML='يتوفر إصدار جديد '+NUM(esc(j.latest))+' (لديك '+NUM(esc(j.current))+').';
+  if(j.newer){S.updateUrl=j.url;S.update=j;$('#updateText').innerHTML='يتوفر إصدار جديد '+NUM(esc(j.latest))+' (لديك '+NUM(esc(j.current))+').';
     if(manual||(await Store.get('updateSnooze',''))!==todayKey())$('#updateBanner').hidden=false;if(manual)st.textContent='يتوفر الإصدار '+j.latest+'.';}
   else if(manual)st.textContent='لديك أحدث إصدار ('+j.current+').';
+}
+
+/* one click: the app downloads the installer, checks its fingerprint, and opens it */
+async function runUpdate(){
+  const u=S.update;if(!u||!u.file||!u.sums){if(S.updateUrl)openExternal(S.updateUrl);return;}
+  const go=$('#updateGo');go.disabled=true;const txt=$('#updateText');
+  const r=await apiPost('/api/update',{url:u.url,file:u.file,sums:u.sums}).catch(()=>null);
+  if(!r||!r.ok){txt.textContent=(r&&r.error)||_t('تعذّر بدء التنزيل.');go.disabled=false;return;}
+  for(;;){await new Promise(res=>setTimeout(res,500));const p=await api('/api/update',{progress:'1'}).catch(()=>null);if(!p)continue;
+    if(p.state==='downloading'){txt.textContent=_t('جارٍ تنزيل التحديث…')+' '+(p.total?NUM(Math.round(p.done/p.total*100)+'%'):NUM((p.done/1048576).toFixed(1))+' MB');continue;}
+    if(p.state==='error'){txt.textContent=_t(p.message||'تعذّر تنزيل التحديث.');go.disabled=false;
+      if(u.page){const a=document.createElement('a');a.href='#';a.textContent=' '+_t('افتح صفحة الإصدار');a.addEventListener('click',e=>{e.preventDefault();openExternal(u.page);});txt.appendChild(a);}return;}
+    if(p.state==='done'){txt.textContent=/\.exe$/i.test(u.file)?_t('تحقّقت بصمة الملف وفُتح برنامج التثبيت. سيُغلق البرنامج الآن ليكمل التثبيت.')
+      :_t('تحقّقت بصمة الملف وفُتح ملف التحديث. أغلق البرنامج، واسحب Mo Stocks إلى مجلد التطبيقات واستبدل القديم، ثم افتحه بزر الفأرة الأيمن ثم «فتح».');return;}
+  }
 }
 
 /* settings tabs: one group of cards at a time; the last tab is remembered */

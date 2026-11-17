@@ -107,6 +107,20 @@ def run_browser(url):
         pass
 
 
+def _check_shipped():
+    import ai_usage
+    import report_pdf
+    assert ai_usage.table().get("rows"), "app/data/ai_prices.json is missing"
+    for f in ("IBMPlexSansArabic-Regular.ttf", "IBMPlexSansArabic-Bold.ttf"):
+        assert os.path.exists(os.path.join(report_pdf.FONT_DIR, f)), f + " is missing"
+
+
+def _check_pdf():
+    import report_pdf
+    pdf = report_pdf.build({"lang": "ar", "title": "تقرير تجريبي 1120", "sections": [{"title": "الملخص", "pairs": [["السعر", "63.95"]]}]})
+    assert pdf.startswith(b"%PDF") and len(pdf) > 2000
+
+
 def main():
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -121,7 +135,9 @@ def main():
                   ("TradingView chart feed", True, lambda: tvdata.CLIENT.history("TADAWUL:1120", "1D", 5)),
                   ("Yahoo Finance", False, lambda: http_json("https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d&interval=1d")),
                   ("Saudi Exchange funds", False, lambda: funds.fetch_tadawul_history("SA003215")),
-                  ("Mubasher fund history", False, lambda: funds.fetch_fund_history(2680)))
+                  ("Mubasher fund history", False, lambda: funds.fetch_fund_history(2680)),
+                  ("Files shipped with the app (prices, fonts, lists)", True, _check_shipped),
+                  ("PDF report in Arabic", True, _check_pdf))
         for name, required, fn in checks:
             try:
                 fn()

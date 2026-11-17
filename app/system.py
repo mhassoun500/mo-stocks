@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Desktop integration: notifications and Telegram, start with the computer, updates, files, backup and restore."""
+import hashlib
 from core import *  # noqa: F401,F403
 from prices import *  # noqa: F401,F403
 from markets import *  # noqa: F401,F403
@@ -154,13 +155,91 @@ def check_update():
     tag = r.get("tag_name") or ""
     assets = {a.get("name", ""): a.get("browser_download_url") for a in r.get("assets") or []}
     want = ".exe" if sys.platform == "win32" else (".dmg" if sys.platform == "darwin" else "")
-    dl = ""
+    dl, file = "", ""
     for name, link in assets.items():
         if want and name.endswith(want) and ("intel" in name) == (sys.platform == "darwin" and os.uname().machine == "x86_64"):
-            dl = link
+            dl, file = link, name
     return {"ok": True, "current": VERSION, "latest": tag.lstrip("v"),
             "newer": version_tuple(tag) > version_tuple(VERSION), "url": dl or r.get("html_url"),
+            "file": file, "sums": assets.get("SHA256SUMS.txt") or "", "page": r.get("html_url") or "",
             "notes": (r.get("body") or "")[:800]}
+
+
+# ---------------------------------------------------------------- one-click update (Phase 6)
+UPD = {"state": "idle", "done": 0, "total": 0, "message": "", "path": ""}
+UPD_LOCK = threading.Lock()
+
+
+def _release_url(url, repo):
+    """Only files of this program's own releases on GitHub are fetched."""
+    return isinstance(url, str) and url.startswith("https://github.com/%s/releases/download/" % repo)
+
+
+def sums_for(text, name):
+    """The SHA-256 written next to a file name in SHA256SUMS.txt ("<hash>  <name>"), or None."""
+    for line in (text or "").splitlines():
+        m = re.match(r"^\s*([0-9a-fA-F]{64})\s+\*?(.+?)\s*$", line)
+        if m and os.path.basename(m.group(2)) == name:
+            return m.group(1).lower()
+    return None
+
+
+def _open_installer(path):
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa: the installer replaces the app, so the app closes right after
+        return True
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+        return False
+    subprocess.Popen(["xdg-open", os.path.dirname(path)])
+    return False
+
+
+def download_update(url, name, sums_url, opener=None, fetch=None):
+    """Download the installer, check its SHA-256 against the release's SHA256SUMS.txt, and open it.
+    A file whose fingerprint does not match is deleted and never opened."""
+    repo = (pref("updateRepo", DEFAULT_UPDATE_REPO) or DEFAULT_UPDATE_REPO).strip()
+    name = os.path.basename(name or "")
+    if not (_release_url(url, repo) and _release_url(sums_url, repo) and name and url.endswith("/" + name)):
+        return {"ok": False, "error": "رابط التحديث ليس من إصدارات البرنامج على GitHub."}
+    fetch = fetch or (lambda u: urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": UA}), timeout=60))
+    with UPD_LOCK:
+        if UPD["state"] == "downloading":
+            return {"ok": False, "error": "التنزيل جارٍ بالفعل."}
+        UPD.update(state="downloading", done=0, total=0, message="", path="")
+    path = os.path.join(downloads_dir(), name)
+    try:
+        with fetch(sums_url) as r:
+            want = sums_for(r.read().decode("utf-8", "replace"), name)
+        if not want:
+            raise ValueError("لا توجد بصمة لهذا الملف في الإصدار، فلن يُفتح.")
+        h = hashlib.sha256()
+        with fetch(url) as r, open(path + ".part", "wb") as f:
+            UPD["total"] = int(r.headers.get("Content-Length") or 0)
+            while True:
+                b = r.read(256 * 1024)
+                if not b:
+                    break
+                f.write(b)
+                h.update(b)
+                UPD["done"] += len(b)
+        if h.hexdigest() != want:
+            os.remove(path + ".part")
+            raise ValueError("بصمة الملف لا تطابق المنشورة مع الإصدار، فحُذف ولم يُفتح. حاول مرة أخرى.")
+        os.replace(path + ".part", path)
+        quits = (opener or _open_installer)(path)
+        UPD.update(state="done", path=path, message="")
+        return {"ok": True, "path": path, "sha256": want, "quits": bool(quits)}
+    except Exception as e:
+        record("WARN", "system.download_update", e)
+        try:
+            if os.path.exists(path + ".part"):
+                os.remove(path + ".part")
+        except OSError:
+            pass
+        msg = str(e) if isinstance(e, ValueError) else "تعذّر تنزيل التحديث. تحقق من الاتصال."
+        UPD.update(state="error", message=msg)
+        return {"ok": False, "error": msg}
 
 
 def downloads_dir():
@@ -290,6 +369,18 @@ def backup_refresher():
         except Exception as e:
             record("WARN", "backup", e)
         QUIT.wait(6 * 3600)
+
+
+def open_file(path):
+    """Open a file the app just made (the PDF report) with the computer's default program."""
+    if not os.path.exists(path):
+        return
+    if sys.platform == "win32":
+        os.startfile(path)  # noqa
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", path])
+    else:
+        subprocess.Popen(["xdg-open", path])
 
 
 def reveal(path):

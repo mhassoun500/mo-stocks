@@ -185,6 +185,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": True, "text": errors_text(), "path": ERROR_LOG, "version": VERSION,
                                    "platform": sys.platform, "python": sys.version.split()[0], "frozen": FROZEN})
             if p == "/api/update":
+                if q.get("progress") == "1":
+                    return self._json(dict(UPD, ok=True))
                 return self._json(check_update())
             if p == "/api/open":
                 u = q.get("url", "")
@@ -224,6 +226,22 @@ class Handler(BaseHTTPRequestHandler):
                     for k in [k for k in MEM if k.startswith("h|FUND|%d|" % fid)]:
                         del MEM[k]
                 return self._json({"ok": True, "added": len(pts)})
+            if p == "/api/update":
+                args = (str(b.get("url") or ""), str(b.get("file") or ""), str(b.get("sums") or ""))
+
+                def go():
+                    r = download_update(*args)
+                    if r.get("ok") and r.get("quits"):
+                        threading.Timer(2.0, shutdown_app).start()   # Windows: the installer replaces the running app
+                threading.Thread(target=go, daemon=True).start()
+                return self._json({"ok": True, "started": True})
+            if p == "/api/report":
+                import report_pdf
+                d = b.get("report") if isinstance(b.get("report"), dict) else {}
+                path = report_pdf.save(d, downloads_dir())
+                if b.get("open", True):
+                    open_file(path)
+                return self._json({"ok": True, "path": path})
             if p == "/api/calendar":
                 return self._json(events_calendar([x for x in (b.get("items") or []) if isinstance(x, dict)]))
             if p == "/api/sectors":

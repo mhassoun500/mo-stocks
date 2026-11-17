@@ -1,0 +1,108 @@
+"""Page tests in a real browser (Playwright, Chromium) against the app's own local server, with prices and figures
+from tests/fixtures, so they need no internet. Run: python -m pytest -q tests/ui"""
+import json
+import os
+import sys
+import tempfile
+import threading
+
+_TMP = tempfile.mkdtemp(prefix="mostocks-ui-")
+os.environ["HOME"] = _TMP
+os.environ["APPDATA"] = _TMP
+os.environ["XDG_DATA_HOME"] = os.path.join(_TMP, "data")
+ROOT = os.path.join(os.path.dirname(__file__), "..", "..")
+sys.path.insert(0, os.path.join(ROOT, "app"))
+sys.path.insert(0, os.path.join(ROOT, "tests", "py"))
+
+import pytest  # noqa: E402
+
+FIX = os.path.join(ROOT, "tests", "fixtures")
+
+
+def fixture(name):
+    with open(os.path.join(FIX, name + ".json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
+HIST = {"1120": fixture("1120")["rows"], "COMI": fixture("COMI")["rows"], "AAPL": fixture("AAPL")["rows"],
+        "XAU-USD-OZ": fixture("GOLD")["rows"], "2222": fixture("1120")["rows"]}
+FUND = {"1120": fixture("4014_fund"), "COMI": fixture("COMI_fund"), "AAPL": fixture("AAPL_fund")}
+
+
+def route_api(route):
+    """Outside data from the fixtures; everything the app keeps for itself goes to the real server."""
+    from urllib.parse import parse_qs, urlparse
+    u = urlparse(route.request.url)
+    q = {k: v[0] for k, v in parse_qs(u.query).items()}
+    c = (q.get("code") or q.get("symbol") or "").split(".")[0].upper()
+    p = u.path
+    if p == "/api/history":
+        if c in HIST:
+            return route.fulfill(json={"ok": True, "rows": HIST[c], "name": c, "symbol": c, "source": "fixture", "currency": "SAR"})
+        return route.fulfill(json={"ok": False, "error": "no fixture"})
+    if p == "/api/fundamentals" and c in FUND:
+        return route.fulfill(json=FUND[c])
+    if p == "/api/universe":
+        return route.fulfill(json={"ok": True, "ex": "SR", "items": [{"symbol": "1120.SR", "name": "الراجحي", "short": "الراجحي", "chg": 0.5},
+                                                                      {"symbol": "2222.SR", "name": "أرامكو", "short": "أرامكو", "chg": -0.2}]})
+    if p == "/api/news":
+        return route.fulfill(json={"ok": True, "items": [{"title": "خبر", "link": "https://n.example/1", "source": "x", "date": "2026-11-17T10:00:00Z"}]})
+    if p in ("/api/profile", "/api/index", "/api/update", "/api/sharialists", "/api/yaaqen", "/api/purify_est", "/api/filings",
+             "/api/sectors", "/api/scanfund", "/api/calendar", "/api/ussharia", "/api/search"):
+        return route.fulfill(json={"ok": False})
+    return route.continue_()
+
+
+@pytest.fixture(scope="session")
+def app_url():
+    from http.server import ThreadingHTTPServer
+    import funds
+    import main
+    from test_funds_tadawul import HISTORY, PAGE
+    big = PAGE.replace("</tbody>", "".join(
+        '<tr><td><a href="?selectedFund=9%05d">صندوق %d</a></td><td>م</td><td>ريال سعودي</td><td>موافق الشريعة</td><td>هدف</td><td>1.5</td><td>0</td><td>2026/11/16</td><td>1</td><td>0</td></tr>' % (i, i)
+        for i in range(120)) + "</tbody>")
+
+    def fake_get(u, timeout=25):
+        if "fund-screener" in u:
+            return big
+        if "MutualFundChartDataDownloader" in u:
+            return HISTORY
+        raise OSError("no network in page tests")
+    funds._get = fake_get
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), main.Handler)
+    main.SERVER_PORT[0] = srv.server_address[1]
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield "http://127.0.0.1:%d/" % srv.server_address[1]
+    srv.shutdown()
+
+
+@pytest.fixture(scope="session")
+def browser():
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as pw:
+        b = pw.chromium.launch()
+        yield b
+        b.close()
+
+
+@pytest.fixture
+def page_for(browser, app_url):
+    """page_for(lang) → a fresh page in that language, with its page errors collected in page.errors."""
+    ctxs = []
+
+    def make(lang="ar", tour_done=True, theme="light"):
+        import core
+        core.Store.set("tourDone", tour_done)
+        ctx = browser.new_context(viewport={"width": 1400, "height": 1000}, color_scheme=theme)
+        ctx.add_init_script("try{localStorage.setItem('mo-lang','%s')}catch(e){}" % lang)
+        ctxs.append(ctx)
+        p = ctx.new_page()
+        p.errors = []
+        p.on("pageerror", lambda e: p.errors.append(str(e)))
+        p.route("**/api/**", route_api)
+        p.base = app_url
+        return p
+    yield make
+    for c in ctxs:
+        c.close()

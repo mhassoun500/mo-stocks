@@ -937,3 +937,52 @@ test('AI: portfolio and news payloads keep currencies apart and stay small', () 
   const n = AIx.newsPayload([{ name: 'A', code: 'A', ex: 'SR', items: Array.from({ length: 8 }, (_, i) => ({ title: 't' + i, source: 's', date: new Date(now - i * D).toISOString(), link: 'u' })).concat([{ title: 'old', date: new Date(now - 30 * D).toISOString() }]) }], now);
   assert.equal(n[0].headlines.length, 5); assert.ok(!JSON.stringify(n).includes('old') && !JSON.stringify(n).includes('"link"'));
 });
+
+/* ---------------- Phase 6 ---------------- */
+const P6 = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'alerts', 'watch', 'scan', 'calendar', 'journal', 'jtools', 'reports', 'aitools', 'home', 'ux', 'report', 'about'],
+  ['marketStatus', 'topOpportunities', 'shortcutAction', 'glossFor', 'GLOSSARY', 'parsePerfList', 'rebase', 'perfSummary', 'durText', 'TOUR']);
+test('dashboard: market open or closed by each market\'s own clock', () => {
+  const at = s => new Date(s);
+  assert.equal(P6.marketStatus('SR', at('2026-11-17T08:00:00Z')).open, true, 'Tuesday 11:00 Riyadh');
+  assert.equal(P6.marketStatus('SR', at('2026-11-20T08:00:00Z')).open, false, 'Friday');
+  const fri = P6.marketStatus('SR', at('2026-11-20T08:00:00Z'));
+  assert.equal(fri.mins, (2 * 24 - 1) * 60, 'opens Sunday 10:00, 47 hours later');
+  assert.equal(P6.marketStatus('US', at('2026-11-17T15:00:00Z')).open, true, '10:00 New York');
+  assert.equal(P6.marketStatus('US', at('2026-11-17T21:30:00Z')).open, false, 'after 16:00');
+  const ca = P6.marketStatus('CA', at('2026-11-17T12:00:00Z'));
+  assert.equal(ca.open, true); assert.equal(ca.mins, 30, 'Cairo 14:00, closes 14:30');
+  assert.match(P6.durText(47 * 60).replace(/<[^>]+>|[\u2066-\u2069]/g, ''), /1 يوم 23 ساعة/);
+});
+test('dashboard: strongest opportunities are buy setups by confidence', () => {
+  const t = P6.topOpportunities({ rows: [{ code: 'A', stance: 'buy', conf: 60 }, { code: 'B', stance: 'sell', conf: 90 }, { code: 'C', stance: 'buy', conf: 75 }, { code: 'D', stance: 'buy', conf: 75, q: 80 }] }, 2);
+  assert.equal(t.map(x => x.code).join(','), 'D,C');
+  assert.equal(P6.topOpportunities(null).length, 0);
+});
+test('shortcuts: keys do nothing while typing, except Escape', () => {
+  const k = (key, o) => Object.assign({ key, code: '', altKey: false, ctrlKey: false, metaKey: false }, o || {});
+  assert.equal(P6.shortcutAction(k('/'), false).k, 'search');
+  assert.equal(P6.shortcutAction(k('/'), true), null);
+  assert.equal(P6.shortcutAction(k('Escape'), true).k, 'esc');
+  assert.equal(P6.shortcutAction(k('?'), false).k, 'help');
+  assert.equal(P6.shortcutAction(k('١', { altKey: true, code: 'Digit3' }), false).v, 'watch', 'by key position, whatever the keyboard language');
+  assert.equal(P6.shortcutAction(k('s', { ctrlKey: true }), false), null);
+  assert.equal(P6.TOUR.length, 6);
+});
+test('glossary: terms in labels get an explanation', () => {
+  assert.match(P6.glossFor('مؤشر القوة النسبية (RSI)'), /من 0 إلى 100/);
+  assert.match(P6.glossFor('العائد إلى المخاطرة'), /1 : 2/);
+  assert.equal(P6.glossFor('السعر'), null);
+  assert.ok(P6.GLOSSARY.every(([k, v]) => k && v.length > 20));
+});
+test('performance chart: codes are read and every line starts at 100 on the first shared day', () => {
+  assert.equal(JSON.stringify(P6.parsePerfList('SR:2222, us:aapl، COMI COMI', 'CA')), JSON.stringify([{ ex: 'SR', code: '2222' }, { ex: 'US', code: 'AAPL' }, { ex: 'CA', code: 'COMI' }]));
+  const d = i => Date.UTC(2026, 0, 1 + i);
+  const r = P6.rebase([{ code: 'A', rows: [[d(0), 0, 0, 0, 50], [d(1), 0, 0, 0, 55], [d(2), 0, 0, 0, 60]] }, { code: 'B', rows: [[d(1), 0, 0, 0, 10], [d(2), 0, 0, 0, 9]] }]);
+  assert.equal(r[0].pts[0][1], 100); assert.equal(r[0].pts[0][0], d(1), 'starts on the first day both have');
+  assert.ok(Math.abs(r[0].ret - (60 / 55 - 1)) < 1e-12); assert.ok(Math.abs(r[1].ret + 0.1) < 1e-12);
+});
+test('performance: stock-open timing summary', () => {
+  const s = P6.perfSummary([{ code: 'SR:1', fetch: 300, total: 900 }, { code: 'US:A', fetch: 100, total: 400 }, { code: 'X', fetch: 200, total: 2000 }]);
+  assert.equal(s.n, 3); assert.equal(s.median, 900); assert.equal(s.max, 2000); assert.equal(s.last.code, 'SR:1');
+  assert.equal(P6.perfSummary([]), null);
+});

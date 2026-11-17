@@ -427,7 +427,7 @@ async function fetchSymbol(code,ex){
   code=(code||'').trim();if(!code){setStatus('اكتب رمز السهم أولًا.',true);$('#sym').focus();return;}
   const btn=$('#fetchBtn');btn.disabled=true;btn.textContent='جارٍ الجلب…';$('#results').hidden=true;
   const label=ex==='GOLD'?goldLabel():code;setStatus('جارٍ جلب بيانات '+label+' …');
-  const seq=++S.loadSeq;
+  const seq=++S.loadSeq,t0=performance.now();
   try{
     const rng=$('#rng').value;
     const [j,h]=await Promise.all([api('/api/history',{code,ex,range:rng}),S.tf==='H'?api('/api/history',{code,ex,range:'2y',interval:'60m'}).catch(()=>null):Promise.resolve(null)]);
@@ -443,7 +443,7 @@ async function fetchSymbol(code,ex){
     S.ex=ex;S.code=ex==='GOLD'?code:code.toUpperCase();S.name=j.name||j.symbol;S.source='live';S.meta=j;S.fileName='';
     S.daily=rowsToData(j.rows);S.hourly=h&&h.ok?rowsToData(h.rows):null;S.calcAuto=true;
     await loadDrawings();
-    applyTF();
+    const t1=performance.now();applyTF();if(typeof perfNote==='function')perfNote(code,ex,t1-t0,performance.now()-t0);
     setStatus('تم جلب '+S.daily.length+(S.isFund?' سعرًا للصندوق من ':' يوم تداول من ')+j.source+(j.live||j.source==='TradingView'?'، وآخر سعر من جلسة '+fmtDate.format(S.daily[S.daily.length-1].t)+' ('+priceQual(j)+(marketOpen(ex)?' ويتحدث تلقائيًا كل دقيقتين':'')+').':'، وآخر إغلاق بتاريخ '+fmtDate.format(S.daily[S.daily.length-1].t)+'.')+(j.note?' '+j.note:''),!!j.offline);
     addRecent({ex,code:S.code,name:S.name,short:j.short||''});
     loadFundamentals(seq);

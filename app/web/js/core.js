@@ -6,8 +6,9 @@ const $$=s=>[...document.querySelectorAll(s)];
    The build wraps every Arabic string literal in the scripts as _t('...'); static page text and
    messages coming from the local server are translated in the page itself (exact phrases only,
    so company and fund names are never altered). */
-const I18N=(()=>{try{const d=JSON.parse(document.getElementById('i18n-data').textContent);d.re=(d.p||[]).map(([r,x])=>[new RegExp('^'+r+'$'),x]);return d;}catch(e){return{t:{},re:[]};}})();
 const LANG=(()=>{try{return localStorage.getItem('mo-lang')==='en'?'en':'ar';}catch(e){return'ar';}})();
+/* the English dictionary is read only when the page is in English (it is a fifth of the page) */
+const I18N=(()=>{if(LANG!=='en')return{t:{},re:[]};try{const d=JSON.parse(document.getElementById('i18n-data').textContent);d.re=(d.p||[]).map(([r,x])=>[new RegExp('^'+r+'$'),x]);return d;}catch(e){return{t:{},re:[]};}})();
 const EN=LANG==='en';
 const HAS=Object.prototype.hasOwnProperty;
 const _t=s=>{if(!EN||typeof s!=='string')return s;if(HAS.call(I18N.t,s))return I18N.t[s];const v=AR_RE.test(s)?trPhrase(s):null;return v==null?s:v;};
