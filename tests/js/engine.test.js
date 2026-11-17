@@ -673,3 +673,37 @@ test('statistics: groups by setup, market, holding period and tag, best and wors
   const mc = JX.mistakeCost(tr, ['دخول متسرع', 'قرار عاطفي']);
   assert.equal(mc.length, 1); assert.equal(mc[0].n, 2); assert.equal(mc[0].losses, 2); assert.ok(Math.abs(mc[0].avgWith - (-0.035)) < 1e-9);
 });
+
+/* ---------- nine checks before deciding (step 6) ---------- */
+const NC = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'company'], ['nineChecks']);
+const NOW = Date.UTC(2026, 10, 17), D1 = 864e5;
+const series = (n, f) => Array.from({ length: n }, (_, i) => ({ t: NOW - (n - i) * D1, o: 1, h: 1, l: 1, c: f(i), v: 50000 }));
+const byKey = l => Object.fromEntries([...l].map(x => [x.key, x]));
+test('nine checks: calm, liquid, fairly priced company reads as usual', () => {
+  const c = byKey(NC.nineChecks({ ex: 'SR', now: NOW, data: series(260, i => 100 + (i % 2 ? 0.5 : -0.5)),
+    fund: { ok: true, f: { net_income_ttm: 5e8, price_earnings_ttm: 14 }, sectorPE: 15, source: 'TradingView' },
+    profile: { ok: true, earningsGrowth: 0.1, debtToEquity: 40, sector: 'Industrials' } }));
+  assert.equal(c.liquidity.status, 'usual'); assert.equal(c.volatility.status, 'usual'); assert.equal(c.profit.status, 'usual');
+  assert.equal(c.valuation.status, 'usual'); assert.equal(c.debt.status, 'usual');
+  assert.equal(c.float.status, 'na', 'no free source: said, not guessed');
+  assert.equal(c.insiders.status, 'na'); assert.equal(c.filings.status, 'na'); assert.equal(c.coming.status, 'na');
+  assert.equal(Object.keys(c).length, 9);
+});
+test('nine checks: what makes each one worth a look', () => {
+  const thin = series(260, i => 100 * (i > 240 ? 0.7 : 1) + (i % 2 ? 4 : -4)).map((d, i) => Object.assign(d, { v: i % 3 ? 0 : 10 }));
+  const file = { ok: true, complete: true, insiders: [{ date: NOW - 5 * D1, side: 'sell', shares: 1000 }],
+    items: [{ date: NOW - 2 * D1, title: 'Results', form: '8-K' }], record: { due: null } };
+  const c = byKey(NC.nineChecks({ ex: 'US', now: NOW, data: thin, file,
+    fund: { ok: true, f: { net_income_ttm: -2e7, price_earnings_ttm: -5 }, sectorPE: 20 },
+    profile: { ok: true, debtToEquity: 220, sector: 'Technology', earningsDates: [(NOW + 6 * D1) / 1000] } }));
+  for (const k of ['liquidity', 'volatility', 'profit', 'valuation', 'debt', 'insiders', 'filings', 'coming']) assert.equal(c[k].status, 'notable', k);
+});
+test('nine checks: banks are not judged on debt, and an estimated results date is used only when none is announced', () => {
+  const file = { ok: true, complete: false, watching: true, since: NOW - 200 * D1, items: [{ date: NOW - 120 * D1, type: 'insider', title: 'x' }],
+    record: { due: { date: NOW + 60 * D1, from: 3 } } };
+  const c = byKey(NC.nineChecks({ ex: 'SR', now: NOW, data: series(30, () => 10), file, profile: { ok: true, sector: 'Financial Services', debtToEquity: 900 } }));
+  assert.equal(c.debt.status, 'na');
+  assert.equal(c.insiders.status, 'usual'); assert.ok(c.insiders.partial, 'a record that only starts when the app began watching is marked partial');
+  assert.equal(c.coming.status, 'usual'); assert.equal(c.coming.facts[0][1], NOW + 60 * D1);
+  assert.equal(c.volatility.status, 'na', '30 sessions are too few');
+});

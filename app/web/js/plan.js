@@ -169,7 +169,7 @@ async function loadFundamentals(seq){
   if(!LOCAL||!['SR','CA','US'].includes(S.ex)||S.isFund)return;
   S.fund='loading';renderFair();
   const r=await api('/api/fundamentals',{code:S.code,ex:S.ex}).catch(()=>null);if(seq!==S.loadSeq)return;
-  S.fund=r&&r.ok?r:(r||{ok:false});S.fv=fairValue(S.fund);renderPlan();draw();
+  S.fund=r&&r.ok?r:(r||{ok:false});S.fv=fairValue(S.fund);renderPlan();draw();if(typeof renderNine==='function')renderNine();
 }
 
 /* ---------- AI assistants: direct link by API key, or a prompt to paste into any chat ---------- */

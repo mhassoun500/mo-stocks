@@ -1,5 +1,5 @@
 /* ---------- data sources panel (Settings) ---------- */
-const SRC_KIND={history:'أسعار',fundamentals:'بيانات مالية',news:'أخبار',dividends:'توزيعات',sharia:'قوائم شرعية',funds:'صناديق'};
+const SRC_KIND={history:'أسعار',fundamentals:'بيانات مالية',news:'أخبار',dividends:'توزيعات',sharia:'قوائم شرعية',funds:'صناديق',filings:'إفصاحات الشركات'};
 const SRC_MK={SR:'السعودية',CA:'مصر',US:'أمريكا'};
 const SRC_RANK_KINDS=['history','fundamentals','news'];
 const _rtf=(()=>{try{return new Intl.RelativeTimeFormat(EN?'en':'ar',{numeric:'auto'});}catch(e){return null;}})();

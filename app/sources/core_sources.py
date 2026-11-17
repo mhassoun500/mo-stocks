@@ -217,6 +217,51 @@ class TadawulFunds(Connector):
         return funds.fetch_tadawul_history(fid)
 
 
+class SaudiAnnouncements(Connector):
+    """The Saudi Exchange's newest issuer announcements (whole market); the app keeps what it sees."""
+    id, name = "sa_announce", "تداول السعودية (إعلانات الشركات)"
+    kinds = ("filings",)
+    markets = ("SR",)
+    official = True
+    gap = 1.0
+    retries = 1
+    note = "آخر إعلانات الشركات المدرجة في السوق السعودية، تُقرأ كل 10 دقائق ويُحفظ سجلها"
+
+    def filings(self, op="feed", **kw):
+        import filings
+        from . import defs
+        from .base import format_changed
+        text = http_get(defs.feed("sa"), headers={"Accept": "application/json"}, timeout=30).decode("utf-8", errors="replace")
+        try:
+            return filings.parse_saudi_feed(text)
+        except ValueError:
+            raise format_changed("sa_announce", "announcement list is not JSON", text[:300])
+
+
+class EgxDisclosures(Connector):
+    """The EGX disclosures search, newest page; the app keeps what it sees."""
+    id, name = "egx_news", "البورصة المصرية (إفصاحات الشركات)"
+    kinds = ("filings",)
+    markets = ("CA",)
+    official = True
+    gap = 2.0
+    retries = 1
+    note = "أحدث إفصاحات الشركات المقيدة في البورصة المصرية، تُقرأ كل 10 دقائق ويُحفظ سجلها"
+
+    def filings(self, op="feed", **kw):
+        import time as _t
+        import filings
+        from . import defs
+        from .base import format_changed
+        now = _t.time()
+        url = defs.feed("eg") % (_t.strftime("%d/%m/%Y", _t.gmtime(now - 3 * 86400)), _t.strftime("%d/%m/%Y", _t.gmtime(now + 86400)))
+        page = http_get(url, headers={"Accept": "text/html"}, timeout=45).decode("utf-8", errors="replace")
+        rows = filings.parse_egx_feed(page, int(now * 1000))
+        if not rows and "NewsDetails" not in page and len(page) > 20000:
+            raise format_changed("egx_news", "disclosure search page has no news rows", page[:300])
+        return rows
+
+
 class MubasherFunds(Connector):
     id, name = "mubasher", "مباشر (صناديق)"
     kinds = ("funds",)
@@ -229,5 +274,5 @@ class MubasherFunds(Connector):
         return funds.fetch_fund_list(country) if op == "list" else funds.fetch_fund_history(fid)
 
 
-for _c in (Yahoo, TradingView, TVScan, Stooq, GoogleNews, BingNews, ArgaamSharia, EgyptSharia, SpusSharia, MaqasedPurify, TadawulFunds, MubasherFunds):
+for _c in (Yahoo, TradingView, TVScan, Stooq, GoogleNews, BingNews, ArgaamSharia, EgyptSharia, SpusSharia, MaqasedPurify, TadawulFunds, MubasherFunds, SaudiAnnouncements, EgxDisclosures):
     REG.register(_c())

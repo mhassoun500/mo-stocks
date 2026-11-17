@@ -128,6 +128,9 @@ class Handler(BaseHTTPRequestHandler):
                     threading.Thread(target=sharia_refresh, daemon=True).start()
                     return self._json({"ok": True, "started": True})
                 return self._json(sharia_lists())
+            if p == "/api/filings":
+                import filings
+                return self._json(filings.company_file(q.get("code", ""), q.get("ex", "SR")))
             if p == "/api/purify_est":
                 return self._json(purify_estimate(q.get("code", ""), q.get("ex", "SR")))
             if p == "/api/yaaqen":

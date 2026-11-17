@@ -50,7 +50,7 @@ def from_facts(d):
 
 class Edgar(Connector):
     id, name = "edgar", "SEC EDGAR"
-    kinds = ("fundamentals",)
+    kinds = ("fundamentals", "filings")
     markets = ("US",)
     official = True
     gap = 0.2          # the SEC allows 10 requests a second
@@ -95,6 +95,26 @@ class Edgar(Connector):
         res["close"] = px
         res["sector"] = ""
         return res
+
+
+    def filings(self, code, **kw):
+        """The company's filings (newest first) and its insiders' open-market buys and sells from the last year's Form 4s."""
+        import json as _j
+        import time as _t
+        import filings as F
+        t = code.upper().split(".")[0]
+        d = _j.loads(F.sec_get("https://data.sec.gov/submissions/CIK%s.json" % self.cik(t).zfill(10)).decode("utf-8"))
+        items = F.parse_sec_submissions(d)
+        if not items:
+            raise NoData()
+        ins, year_ago = [], (_t.time() - 365 * 86400) * 1000
+        for x in [i for i in items if i["form"] == "4" and i["date"] >= year_ago][:12]:
+            try:
+                ins += F.parse_form4(F.sec_get(x["raw"]).decode("utf-8", errors="replace"))
+            except Exception:
+                continue          # one unreadable report does not hide the others
+        ins.sort(key=lambda r: r["date"], reverse=True)
+        return {"items": items, "insiders": ins}
 
 
 REG.register(Edgar())

@@ -21,5 +21,9 @@
    "url": "https://data.argaam.com/files/download/2ac6ef5f-f610-4fcf-98ca-05a1e6358c0d.pdf",
    "period": "2025"
   }
+ },
+ "feeds": {
+  "sa": "https://www.saudiexchange.sa/wps/portal/saudiexchange/newsandreports/issuer-news/issuer-announcements/!ut/p/z1/lY9NDoIwFITPwgk6Qnity6fGggEBoYrdGFakiaIL4_kl7sCf4Owm-SYzI6yohe2ah2ubu7t2zbn3R0unkAl-pJAhqpYglJpMpWYrn8RhCKhUE4otF5kvQ-g9hP0rjzIPUazzNEiwgwZNy-OLeEK_HSIZz2W_YLPQccKBIjkGPlwclbx_eAE_Rt4uxtRwccue9wRUSy-z/p0/IZ7_5A602H80O0HTC060SG6UT81DI1=CZ6_5A602H80O0HTC060SG6UT81D26=NJgetAnnouncementListData=/",
+  "eg": "https://www.egx.com.eg/ar/NewsSearch.aspx?com=&word=&from=%s&to=%s&isin=&sec_id=20"
  }
 }

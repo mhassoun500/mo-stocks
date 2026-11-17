@@ -347,7 +347,7 @@ async function loadProfile(seq){
     ['معامل بيتا',j.beta!=null?j.beta.toFixed(2):null],['متوسط هدف المحللين',j.targetMeanPrice?fp(j.targetMeanPrice)+(j.analysts?' ('+j.analysts+')':''):null],['توصية المحللين',j.recommendation?(REC_AR[j.recommendation]||j.recommendation):null]];
   $('#profileKv').innerHTML=kv.filter(x=>x[1]!=null&&x[1]!=='').map(([k,v])=>'<div><span>'+k+'</span><b'+(/[ء-ي]/.test(String(v))?' class="txt"':'')+'>'+esc(v)+'</b></div>').join('')||'<p class="empty">لا تتوفر بيانات أساسية لهذا الرمز.</p>';
   if(j.summary){$('#profileSummary').textContent=j.summary;$('#profileSummaryBox').hidden=false;}
-  renderEvents();draw();
+  renderEvents();draw();renderNine();
 }
 function upcomingEvents(){
   const now=Date.now(),ev=[];
@@ -447,7 +447,7 @@ async function fetchSymbol(code,ex){
     setStatus('تم جلب '+S.daily.length+(S.isFund?' سعرًا للصندوق من ':' يوم تداول من ')+j.source+(j.live||j.source==='TradingView'?'، وآخر سعر من جلسة '+fmtDate.format(S.daily[S.daily.length-1].t)+' ('+priceQual(j)+(marketOpen(ex)?' ويتحدث تلقائيًا كل دقيقتين':'')+').':'، وآخر إغلاق بتاريخ '+fmtDate.format(S.daily[S.daily.length-1].t)+'.')+(j.note?' '+j.note:''),!!j.offline);
     addRecent({ex,code:S.code,name:S.name,short:j.short||''});
     loadFundamentals(seq);
-    loadProfile(seq);if(S.isFund)loadFundCompare(seq);else loadCompare(seq);loadGoldExtras(seq);
+    loadProfile(seq);loadCompanyFile(seq);if(S.isFund)loadFundCompare(seq);else loadCompare(seq);loadGoldExtras(seq);
     S.usSharia=null;if(LOCAL&&ex==='US')api('/api/ussharia',{code:S.code}).then(r=>{if(seq===S.loadSeq&&r&&r.ok){S.usSharia=r;if(S.A)render();}}).catch(()=>{});
   }catch(e){setStatus(e instanceof TypeError||e instanceof SyntaxError?'تعذّر الاتصال بالبرنامج. أعد تشغيله إذا استمرت المشكلة.':(e.message||'تعذّر جلب البيانات.'),true);}
   finally{btn.disabled=false;btn.textContent='جلب البيانات';}

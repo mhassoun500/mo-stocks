@@ -8,7 +8,8 @@ DEFAULT = {
     "news": ["googlenews", "bingnews"],
     "dividends": ["yahoo"],
     "sharia": ["argaam", "egsharia", "spus", "maqased"],
-    "funds": ["tadawul_funds", "mubasher"],   # Saudi: the exchange first; Mubasher stays for Egypt
+    "funds": ["tadawul_funds", "mubasher"],
+    "filings": ["sa_announce", "egx_news", "edgar"],   # Saudi: the exchange first; Mubasher stays for Egypt
 }
 
 

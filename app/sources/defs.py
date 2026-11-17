@@ -17,6 +17,7 @@ MAX_BYTES = 64 * 1024
 REPO = "mhassoun500/mo-stocks"
 PATH = "defs/definitions.json"
 HOSTS = ("www.argaam.com", "stocks.templatesnippet.com", "www.sp-funds.com")
+FEED_HOSTS = {"sa": ("www.saudiexchange.sa",), "eg": ("www.egx.com.eg",)}
 PURIFY_HOSTS = ("data.argaam.com", "almaqased.net", "www.almaqased.net")
 REGEX_KEYS = ("ref_re", "ref_alt_re", "row_re", "cell_re", "name_prefix_re")
 
@@ -38,6 +39,11 @@ DEFAULTS = {
     # optional (older apps ignore it): the yearly purification study; a new year's file only needs a new address here
     "purify": {
         "maqased_sa": {"url": "https://data.argaam.com/files/download/2ac6ef5f-f610-4fcf-98ca-05a1e6358c0d.pdf", "period": "2025"},
+    },
+    # optional: the market-wide announcement lists read for the company file (%s/%s in the EGX one are the dates)
+    "feeds": {
+        "sa": "https://www.saudiexchange.sa/wps/portal/saudiexchange/newsandreports/issuer-news/issuer-announcements/!ut/p/z1/lY9NDoIwFITPwgk6Qnity6fGggEBoYrdGFakiaIL4_kl7sCf4Owm-SYzI6yohe2ah2ubu7t2zbn3R0unkAl-pJAhqpYglJpMpWYrn8RhCKhUE4otF5kvQ-g9hP0rjzIPUazzNEiwgwZNy-OLeEK_HSIZz2W_YLPQccKBIjkGPlwclbx_eAE_Rt4uxtRwccue9wRUSy-z/p0/IZ7_5A602H80O0HTC060SG6UT81DI1=CZ6_5A602H80O0HTC060SG6UT81D26=NJgetAnnouncementListData=/",
+        "eg": "https://www.egx.com.eg/ar/NewsSearch.aspx?com=&word=&from=%s&to=%s&isin=&sec_id=20",
     },
 }
 
@@ -94,6 +100,16 @@ def validate(d, app_version=None):
             return False, "pattern %s does not compile" % k
     if not isinstance(a.get("tick"), str) or not 0 < len(a["tick"]) <= 4:
         return False, "tick"
+    if "feeds" in d:
+        fe = d["feeds"]
+        if not isinstance(fe, dict) or set(fe) - set(FEED_HOSTS):
+            return False, "feeds"
+        for k, u in fe.items():
+            p = urllib.parse.urlparse(u) if isinstance(u, str) else None
+            if not p or p.scheme != "https" or p.hostname not in FEED_HOSTS[k] or len(u) > 600:
+                return False, "feed url %s not allowed" % k
+        if "eg" in fe and fe["eg"].count("%s") != 2:
+            return False, "feed eg needs two dates"
     if "purify" in d:
         pu = d["purify"]
         if not isinstance(pu, dict) or set(pu) - {"maqased_sa"}:
@@ -130,6 +146,11 @@ def get(*path):
     for k in path:
         v = v[k]
     return v
+
+
+def feed(key):
+    """Address of a market-wide announcement list: the downloaded definitions if they name one, else built-in."""
+    return (current().get("feeds") or {}).get(key) or DEFAULTS["feeds"][key]
 
 
 def purify(key="maqased_sa"):

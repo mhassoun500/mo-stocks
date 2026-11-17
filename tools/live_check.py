@@ -71,6 +71,27 @@ def edgar_figures():
     return "revenue %s, interest %s" % (f.get("total_revenue_fy"), f.get("non_oper_interest_income_fy"))
 
 
+def saudi_announcements():
+    from sources.base import REG
+    rows = REG.items["sa_announce"].filings()
+    assert rows, "no announcements read"
+    return "%d announcements, newest %s: %s" % (len(rows), rows[0]["code"], rows[0]["title"][:60])
+
+
+def egx_disclosures():
+    from sources.base import REG
+    rows = REG.items["egx_news"].filings()
+    assert rows, "no disclosures read"
+    return "%d disclosures, newest %s: %s" % (len(rows), rows[0]["code"], rows[0]["title"][:60])
+
+
+def sec_company_file():
+    import filings
+    f = filings.company_file("AAPL", "US")
+    assert f.get("ok"), f.get("error")
+    return "%d filings, %d insider buys/sells in a year, results due %s" % (len(f["items"]), len(f["insiders"] or []), (f["record"].get("due") or {}).get("date"))
+
+
 def mubasher_funds():
     import funds
     rows = funds.fetch_fund_list("EG")
@@ -90,6 +111,9 @@ if __name__ == "__main__":
     check("Al-Maqased purification study (PDF)", maqased_pdf)
     check("TradingView revenue and interest columns", tradingview_purify_columns, required=False)
     check("SEC EDGAR revenue and interest", edgar_figures, required=False)
+    check("Saudi Exchange announcements", saudi_announcements)
+    check("EGX disclosures", egx_disclosures)
+    check("SEC EDGAR filings and Form 4", sec_company_file, required=False)
     check("Mubasher Egyptian fund list (old address)", mubasher_funds, required=False)
     check("Mubasher fund history files", mubasher_fund_history, required=False)
     for status, name, msg in RESULTS:
