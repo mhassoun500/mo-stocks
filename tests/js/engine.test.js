@@ -675,7 +675,7 @@ test('statistics: groups by setup, market, holding period and tag, best and wors
 });
 
 /* ---------- nine checks before deciding (step 6) ---------- */
-const NC = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'company'], ['nineChecks', 'feedStatusHTML']);
+const NC = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'company'], ['nineChecks', 'feedStatusHTML', 'newsAsFileHTML']);
 const NOW = Date.UTC(2026, 10, 17), D1 = 864e5;
 const series = (n, f) => Array.from({ length: n }, (_, i) => ({ t: NOW - (n - i) * D1, o: 1, h: 1, l: 1, c: f(i), v: 50000 }));
 const byKey = l => Object.fromEntries([...l].map(x => [x.key, x]));
@@ -714,4 +714,18 @@ test('company file: the market reading says whether it worked, so an empty list 
   assert.match(NC.feedStatusHTML({ ex: 'CA', status: { at, ok: false, why: 'HTTPError' } }), /تعذّرت قراءة إعلانات السوق/);
   const ok = NC.feedStatusHTML({ ex: 'SR', since: at, status: { at, ok: true, n: 25 } });
   assert.match(ok, /آخر قراءة لإعلانات السوق/); assert.match(ok, /25/); assert.match(ok, /موقع تداول/);
+});
+
+test('company file: a refusing site gives a button to the company page and says it retries daily', () => {
+  const link = 'https://www.saudiexchange.sa/x?cs=2222';
+  const h = NC.feedStatusHTML({ ex: 'SR', link, status: { at: Date.UTC(2026, 10, 17), ok: false, blocked: true } });
+  assert.match(h, /لا يسمح للبرامج/); assert.match(h, /مرة واحدة في اليوم/); assert.ok(h.includes('data-url="' + link + '"'));
+  const n = NC.newsAsFileHTML([{ title: 'أرامكو <b>', link: 'https://n.example/1', source: 'X', date: '2026-11-17T10:00:00Z' }]);
+  assert.match(n, /خبر/); assert.ok(n.includes('&lt;b&gt;'), 'titles are escaped');
+});
+
+test('nine checks: a refused market says so instead of "nothing yet"', () => {
+  const file = { ok: true, complete: false, items: [], status: { at: 1, ok: false, blocked: true } };
+  const c = byKey(NC.nineChecks({ ex: 'SR', now: NOW, data: series(30, () => 10), file }));
+  assert.equal(c.filings.status, 'na'); assert.match(c.filings.text || JSON.stringify(c.filings), /لا يسمح للبرامج/);
 });

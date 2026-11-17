@@ -20,14 +20,17 @@ function loadFundList(force){
     fillFundSelect();
     const cats=[...new Set(FL.items.map(f=>f.category))];
     $('#fCat').innerHTML='<option value="">الكل</option>'+cats.map(c=>'<option value="'+c+'">'+FCAT[c]+'</option>').join('');
-    FL.failed=j.failed||(j.offline?['SA','EG']:[]);FL.note=j.note||'';fundsMeta();
+    FL.failed=j.failed||(j.offline?['SA','EG']:[]);FL.note=j.note||'';FL.countryAt=j.countryAt||{};fundsMeta();
     renderFunds();
   })();
   return FL.loading;
 }
+/* A list that could not be refreshed says so, with the date it was last read for real. */
+function savedListText(c){const at=FL.countryAt||{},ds=(FL.failed||[]).filter(x=>!c||x===c).map(x=>at[x]).filter(Boolean);
+  return ds.length?_t('قائمة محفوظة من')+' '+NUM(fmtDate.format(Math.min(...ds))):_t('قائمة محفوظة');}
 function fundsMeta(){
   const c=$('#fCountry').value,off=(FL.failed||[]).some(x=>!c||x===c),act=FL.items.filter(f=>(!c||f.country===c)&&!f.stale);
-  $('#fundsMeta').textContent=(c?FCOUNTRY[c]+': ':'')+act.length+' صندوقًا نشطًا، منها '+act.filter(f=>f.sharia).length+' متوافقة مع الشريعة'+(off?' · أسعار محفوظة':'')+(off&&FL.note?' — '+_t(FL.note):'');
+  $('#fundsMeta').textContent=(c?FCOUNTRY[c]+': ':'')+act.length+' صندوقًا نشطًا، منها '+act.filter(f=>f.sharia).length+' متوافقة مع الشريعة'+(off?' · '+savedListText(c):'')+(off&&FL.note?' — '+_t(FL.note):'');
 }
 function fillFundSelect(){
   const all=$('#fundAll').checked,cur=$('#fund').value,country=$('#fundCountry').value;

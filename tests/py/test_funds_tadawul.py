@@ -79,6 +79,20 @@ def test_saudi_list_comes_from_the_exchange_and_egypt_falls_back_with_a_reason(m
     assert len(sa) == 124 and out["sources"]["SA"] == "تداول السعودية (صناديق)"
     assert [i["id"] for i in out["items"] if i["country"] == "EG"] == [2680], "the last saved Egyptian list is kept"
     assert out["offline"] and out["failed"] == ["EG"] and "مباشر" in out["note"]
+    assert out["countryAt"]["SA"] > 1.7e12 and out["countryAt"]["EG"] is None, "a saved list keeps the date it was really read"
+
+
+def test_a_refused_list_keeps_the_date_it_was_last_read(monkeypatch):
+    monkeypatch.setattr(funds, "_get", lambda url, timeout=25: (_ for _ in ()).throw(OSError("403")))
+    kept = {}
+    monkeypatch.setattr(prices, "cache_put", lambda k, v: kept.update({k: v}))
+    monkeypatch.setattr(prices, "cache_get", lambda k, max_age=None: (None, 1.7e9))
+    saved = {"items": [{"id": "SA1", "name": "صندوق", "country": "SA", "price": 1, "date": 1, "sharia": "", "manager": ""}],
+             "countryAt": {"SA": 1763000000000, "EG": None}}
+    out = prices._fetch_all_funds(saved)
+    assert out["failed"] == ["SA", "EG"] or set(out["failed"]) == {"SA", "EG"}
+    assert out["countryAt"]["SA"] == 1763000000000 and out["countryAt"]["EG"] == 1.7e12
+    assert "لا يسمح للبرامج" in out["note"] and kept["funds|all"] is out, "kept, so a refusing site is not asked again for hours"
 
 
 def test_saudi_fund_history_goes_to_the_exchange(monkeypatch):

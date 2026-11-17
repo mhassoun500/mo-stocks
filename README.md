@@ -2,6 +2,10 @@
 
 برنامج سطح مكتب لويندوز وماك للتحليل الفني للأسهم والذهب: يجلب الأسعار تلقائيًا، ويحدد مناطق الدعم والمقاومة والشراء والبيع، ويرسل التنبيهات.
 
+## 2.14.3
+- موقعا تداول السعودية والبورصة المصرية يرفضان البرامج: زر يفتح إعلانات الشركة في المتصفح، وأخبار الشركة كبديل موسوم «خبر»، ومحاولة واحدة يوميًا بدل كل 10 دقائق (Saudi Exchange and EGX refuse programs: button to the company page, news as a labelled stand-in, one try a day).
+- الصناديق: القائمة المحفوظة تظهر مع تاريخ آخر قراءة فعلية (Funds: a saved list shows the date it was really read).
+
 ## 2.14.2
 - ملف الشركة: سطر واضح يقول متى قرأ البرنامج إعلانات السوق آخر مرة وهل نجحت القراءة (Company file: clear line on the last market reading and whether it worked).
 

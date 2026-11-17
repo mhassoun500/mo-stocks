@@ -20,6 +20,13 @@ import xml.etree.ElementTree as ET
 
 FEED_KEEP = 4000                         # announcements kept per market
 FEED_EVERY = 10 * 60                     # seconds between reads of the market lists
+BLOCKED_RETRY = 24 * 3600                # a site that refuses programs is asked again once a day, not every 10 minutes
+
+
+def refused(e):
+    """True when the site answered but will not serve programs (403/401, or its bot-protection page)."""
+    from sources.base import FormatChanged
+    return isinstance(e, FormatChanged) or getattr(e, "code", None) in (401, 403)
 
 # ---------------------------------------------------------------- kinds of disclosure
 TYPES = [  # first match wins; words in Arabic and English
@@ -209,11 +216,15 @@ def refresh_feeds():
         c = REG.items.get(cid)
         if not c or not c.available():
             continue
+        st, _ = core.cache_get("feedst|" + ex)
+        if st and st.get("blocked") and time.time() * 1000 - st["at"] < BLOCKED_RETRY * 1000:
+            res[ex] = "later"           # refused last time: do not keep knocking
+            continue
         try:
             new = REG.call_one(cid, "filings", op="feed")
         except Exception as e:
             core.record("WARN", "filings.feed %s" % ex, e)
-            core.cache_put("feedst|" + ex, {"at": int(time.time() * 1000), "ok": False, "why": type(e).__name__})
+            core.cache_put("feedst|" + ex, {"at": int(time.time() * 1000), "ok": False, "why": type(e).__name__, "blocked": refused(e)})
             res[ex] = False
             continue
         with FEED_LOCK:

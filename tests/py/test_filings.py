@@ -115,7 +115,7 @@ def test_refresh_reads_both_markets_and_logs_failures(monkeypatch):
     assert filings.company_file("1120", "SR")["items"] == []
     assert f["status"]["ok"] and f["status"]["n"] == 2, "the last reading is shown, so an empty list is understood"
     eg = filings.company_file("COMI", "CA")
-    assert eg["status"] == {"at": eg["status"]["at"], "ok": False, "why": "OSError"} and not eg["watching"]
+    assert eg["status"] == {"at": eg["status"]["at"], "ok": False, "why": "OSError", "blocked": False} and not eg["watching"], "a time-out is not a refusal: tried again in 10 minutes"
 
 
 # ---------------------------------------------------------------- SEC
@@ -225,3 +225,24 @@ def test_a_one_off_filing_does_not_hide_the_usual_results_date():
     items.append({"date": day(2025, 11, 20), "type": "results"})        # an amended report, once
     due = filings.record_of(items, now)["due"]
     assert due and time.gmtime(due["date"] / 1000)[:2] == (2027, 1) and due["from"] >= 3
+
+
+def test_a_refusing_site_is_asked_once_a_day(monkeypatch):
+    import urllib.error
+    calls = []
+    def get(url, headers=None, timeout=20, data=None):
+        calls.append(url)
+        if "saudiexchange" in url:
+            raise urllib.error.HTTPError(url, 403, "Forbidden", {}, None)
+        return ("<html>" + "x" * 500 + "</html>").encode()        # the protection page
+    monkeypatch.setattr(base, "http_get", get)
+    from sources import core_sources
+    monkeypatch.setattr(core_sources, "http_get", get)
+    assert filings.refresh_feeds() == {"SR": False, "CA": False}
+    st = core.cache_get("feedst|SR")[0]
+    assert st["blocked"] and core.cache_get("feedst|CA")[0]["blocked"]
+    n = len(calls)
+    assert filings.refresh_feeds() == {"SR": "later", "CA": "later"} and len(calls) == n, "not asked again"
+    core.cache_put("feedst|SR", dict(st, at=st["at"] - 25 * 3600 * 1000))
+    assert filings.refresh_feeds()["SR"] is False and len(calls) == n + 1, "asked again after a day"
+    assert filings.company_file("2222", "SR")["status"]["blocked"]

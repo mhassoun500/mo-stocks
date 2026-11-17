@@ -45,6 +45,7 @@ function nineChecks(c){c=c||{};const D=c.data||[],now=c.now||Date.now(),f=c.fund
   else na('insiders','لا يتوفر مصدر لتعاملات الداخليين لهذا السوق بعد.');
   /* 8 filings */
   if(file&&(file.items||[]).length){const x=file.items[0];out.filings={key:'filings',status:x.date>=now-7*DAY?'notable':'usual',facts:[['آخر إفصاح',x.date,'date'],['',x.form?(SEC_FORM[x.form]||x.form)+(x.title?' — '+x.title:''):x.title,'text']],src:file.source,partial:!file.complete};}
+  else if(file&&file.ok&&file.status&&file.status.blocked)na('filings','موقع السوق لا يسمح للبرامج بقراءة الإعلانات. افتحها من الزر في «ملف الشركة».');
   else na('filings',file&&file.ok&&!file.complete?'لم يُرصد إفصاح لهذه الشركة منذ بدأ البرنامج المتابعة.':'لا تتوفر الإفصاحات.');
   /* 9 coming: results date (announced, or estimated from past years) and dividend dates */
   const ev=[];for(const e of p.earningsDates||[])if(e*1000+DAY>now){ev.push(['إعلان النتائج',e*1000,'date']);break;}
@@ -78,9 +79,18 @@ async function loadCompanyFile(seq){S.cfile=null;const row=$('#fileRow');if(!row
    10 minutes and keeps them. This line says plainly whether the last reading worked, so an empty list is understood. */
 function feedStatusHTML(j){const st=j.status,site=_t(j.ex==='SR'?'موقع تداول':'موقع البورصة المصرية');
   if(!st)return esc(_t('يبدأ البرنامج قراءة إعلانات السوق بعد دقيقة من فتحه، ثم كل 10 دقائق.'));
+  if(st.blocked)return '<b>'+esc(site)+' '+esc(_t('لا يسمح للبرامج بقراءة الإعلانات.'))+'</b> '+esc(_t('اضغط الزر لفتح إعلانات الشركة في متصفحك. يحاول البرنامج مرة واحدة في اليوم.'))
+    +'<br><a class="btn sm" href="'+esc(j.link)+'" data-url="'+esc(j.link)+'">'+esc(_t(j.ex==='SR'?'افتح إعلانات الشركة في موقع تداول':'افتح إفصاحات الشركة في موقع البورصة المصرية'))+'</a>';
   if(!st.ok)return '<b>'+esc(_t('تعذّرت قراءة إعلانات السوق'))+'</b> ('+NUM(fmtLocalTime.format(st.at))+'). '+esc(_t('سيحاول البرنامج مرة أخرى بعد 10 دقائق.'));
   return esc(_t('آخر قراءة لإعلانات السوق'))+': '+NUM(fmtLocalTime.format(st.at))+' ('+NUM(st.n)+' '+esc(_t('إعلانًا للسوق كله'))+'). '
     +esc(site)+' '+esc(_t('لا يعطي الإعلانات القديمة، لذلك تظهر هنا الإعلانات منذ'))+' '+NUM(fmtDate.format(j.since||st.at))+' '+esc(_t('فقط.'));}
+/* When the official site refuses, the company's news (from the news sources the app already uses) stands in, marked as news. */
+function newsAsFileHTML(items){return (items||[]).slice(0,5).map(n=>{const t=Date.parse(n.date);
+  return '<li><span class="kind">'+esc(_t('خبر'))+'</span><span><a href="'+esc(n.link)+'" data-url="'+esc(n.link)+'">'+esc(n.title)+'</a> <span class="small muted">'+esc(n.source||'')+'</span></span><span class="small muted">'+(isFinite(t)?fmtDate.format(t):'')+'</span></li>';}).join('');}
+async function fileNews(j){const seq=S.loadSeq,q=($('#newsQ')&&$('#newsQ').value)||((S.name||S.code)+' سهم');
+  const r=await api('/api/news',{q,region:EX[S.ex]?EX[S.ex].region:'SR'}).catch(()=>null);
+  if(seq!==S.loadSeq||S.cfile!==j||!r||!r.ok||!r.items.length)return;
+  $('#fileList').innerHTML='<li class="plain"><p class="small muted">'+esc(_t('أخبار عن الشركة من مصادر الأخبار، وليست إفصاحات رسمية:'))+'</p></li>'+newsAsFileHTML(r.items);}
 function renderCompanyFile(){const j=S.cfile;if(!j)return;
   if(!j.ok){$('#fileNote').textContent=_t(j.error||'');return;}
   $('#fileNote').innerHTML=esc(_t('المصدر'))+': <a href="'+esc(j.link)+'" data-url="'+esc(j.link)+'">'+esc(_t(j.source))+'</a>';
@@ -88,6 +98,7 @@ function renderCompanyFile(){const j=S.cfile;if(!j)return;
   if(!j.complete)$('#fileWatch').innerHTML=feedStatusHTML(j);
   $('#fileList').innerHTML=(j.items||[]).slice(0,15).map(x=>'<li><span class="kind n">'+esc(_t(FILE_TYPE[x.type]||FILE_TYPE.other))+'</span><span><a href="'+esc(x.url)+'" data-url="'+esc(x.url)+'">'+fileTitle(x)+'</a></span><span class="small muted">'+(x.date?(x.dated?'':esc(_t('رُصد في'))+' ')+fmtDate.format(x.date):'')+'</span></li>').join('')
     ||'<li class="plain"><p class="empty">'+esc(_t(j.complete?'لا توجد إفصاحات.':'لا يوجد إعلان لهذه الشركة منذ بدأ البرنامج المتابعة.'))+'</p></li>';
+  if(!j.complete&&!(j.items||[]).length&&j.status&&j.status.blocked)fileNews(j);
   const ins=j.insiders;
   $('#fileInsBox').hidden=!ins&&j.insidersNeed!=='contact';
   if(!ins&&j.insidersNeed==='contact')$('#fileIns').innerHTML='<tr><td colspan="6" class="empty">'+esc(_t('لعرضها أضف بريد التعريف لدى SEC في الإعدادات > مصادر البيانات.'))+'</td></tr>';

@@ -425,7 +425,7 @@ def get_funds(force=False):
 
 FUND_FAIL_NOTE = {
     "EG": "تعذّر تحديث قائمة الصناديق المصرية: موقع مباشر صار يطلب تسجيل الدخول لعرض الصناديق، فتظهر آخر قائمة محفوظة.",
-    "SA": "تعذّر تحديث قائمة الصناديق السعودية من تداول السعودية الآن، فتظهر آخر قائمة محفوظة.",
+    "SA": "تعذّر تحديث قائمة الصناديق السعودية: موقع تداول السعودية لا يسمح للبرامج بقراءتها، فتظهر آخر قائمة محفوظة.",
 }
 
 
@@ -464,12 +464,16 @@ def _fetch_all_funds(stale):
         pass
     out = {"ok": True, "items": items, "at": time.time(), "categories": funds.CATEGORY_AR,
            "countries": funds.COUNTRY_AR, "shariaNote": funds.SHARIA_NOTE, "sources": src_by}
+    # when each country's list was last read for real, so a saved list is shown with its date
+    _, stale_t = cache_get("funds|all")
+    was = dict((stale or {}).get("countryAt") or {})
+    out["countryAt"] = {c: (int(time.time() * 1000) if c not in failed else was.get(c) or (int(stale_t * 1000) if stale_t else None))
+                        for c in funds.COUNTRIES}
     if failed:
         out["offline"] = True
         out["failed"] = failed
         out["note"] = " ".join(FUND_FAIL_NOTE[c] for c in failed if c in FUND_FAIL_NOTE)
-    else:
-        cache_put("funds|all", out)
+    cache_put("funds|all", out)      # kept even with a failed country: the others are fresh, and a refusing site is not asked again for hours
     return out
 
 

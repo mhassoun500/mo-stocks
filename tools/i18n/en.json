@@ -2042,5 +2042,15 @@
  "إعلانًا للسوق كله": "announcements for the whole market",
  "لا يعطي الإعلانات القديمة، لذلك تظهر هنا الإعلانات منذ": "does not give old announcements, so this shows announcements since",
  "فقط.": "only.",
- "لا يوجد إعلان لهذه الشركة منذ بدأ البرنامج المتابعة.": "No announcement from this company since the app started following."
+ "لا يوجد إعلان لهذه الشركة منذ بدأ البرنامج المتابعة.": "No announcement from this company since the app started following.",
+ "لا يسمح للبرامج بقراءة الإعلانات.": "does not let programs read the announcements.",
+ "اضغط الزر لفتح إعلانات الشركة في متصفحك. يحاول البرنامج مرة واحدة في اليوم.": "Press the button to open the company's announcements in your browser. The app tries once a day.",
+ "افتح إعلانات الشركة في موقع تداول": "Open the company's announcements on the Saudi Exchange",
+ "افتح إفصاحات الشركة في موقع البورصة المصرية": "Open the company's disclosures on the EGX site",
+ "خبر": "News",
+ "أخبار عن الشركة من مصادر الأخبار، وليست إفصاحات رسمية:": "News about the company from news sources, not official disclosures:",
+ "قائمة محفوظة من": "Saved list from",
+ "قائمة محفوظة": "Saved list",
+ "تعذّر تحديث قائمة الصناديق السعودية: موقع تداول السعودية لا يسمح للبرامج بقراءتها، فتظهر آخر قائمة محفوظة.": "Could not update the Saudi fund list: the Saudi Exchange site does not let programs read it, so the last saved list is shown.",
+ "موقع السوق لا يسمح للبرامج بقراءة الإعلانات. افتحها من الزر في «ملف الشركة».": "The market's site does not let programs read the announcements. Open them with the button in the company file."
 }
