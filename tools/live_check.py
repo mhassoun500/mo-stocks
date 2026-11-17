@@ -96,7 +96,10 @@ def sec_company_file():
     assert f.get("ok"), f.get("error")
     ins = ("no contact e-mail set, insiders skipped" if f.get("insidersNeed") == "contact"
            else "%d insider buys/sells in a year" % len(f["insiders"] or []))
-    return "%d filings, %s, results due %s" % (len(f["items"]), ins, (f["record"].get("due") or {}).get("date"))
+    import time
+    rec = f["record"]
+    span = "%s..%s" % tuple(time.strftime("%Y-%m-%d", time.gmtime((x or 0) / 1000)) for x in (rec.get("first"), rec.get("last")))
+    return "%d filings, %s, results due %s; all %d read: %s, %s" % (len(f["items"]), ins, (rec.get("due") or {}).get("date"), rec["n"], rec["byType"], span)
 
 
 def mubasher_funds():
