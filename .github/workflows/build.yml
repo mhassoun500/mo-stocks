@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Existing release tag to attach the installers to (optional)"
+        description: "Release tag to attach the installers to; a new tag (e.g. v2.15.0) creates the release (optional)"
         required: false
         default: ""
 
@@ -125,11 +125,11 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-        if: github.event_name == 'push'
+        if: github.event_name != 'release'
         with:
           path: src
       - name: Release notes from the README
-        if: github.event_name == 'push'
+        if: github.event_name != 'release'
         run: |
           # the newest "what's new" section (it carries the fixes since the previous version as sub-headings)
           awk '/^## /{if(on)exit} /^## (ما الجديد في|What.s new)/{on=1} on' src/README.md > notes.md || true
@@ -142,6 +142,6 @@ jobs:
         with:
           tag_name: ${{ github.event.release.tag_name || inputs.release_tag || github.ref_name }}
           name: ${{ github.event.release.name || inputs.release_tag || github.ref_name }}
-          body_path: ${{ github.event_name == 'push' && 'notes.md' || '' }}
+          body_path: ${{ github.event_name != 'release' && 'notes.md' || '' }}
           make_latest: true
           files: out/*
