@@ -174,6 +174,29 @@ class SpusSharia(Connector):
         return sharia.fetch_spus()
 
 
+class MaqasedPurify(Connector):
+    """Al-Maqased centre's yearly study: purification amount per share for every Saudi company (a PDF, read once a year)."""
+    id, name = "maqased", "مركز المقاصد (التطهير)"
+    kinds = ("sharia",)
+    markets = ("SR",)
+    dataset = "pur_sa"
+    gap = 2.0
+    retries = 1
+    note = "مبلغ التطهير لكل سهم من دراسة مركز المقاصد السنوية (د. محمد العصيمي)"
+
+    def sharia(self):
+        import core
+        import purify
+        from . import defs
+        p = defs.purify("maqased_sa")
+        hit, _ = core.cache_get("sharia|pur_sa")
+        if hit and hit.get("pdf") == p["url"]:
+            return hit                      # already read this year's file
+        if p["url"] == defs.DEFAULTS["purify"]["maqased_sa"]["url"]:
+            raise NoData()                  # the copy inside the app is this very file: nothing newer to read
+        return purify.fetch_maqased(p["url"], p.get("period", ""))
+
+
 class MubasherFunds(Connector):
     id, name = "mubasher", "مباشر (صناديق)"
     kinds = ("funds",)
@@ -186,5 +209,5 @@ class MubasherFunds(Connector):
         return funds.fetch_fund_list(country) if op == "list" else funds.fetch_fund_history(fid)
 
 
-for _c in (Yahoo, TradingView, TVScan, Stooq, GoogleNews, BingNews, ArgaamSharia, EgyptSharia, SpusSharia, MubasherFunds):
+for _c in (Yahoo, TradingView, TVScan, Stooq, GoogleNews, BingNews, ArgaamSharia, EgyptSharia, SpusSharia, MaqasedPurify, MubasherFunds):
     REG.register(_c())

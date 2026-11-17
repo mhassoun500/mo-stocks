@@ -2,7 +2,7 @@
  "schema": 1,
  "version": 1,
  "min_app": "2.11.0",
- "updated": "2026-11-16",
+ "updated": "2026-11-17",
  "urls": {
   "argaam": "https://www.argaam.com/ar/company/shariahcompanies/1/3/%d",
   "eg": "https://stocks.templatesnippet.com/data/stocks_merged.json",
@@ -15,5 +15,11 @@
   "cell_re": "<td class=\"center\">(.*?)</td>",
   "name_prefix_re": "^شركة\\s+",
   "tick": "✔"
+ },
+ "purify": {
+  "maqased_sa": {
+   "url": "https://data.argaam.com/files/download/2ac6ef5f-f610-4fcf-98ca-05a1e6358c0d.pdf",
+   "period": "2025"
+  }
  }
 }

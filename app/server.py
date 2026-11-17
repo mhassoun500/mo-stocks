@@ -128,6 +128,8 @@ class Handler(BaseHTTPRequestHandler):
                     threading.Thread(target=sharia_refresh, daemon=True).start()
                     return self._json({"ok": True, "started": True})
                 return self._json(sharia_lists())
+            if p == "/api/purify_est":
+                return self._json(purify_estimate(q.get("code", ""), q.get("ex", "SR")))
             if p == "/api/yaaqen":
                 if q.get("refresh") == "1":
                     threading.Thread(target=yaaqen_refresh, daemon=True).start()

@@ -196,7 +196,7 @@
 
     <section class="card chart-card" id="chartCard">
       <div class="chart-head">
-        <div class="chart-title"><h2 id="chartName">—</h2><button class="icon-btn" id="favBtn" type="button" aria-pressed="false" hidden>☆ أضف للمفضلة</button><span class="badge" id="srcBadge"></span><span class="badge" id="shariaBadge" hidden></span><span class="badge seg" id="segBadge" hidden></span><span class="badge" id="ageBadge" hidden></span><span class="badge off" id="qualBadge" hidden></span><span class="badge off" id="offlineBadge" hidden>بيانات محفوظة</span></div>
+        <div class="chart-title"><h2 id="chartName">—</h2><button class="icon-btn" id="favBtn" type="button" aria-pressed="false" hidden>☆ أضف للمفضلة</button><span class="badge" id="srcBadge"></span><span class="badge" id="shariaBadge" hidden></span><span class="badge" id="purBadge" hidden></span><span class="badge seg" id="segBadge" hidden></span><span class="badge" id="ageBadge" hidden></span><span class="badge off" id="qualBadge" hidden></span><span class="badge off" id="offlineBadge" hidden>بيانات محفوظة</span></div>
         <div class="toolbar">
           <div class="seg" role="group" aria-label="الإطار الزمني" id="tfSeg">
             <button type="button" data-tf="H" class="local-only">ساعة</button>
@@ -455,6 +455,7 @@
           <thead><tr>
             <th><button type="button" data-sort="name">الشركة</button></th>
             <th><button type="button" data-sort="shN" data-dir="desc">الشرعية</button></th>
+            <th><button type="button" data-sort="purN" title="مبلغ التطهير للسهم أو نسبته، من المصادر المنشورة أو قائمتك">التطهير</button></th>
             <th><button type="button" data-sort="price">السعر</button></th>
             <th><button type="button" data-sort="chg">تغير اليوم</button></th>
             <th><button type="button" data-sort="stanceN">الحكم</button></th>
@@ -465,7 +466,7 @@
             <th>إشارة بارزة</th>
             <th><button type="button" data-sort="sector">القطاع</button></th>
           </tr></thead>
-          <tbody id="scanBody"><tr><td colspan="11" class="empty">اختر السوق واضغط «ابدأ الفحص». يستغرق فحص السوق السعودي أو المصري دقيقة تقريبًا، وأكبر 500 شركة أمريكية دقيقتين.</td></tr></tbody>
+          <tbody id="scanBody"><tr><td colspan="12" class="empty">اختر السوق واضغط «ابدأ الفحص». يستغرق فحص السوق السعودي أو المصري دقيقة تقريبًا، وأكبر 500 شركة أمريكية دقيقتين.</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -690,7 +691,7 @@
         <label class="field" for="pShNo"><span>غير متوافقة</span><textarea id="pShNo" data-pref="sharia.no" placeholder="1180 1050 ..."></textarea></label>
         <label class="field" for="pShDate"><span>تاريخ القائمة المعتمدة</span><input id="pShDate" type="text" data-pref="sharia.asOf" placeholder="مثال: الربع الثالث 2026"></label>
         <label class="field" for="pShPur"><span>نسب التطهير (رمز ثم النسبة، سطر لكل سهم)</span><textarea id="pShPur" data-pref="sharia.purify" placeholder="1120 2.5&#10;AAPL 1.1"></textarea></label>
-        <p class="small muted">النسبة المئوية من كل ربح موزّع التي تُخرج للتطهير. تُملأ تلقائيًا للأسهم المصرية من القائمة المصرية إن توفرت، وما تكتبه هنا يتقدّم عليها. لم أجد مصدرًا مجانيًا يعطي النسبة آليًا للأسهم السعودية والأمريكية، فتُدخل يدويًا أو من «املأ الناقص بالمساعد» مع رابط المصدر.</p>
+        <p class="small muted">النسبة المئوية من كل ربح موزّع التي تُخرج للتطهير. تُملأ تلقائيًا للأسهم المصرية من القائمة المصرية إن توفرت، وما تكتبه هنا يتقدّم عليها. وللأسهم السعودية يُعرض مبلغ التطهير لكل سهم من دراسة مركز المقاصد السنوية. وما لا يغطيه أي مصدر (ومنه الأسهم الأمريكية) يُقدّره البرنامج تقديرًا تقريبيًا من دخل الفوائد ÷ الإيرادات ويكتب أنه تقدير، أو تُدخله يدويًا أو من «املأ الناقص بالمساعد» مع رابط المصدر.</p>
         <h3 class="sub-h">استيراد قائمة من ملف</h3>
         <p class="small muted">اختر ملف CSV أو PDF فيه رموز الأسهم وحكمها (متوافق / غير متوافق). تُعرض لك المعاينة أولًا ولا يُحفظ شيء قبل موافقتك. ملفات PDF العربية قد تُقرأ بترتيب معكوس، فراجع المعاينة جيدًا.</p>
         <div class="actions local-only"><input id="shFile" type="file" accept=".csv,.txt,.pdf" aria-label="ملف القائمة الشرعية">

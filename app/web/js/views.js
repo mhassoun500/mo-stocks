@@ -61,6 +61,22 @@ function renderDataBadges(){
   const q=(S.meta&&S.meta.quality)||[];qb.hidden=!q.length||S.source!=='live';
   if(q.length){qb.textContent='⚠ '+_t('تحذير بيانات');qb.title=q.map(i=>_t(QUAL_TXT[i.code]||i.code)+(i.n>1?' ('+i.n+')':'')).join('\n')+'\n'+_t('راجع الأرقام قبل الاعتماد عليها.');}
 }
+/* ---------- purification badge: the first figure, every source on hover, the program's estimate only when no source has one ---------- */
+function purifyStock(){return S.source!=='sample'&&!S.isFund&&['SR','CA','US'].includes(S.ex)&&S.code;}
+function renderPurifyBadge(){const pb=$('#purBadge');if(!pb)return;
+  if(!purifyStock()){pb.hidden=true;return;}
+  const list=purifyEntries(S.code,S.ex,true),k=S.ex+'|'+purCode(S.code);
+  if(!list.length&&LOCAL&&!(k in PUR_EST)){PUR_EST[k]={ok:false,loading:true};
+    api('/api/purify_est',{code:purCode(S.code),ex:S.ex}).then(j=>{PUR_EST[k]=j&&j.ok?j:{ok:false,error:j&&j.error||''};}).catch(()=>{PUR_EST[k]={ok:false};})
+      .then(()=>{if(purCode(S.code)===k.split('|')[1])renderPurifyBadge();});}
+  const x=PUR_EST[k],f=list[0];pb.hidden=false;pb.tabIndex=0;
+  if(f){pb.innerHTML=esc(_t('التطهير'))+': '+purifyValHTML(f)+(f.src==='est'?' <em>('+esc(_t('تقدير البرنامج'))+')</em>':'')
+      +'<span class="sh-pop" hidden>'+purifyPopHTML(list)+'</span>';
+    pb.className='badge sh-tag pur'+(f.src==='est'?' off':'');return;}
+  pb.className='badge sh-tag off pur';
+  pb.innerHTML=esc(_t('التطهير'))+': '+esc(x&&x.loading?_t('جارٍ البحث…'):_t('غير متوفرة'))
+    +'<span class="sh-pop" hidden><span class="sh-note">'+esc(_t('لم ينشرها أي مصدر متاح لهذا السهم، ولم تتوفر أرقام كافية لتقديرها. لا نضع رقمًا من عندنا.'))+'</span>'
+    +(x&&x.error?'<span class="sh-note muted">'+esc(_t(x.error))+'</span>':'')+'<span class="sh-note muted">'+esc(_t('يمكنك إدخالها من الإعدادات، أو طلبها من «املأ الناقص بالمساعد».'))+'</span></span>';}
 /* ---------- render ---------- */
 function render(){
   const A=S.A,D=S.data;if(!A)return;const N=D.length,last=D[N-1],prev=D[N-2];
@@ -78,6 +94,7 @@ function render(){
   if(shI){sb.innerHTML='شرعيًا: '+esc(shI.word)+(shI.count?' '+NUM(esc(shI.count)):'')+shariaPopHTML(shI);sb.className='badge sh-tag '+(shI.s==='doubt'?'off':shI.s);sb.tabIndex=0;}
   else if(shA){sb.innerHTML=(shA.status==='ok'?'متوافق شرعيًا مبدئيًا':'غير متوافق شرعيًا مبدئيًا')+shariaPopHTML({head:'فحص مبدئي تلقائي',note:_t(shA.why)+' — لا يشمل نسبة الإيراد غير المباح.',refs:[]});
     sb.className='badge sh-tag '+shA.status;sb.tabIndex=0;}
+  renderPurifyBadge();
   const seg=S.source!=='sample'&&(S.ex==='SR'||/\.SR$/i.test(S.code))?saSegment(S.code):'',gb=$('#segBadge');
   gb.hidden=!seg;if(seg){gb.textContent=SEG_LABEL[seg];gb.className='badge seg-'+seg;gb.title=SEG_TIP[seg];}
   if(S.ex==='US'&&S.source!=='sample'&&shI&&shI.spus){gb.hidden=false;gb.textContent='ضمن مؤشر S&P 500 الشرعي';gb.className='badge seg-main';gb.title='من مكونات مؤشر S&P 500 الشرعي (حسب حيازات صندوق SPUS).';}

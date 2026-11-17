@@ -242,7 +242,7 @@ const FILL_LABEL={fair:'القيمة العادلة',sharia:'الحكم الشر
 const FILL_VERDICT={ok:'متوافق',no:'غير متوافق',doubt:'محل نظر'};
 function aiFillMissing(){
   if(!LOCAL||!S.A||S.isFund||S.ex==='GOLD'||S.ex==='FUND'||S.ex==='XX')return[];
-  const m=[];if(!(S.fv&&S.fv.fair))m.push('fair');if(!shariaInfo(S.code,S.ex))m.push('sharia');if(!purifyInfo(S.code))m.push('purification');
+  const m=[];if(!(S.fv&&S.fv.fair))m.push('fair');if(!shariaInfo(S.code,S.ex))m.push('sharia');if(!purifyInfo(S.code,S.ex))m.push('purification');
   const p=S.profile;if(!(p&&p.ok&&(p.earningsDates||[]).some(e=>e*1000>Date.now())))m.push('earnings');return m;}
 function renderAiFill(){
   const box=$('#aiFill');if(!box)return;const miss=aiFillMissing(),conn=aiConnected(),f=S.aiFill&&S.aiFill.code===S.code&&S.aiFill.ex===S.ex?S.aiFill:null;

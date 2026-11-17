@@ -135,7 +135,7 @@ function yaaqenStatus(code){const c=String(code||'').toUpperCase();if(!c||/\.(SR
 const YQ_LABEL={ok:'شرعي (يقين)',no:'غير شرعي (يقين)',doubt:'محل نظر (يقين)'};
 /* Saudi lists (Argaam: Al Rajhi Capital, Dr. Al-Osaimi, Albilad Capital) and Egyptian lists
    (about ten sources aggregated by stocks.templatesnippet.com). Built into the page, refreshed weekly by the app. */
-const SHL={sa:null,eg:null,spus:null,bitarabi:null};
+const SHL={sa:null,eg:null,spus:null,bitarabi:null,pur:null};
 try{const b=JSON.parse(document.getElementById('sharia-bitarabi').textContent);if(b&&b.rows)SHL.bitarabi=b;}catch(e){}
 function loadShariaLists(sa,eg,spus){if(sa&&sa.main)SHL.sa=sa;if(eg&&eg.rows)SHL.eg=eg;if(spus&&spus.tickers)SHL.spus=Object.assign({},spus,{set:new Set(spus.tickers)});}
 try{loadShariaLists(JSON.parse($('#sharia-sa').textContent),JSON.parse($('#sharia-eg').textContent),JSON.parse($('#sharia-spus').textContent));}catch(e){}
@@ -162,15 +162,38 @@ function usSharia(code){const c=String(code||'').toUpperCase();const y=yaaqenSta
   const s=yes*2>n?'ok':(yes||vs.includes('2'))?'doubt':'no';
   return{s,src:'us',spus:sp,word:n===1&&y?YQ_LABEL[y]:SH_WORD[s],count:n>1?yes+'/'+n:'',head:'الأسهم الأمريكية',refs};}
 /* the verdict for one stock: your own pasted list first, then the market's built-in lists */
-/* purification ratio: percent of each dividend to give away. Your own entries first, then the Egyptian list; never guessed */
+/* purification: every figure known for a stock, kept apart by kind and never guessed.
+   kind 'amt' = an amount per share for one financial year (Al-Maqased study, Saudi market);
+   kind 'pct' = a share of income in percent (your own entries, the Egyptian lists, the program's estimate). */
 let _purSrc=null,_purMap=null;
 function purifyMap(){const t=String(P.sharia.purify||'');if(t===_purSrc&&_purMap)return _purMap;const m={};
   t.split(/[\n;،]+/).forEach(l=>{const r=normDigits(l).trim().match(/^([A-Za-z0-9.]+)\s*[=:\s]\s*(\d+(?:\.\d+)?)\s*%?$/);if(r){const v=+r[2];if(v>=0&&v<=100)m[r[1].toUpperCase().replace(/\.(SR|CA)$/,'')]=v;}});
   _purSrc=t;_purMap=m;return m;}
-function purifyInfo(code){if(!code)return null;const c=String(code).toUpperCase().replace(/\.(SR|CA)$/,''),u=purifyMap();
-  if(c in u)return{pct:u[c],src:'list'};const r=SHL.eg&&SHL.eg.rows&&SHL.eg.rows[c];
-  return r&&typeof r.p==='number'?{pct:r.p,src:'eg'}:null;}
-function shariaInfo(code,ex){const i=shariaInfo0(code,ex);if(!i)return i;const p=purifyInfo(code);return p?Object.assign({},i,{pur:p}):i;}
+try{const j=JSON.parse(document.getElementById('purify-sa').textContent);if(j&&j.rows)SHL.pur=j;}catch(e){}
+const PUR_VERDICT={p:'نقية',m:'مختلطة',n:'غير متوافقة',s:'راجع منهجية المصدر'};
+const PUR_EST={};  /* the program's estimates, by "ex|code": {ok,pct,period,source,date} or {ok:false} */
+const purCode=c=>String(c||'').toUpperCase().replace(/\.(SR|CA)$/,'');
+/* published figures and your own entries, your own first, then the newest source first; the estimate comes last and only when asked */
+function purifyEntries(code,ex,withEst){if(!code)return[];const c=purCode(code),u=purifyMap(),own=[],pub=[];
+  if(c in u)own.push({kind:'pct',val:u[c],src:'own',by:'قائمتك في الإعدادات',date:''});
+  const r=SHL.pur&&/^\d{4}$/.test(c)&&ex!=='US'&&ex!=='CA'&&SHL.pur.rows[c];
+  if(r)pub.push({kind:'amt',val:r[0],src:'maqased',by:SHL.pur.source,date:SHL.pur.date,period:SHL.pur.period,url:SHL.pur.url,verdict:PUR_VERDICT[r[1]]||''});
+  const e=SHL.eg&&SHL.eg.rows&&ex!=='SR'&&ex!=='US'&&SHL.eg.rows[c];
+  if(e&&typeof e.p==='number')pub.push({kind:'pct',val:e.p,src:'eg',by:'مصادر مصرية (أسهم حلال)',date:SHL.eg.date,url:SHL.eg.url});
+  pub.sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const out=own.concat(pub);
+  if(withEst&&!out.length){const x=PUR_EST[(ex||'')+'|'+c];if(x&&x.ok)out.push({kind:'pct',val:x.pct,src:'est',by:'تقدير البرنامج',date:x.date,period:x.period,basis:x.source});}
+  return out;}
+/* the figure to show first (yours, else the newest published one); null when no source has one */
+function purifyInfo(code,ex){const l=purifyEntries(code,ex,false);if(!l.length)return null;const f=l[0];return Object.assign({},f,{pct:f.kind==='pct'?f.val:null,all:l});}
+function purifyValHTML(e){return e.kind==='amt'?NUM(+e.val.toFixed(4))+' '+esc(_t('ر.س للسهم')):NUM(+e.val.toFixed(3)+'%');}
+function purifyPopHTML(list){if(!list||!list.length)return'';
+  return '<span class="sh-note"><b>'+esc(_t('نسبة التطهير'))+'</b></span>'+list.map(e=>'<span class="sh-note pur-row">'+purifyValHTML(e)+' · '+esc(_t(e.by))
+      +(e.period?' · '+esc(_t('السنة المالية'))+' '+NUM(esc(e.period)):'')+(e.date?' · '+NUM(esc(e.date)):'')+(e.verdict?' · '+esc(_t(e.verdict)):'')
+      +(e.src==='est'?'<br><em>'+esc(_t('تقدير تقريبي: دخل الفوائد ÷ إجمالي الإيرادات، ولا يشمل كل دخل غير مباح.'))+'</em>':'')+'</span>').join('')
+    +(list.length>1&&list.some(e=>e.kind==='amt')&&list.some(e=>e.kind==='pct')?'<span class="sh-note muted">'+esc(_t('المبلغ للسهم والنسبة المئوية طريقتان مختلفتان للحساب؛ لا تجمع بينهما.'))+'</span>':'')
+    +'<span class="sh-note muted">'+esc(_t('أرقام مساعدة حسابيًا؛ المرجع هو الهيئة الشرعية التي تتبعها.'))+'</span>';}
+function shariaInfo(code,ex){const i=shariaInfo0(code,ex);if(!i)return i;const p=purifyEntries(code,ex,false);return p.length?Object.assign({},i,{pur:p}):i;}
 function shariaInfo0(code,ex){const u=shariaStatus(code);
   if(u)return{s:u,src:'list',word:SH_WORD[u],count:'',head:P.sharia.asOf?'قائمتك · '+P.sharia.asOf:'قائمتك في الإعدادات',refs:[['قائمتك',u==='ok'?'1':'0']]};
   if(ex==='SR'||/\.SR$/i.test(code))return saSharia(code);
@@ -179,7 +202,7 @@ function shariaInfo0(code,ex){const u=shariaStatus(code);
   return null;}
 /* a tag with the verdict; hovering it lists every reference and what it said */
 function shariaPopHTML(i){return '<span class="sh-pop" hidden><b class="sh-head">'+esc(i.head||'')+'</b>'+(i.note?'<span class="sh-note">'+esc(i.note)+'</span>':'')+
-  (i.pur?'<span class="sh-note">'+esc(_t('نسبة التطهير'))+': <b>'+NUM(i.pur.pct)+'%</b> '+esc(_t('من كل ربح موزّع'))+' · '+esc(i.pur.src==='list'?_t('قائمتك'):_t('مصادر مصرية'))+'</span>':'')+
+  purifyPopHTML(i.pur)+
   (i.refs&&i.refs.length?'<span class="sh-list">'+i.refs.map(([n,v])=>'<span class="sh-r v'+(v==='-'?'u':v)+'"><i>'+VMARK[v]+'</i><span>'+esc(n)+'</span><em>'+VWORD[v]+'</em></span>').join('')+'</span>':'')+'</span>';}
 function shariaTagHTML(i,cls){if(!i||!i.s)return'';const k=i.s==='ok'||i.s==='auto_ok'?'b':i.s==='doubt'?'in':'x';
   return '<span class="tag sh-tag '+k+(cls?' '+cls:'')+'" tabindex="0">'+esc(i.word||'')+(i.count?' '+NUM(esc(i.count)):'')+shariaPopHTML(i)+'</span>';}

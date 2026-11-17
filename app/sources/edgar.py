@@ -30,7 +30,18 @@ def from_facts(d):
     sh = ((f.get("dei") or {}).get("EntityCommonStockSharesOutstanding") or {}).get("units", {}).get("shares") or []
     if sh:
         shares = sorted(sh, key=lambda r: (r.get("end") or "", r.get("filed") or ""))[-1]["val"]
+    rev = None
+    for tag in ("Revenues", "RevenueFromContractWithCustomerExcludingAssessedTax", "SalesRevenueNet"):
+        rev = latest(f, tag, "USD", True)
+        if rev is not None:
+            break
+    interest = None
+    for tag in ("InvestmentIncomeInterest", "InterestIncomeOther", "InvestmentIncomeInterestAndDividend"):
+        interest = latest(f, tag, "USD", True)
+        if interest is not None:
+            break
     return {"last_annual_eps": eps, "earnings_per_share_fy": eps,
+            "total_revenue_fy": rev, "non_oper_interest_income_fy": interest,
             "net_income_fy": latest(f, "NetIncomeLoss", "USD", True),
             "total_equity_fq": latest(f, "StockholdersEquity", "USD"),
             "total_shares_outstanding_fundamental": shares,

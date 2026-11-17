@@ -78,6 +78,8 @@ def build():
             + open(os.path.join(ROOT, "app", "data", "spus.json"), encoding="utf-8").read().strip()
             + '</script>\n<script type="application/json" id="sharia-bitarabi">'
             + open(os.path.join(ROOT, "app", "data", "bitarabi_us.json"), encoding="utf-8").read().strip()
+            + '</script>\n<script type="application/json" id="purify-sa">'
+            + open(os.path.join(ROOT, "app", "data", "purify_sa.json"), encoding="utf-8").read().strip()
             + '</script>\n<script type="application/json" id="sharia-us">' + yq
             + '</script>\n<script type="application/json" id="i18n-data">' + data
             + "</script>\n<script>\n(function(){\n'use strict';\n" + js + "\n})();\n</script>\n")

@@ -17,10 +17,11 @@ MAX_BYTES = 64 * 1024
 REPO = "mhassoun500/mo-stocks"
 PATH = "defs/definitions.json"
 HOSTS = ("www.argaam.com", "stocks.templatesnippet.com", "www.sp-funds.com")
+PURIFY_HOSTS = ("data.argaam.com", "almaqased.net", "www.almaqased.net")
 REGEX_KEYS = ("ref_re", "ref_alt_re", "row_re", "cell_re", "name_prefix_re")
 
 DEFAULTS = {
-    "schema": SCHEMA, "version": 1, "min_app": "2.11.0", "updated": "2026-11-16",
+    "schema": SCHEMA, "version": 1, "min_app": "2.11.0", "updated": "2026-11-17",
     "urls": {
         "argaam": "https://www.argaam.com/ar/company/shariahcompanies/1/3/%d",
         "eg": "https://stocks.templatesnippet.com/data/stocks_merged.json",
@@ -33,6 +34,10 @@ DEFAULTS = {
         "cell_re": r'<td class="center">(.*?)</td>',
         "name_prefix_re": r"^شركة\s+",
         "tick": "✔",
+    },
+    # optional (older apps ignore it): the yearly purification study; a new year's file only needs a new address here
+    "purify": {
+        "maqased_sa": {"url": "https://data.argaam.com/files/download/2ac6ef5f-f610-4fcf-98ca-05a1e6358c0d.pdf", "period": "2025"},
     },
 }
 
@@ -89,6 +94,17 @@ def validate(d, app_version=None):
             return False, "pattern %s does not compile" % k
     if not isinstance(a.get("tick"), str) or not 0 < len(a["tick"]) <= 4:
         return False, "tick"
+    if "purify" in d:
+        pu = d["purify"]
+        if not isinstance(pu, dict) or set(pu) - {"maqased_sa"}:
+            return False, "purify"
+        for k, v in pu.items():
+            u = v.get("url") if isinstance(v, dict) else None
+            p = urllib.parse.urlparse(u) if isinstance(u, str) else None
+            if not p or p.scheme != "https" or p.hostname not in PURIFY_HOSTS or len(u) > 300:
+                return False, "purify url %s not allowed" % k
+            if not isinstance(v.get("period", ""), str) or len(v.get("period", "")) > 12 or set(v) - {"url", "period"}:
+                return False, "purify %s" % k
     # behavioural check: the patterns must read the built-in sample page correctly
     try:
         import sharia
@@ -114,6 +130,11 @@ def get(*path):
     for k in path:
         v = v[k]
     return v
+
+
+def purify(key="maqased_sa"):
+    """Address and financial year of a purification study: the downloaded definitions if they name one, else built-in."""
+    return (current().get("purify") or DEFAULTS["purify"]).get(key) or DEFAULTS["purify"][key]
 
 
 def load():

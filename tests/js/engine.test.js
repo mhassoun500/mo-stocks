@@ -476,3 +476,52 @@ test('trades carry their alignment, and the split groups them without losing any
   assert.equal(sp.wkOk.n + sp.wkDown.n + sp.wkUnknown, R.trades.length);
   assert.equal(fake.up.n, 1); assert.equal(fake.other.n, 1); assert.equal(fake.unknown, 1); assert.equal(fake.up.avg, 0.04);
 });
+
+/* ---------- purification (phase 3 step 2) ---------- */
+function purSetup() {
+  T.SHL.pur = { source: 'مركز المقاصد (د. محمد العصيمي)', date: '2026-10-22', period: '2025', url: 'https://x', rows: { '2050': [0.54, 'p', 'main'], '1202': [0.19, 'm', 'main'] } };
+  T.SHL.eg = { date: '2026-11-10', url: 'https://y', refs: [], rows: { COMI: { n: '', v: '', p: 1.8 }, '2050': { n: '', v: '', p: 9 } } };
+  T.P.sharia.purify = '';
+  for (const k of Object.keys(T.PUR_EST)) delete T.PUR_EST[k];
+}
+test('purification: each market gets its own source, never the other market\'s list', () => {
+  purSetup();
+  const sa = T.purifyEntries('2050.SR', 'SR', true);
+  assert.equal(sa.length, 1, 'the Egyptian row with the same code is not used for a Saudi stock');
+  assert.deepEqual([sa[0].kind, sa[0].val, sa[0].src, sa[0].period, sa[0].verdict], ['amt', 0.54, 'maqased', '2025', 'نقية']);
+  const eg = T.purifyEntries('COMI.CA', 'CA', true);
+  assert.deepEqual([eg[0].kind, eg[0].val, eg[0].src], ['pct', 1.8, 'eg']);
+  assert.equal(T.purifyEntries('AAPL', 'US', true).length, 0, 'no source and no estimate yet: nothing, not zero');
+});
+test('purification: your own entry comes first, then sources newest first', () => {
+  purSetup();
+  T.P.sharia.purify = '2050 2.5';
+  const l = T.purifyEntries('2050', 'SR', false);
+  assert.deepEqual([...l.map(e => e.src)], ['own', 'maqased']);
+  assert.equal(T.purifyInfo('2050', 'SR').val, 2.5);
+  T.P.sharia.purify = '';
+  T.SHL.pur.date = '2026-11-15';
+  T.SHL.eg.rows['9999'] = { n: '', v: '', p: 3 }; T.SHL.pur.rows['9999'] = [0.02, 'p', 'nomu'];
+  assert.deepEqual([...T.purifyEntries('9999', undefined, false).map(e => e.src)], ['maqased', 'eg'], 'with no market given, both lists show, newest first');
+});
+test('purification: the program estimate only fills a gap and is labelled', () => {
+  purSetup();
+  T.PUR_EST['US|AAPL'] = { ok: true, pct: 0.42, date: '2026-11-17', period: '2025', source: 'SEC EDGAR' };
+  assert.equal(T.purifyEntries('AAPL', 'US', false).length, 0, 'not part of the published figures');
+  assert.equal(T.purifyInfo('AAPL', 'US'), null, 'so the AI fill still offers to look for a published one');
+  const l = T.purifyEntries('AAPL', 'US', true);
+  assert.deepEqual([l[0].src, l[0].val], ['est', 0.42]);
+  assert.match(T.purifyPopHTML(l), /تقدير تقريبي/);
+  T.PUR_EST['SR|2050'] = { ok: true, pct: 7 };
+  assert.ok(T.purifyEntries('2050', 'SR', true).every(e => e.src !== 'est'), 'never shown beside a published figure');
+});
+test('purification: amounts and percentages are shown in their own units with the reminder', () => {
+  purSetup();
+  const amt = T.purifyValHTML({ kind: 'amt', val: 0.54 }), pct = T.purifyValHTML({ kind: 'pct', val: 1.8 });
+  assert.match(amt, /0\.54/); assert.match(amt, /ر\.س للسهم/); assert.doesNotMatch(amt, /%/);
+  assert.match(pct, /1\.8%/);
+  const mixed = T.purifyPopHTML([{ kind: 'pct', val: 2, src: 'own', by: 'قائمتك في الإعدادات' }, { kind: 'amt', val: 0.5, src: 'maqased', by: 'x', date: '2026-10-22', period: '2025' }]);
+  assert.match(mixed, /لا تجمع بينهما/);
+  assert.match(mixed, /المرجع هو الهيئة الشرعية/);
+  assert.equal(T.purifyPopHTML([]), '');
+});

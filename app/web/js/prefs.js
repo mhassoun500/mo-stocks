@@ -67,10 +67,13 @@ function renderShariaInfo(){const a=[];
   if(SHL.sa)a.push('<li><b>السعودية (الرئيسية ونمو):</b> أرقام — '+NUM(Object.keys(SHL.sa.main).length+Object.keys(SHL.sa.nomu).length)+' شركة بتصنيف '+esc(SHL.sa.refs.map(r=>r[0]).join('، '))+'. «متوافق» إذا أجازه مرجعان أو ثلاثة، و«مختلف فيه» إذا أجازه مرجع واحد. آخر تحديث '+NUM(esc(SHL.sa.date))+'.</li>');
   if(SHL.eg)a.push('<li><b>مصر:</b> '+NUM(Object.keys(SHL.eg.rows).length)+' سهمًا من '+NUM(SHL.eg.refs.length)+' مصادر ('+esc(SHL.eg.refs.slice(1,-1).join('، '))+'). «متوافق» إذا أجازته نصف المصادر على الأقل، و«مختلف فيه» إذا أجازه بعضها، مع تمييز أسهم مؤشر الشريعة EGX33. آخر تحديث '+NUM(esc(SHL.eg.date))+'.</li>');
   a.push('<li><b>أمريكا:</b> تصنيف موقع يقين، ومكونات مؤشر S&P 500 الشرعي'+(SHL.spus?' ('+NUM(SHL.spus.tickers.length)+' سهمًا · '+NUM(esc(SHL.spus.date))+')':'')+(SHL.bitarabi?'، وقائمة البيت العربي وفق معيار الراجحي ('+NUM(Object.keys(SHL.bitarabi.rows).length)+' سهمًا · '+NUM(esc(SHL.bitarabi.date))+')':'')+'، ثم فحص مبدئي تلقائي لما لا تغطيه.</li>');
+  if(SHL.pur)a.push('<li><b>'+_t('التطهير (السعودية):')+'</b> '+esc(_t(SHL.pur.source))+' — '+NUM(Object.keys(SHL.pur.rows).length)+' '+_t('شركة، مبلغ التطهير لكل سهم من القوائم المالية لسنة')+' '+NUM(esc(SHL.pur.period||''))+'. '+_t('آخر تحديث')+' '+NUM(esc(SHL.pur.date))+'.</li>');
   $('#shInfo').innerHTML=a.join('');}
 async function syncShariaLists(){const j=await api('/api/sharialists').catch(()=>null);if(!j)return null;
   const newer=(x,cur)=>x&&(!cur||x.date>=cur.date);
-  if(newer(j.sa,SHL.sa))SHL.sa=j.sa;if(newer(j.eg,SHL.eg))SHL.eg=j.eg;if(newer(j.spus,SHL.spus))loadShariaLists(null,null,j.spus);renderShariaInfo();if(typeof renderScan==='function')renderScan();if(S.A)render();return j;}
+  if(newer(j.sa,SHL.sa))SHL.sa=j.sa;if(newer(j.eg,SHL.eg))SHL.eg=j.eg;if(newer(j.spus,SHL.spus))loadShariaLists(null,null,j.spus);
+  if(j.pur_sa&&j.pur_sa.rows&&(!SHL.pur||String(j.pur_sa.period||'')>String(SHL.pur.period||'')||(j.pur_sa.period===SHL.pur.period&&j.pur_sa.date>=SHL.pur.date)))SHL.pur=j.pur_sa;
+  renderShariaInfo();if(typeof renderScan==='function')renderScan();if(S.A)render();return j;}
 function setupShariaLists(){renderShariaInfo();if(!LOCAL)return;syncShariaLists();
   $('#shRefresh').addEventListener('click',async()=>{const st=$('#shStatus');st.className='status';st.textContent='جارٍ تحديث القوائم من أرقام والمصادر المصرية…';
     await api('/api/sharialists',{refresh:'1'}).catch(()=>null);const t0=Date.now();

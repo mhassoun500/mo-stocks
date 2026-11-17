@@ -602,6 +602,8 @@ def sharia_refresh():
             try:
                 cache_put("sharia|" + c.dataset, REG.call_one(c.id, "sharia"))
                 res[c.dataset] = True
+            except NoData:
+                res[c.dataset] = None       # nothing newer than the copy that ships with the app
             except Exception as e:
                 warn(" Sharia list (%s) refresh failed (%s)" % (c.dataset, e))
                 res[c.dataset] = False
@@ -612,7 +614,7 @@ def sharia_refresh():
 
 def sharia_lists():
     out = {"ok": True, "busy": SHARIA_BUSY.is_set()}
-    for key in ("sa", "eg", "spus"):
+    for key in ("sa", "eg", "spus", "pur_sa"):
         hit, _ = cache_get("sharia|" + key)
         out[key] = hit
     return out
@@ -627,6 +629,65 @@ def sharia_refresher():
         if not t1 or not t2 or old_shape or time.time() - min(t1, t2) > 7 * 86400:
             sharia_refresh()
         QUIT.wait(12 * 3600)
+
+
+# ---------------------------------------------------------------- purification: the program's own estimate
+PURIFY_COLS = ["name", "sector", "total_revenue_fy", "non_oper_interest_income_fy", "fiscal_period_end"]
+
+
+def _purify_tradingview(code, ex):
+    market = TV_MARKET_OF.get(ex)
+    d = tv_scan(market, {"filter": [{"left": "name", "operation": "equal", "right": code}], "columns": PURIFY_COLS, "range": [0, 5]})
+    rows = [dict(zip(PURIFY_COLS, r.get("d") or [])) for r in d.get("data") or []]
+    rows = [r for r in rows if r.get("name") == code and r.get("total_revenue_fy")]
+    if not rows:
+        return None
+    r = max(rows, key=lambda x: x.get("total_revenue_fy") or 0)
+    year = ""
+    if isinstance(r.get("fiscal_period_end"), (int, float)):
+        year = time.strftime("%Y", time.gmtime(r["fiscal_period_end"]))
+    return {"rev": r.get("total_revenue_fy"), "int": r.get("non_oper_interest_income_fy"), "sector": r.get("sector") or "",
+            "period": year, "source": "TradingView"}
+
+
+def _purify_edgar(code):
+    f = REG.items["edgar"].fundamentals(code, "US")
+    return {"rev": f.get("total_revenue_fy"), "int": f.get("non_oper_interest_income_fy"), "sector": "",
+            "period": f.get("fy_end", ""), "source": "SEC EDGAR"}
+
+
+def purify_estimate(code, ex):
+    """The program's rough purification share for a stock no published source covers: interest income / revenue, last year.
+    Labelled as an estimate everywhere it is shown; None (not zero) when the figures are not there."""
+    import purify
+    c = code.strip().upper().split(".")[0]
+    if ex not in ("SR", "CA", "US") or not c:
+        return {"ok": False, "error": "unsupported"}
+    key = "purest|%s|%s" % (ex, c)
+    hit, _ = cache_get(key, max_age=7 * 86400)
+    if hit:
+        return hit
+    found, why = None, "لا تتوفر الإيرادات ودخل الفوائد لهذه الشركة."
+    tries = [lambda: _purify_tradingview(c, ex)] + ([lambda: _purify_edgar(c)] if ex == "US" else [])
+    for t in tries:
+        try:
+            f = t()
+        except Exception as e:
+            record("WARN", "purify estimate %s %s" % (ex, c), e)
+            continue
+        if not f or f.get("rev") in (None, 0) or f.get("int") is None:
+            continue
+        pct = purify.estimate_pct(f["rev"], f["int"], f.get("sector"))
+        if pct is None:
+            why = "لا يصلح التقدير لشركة مالية: الفوائد نشاطها الأساسي." if f.get("sector") else why
+            continue
+        found = {"ok": True, "pct": pct, "rev": f["rev"], "int": f["int"], "period": f.get("period", ""), "source": f["source"],
+                 "date": time.strftime("%Y-%m-%d")}
+        break
+    out = found or {"ok": False, "error": why}
+    if found:
+        cache_put(key, out)                 # a failure is not kept: try again next time
+    return out
 
 
 def yaaqen_refresher():

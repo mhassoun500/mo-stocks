@@ -153,7 +153,7 @@ async function runScan(){
   await Promise.all([worker(),worker(),worker(),worker()]);
   renderScan();
   if(!SC.stop&&!SC.rows.length){$('#scanMeta').textContent='لم تصل بيانات أسعار لأي شركة. غالبًا مصدر البيانات يرفض الطلبات مؤقتًا بسبب كثرتها؛ انتظر بضع دقائق ثم أعد الفحص.';
-    $('#scanBody').innerHTML='<tr><td colspan="11" class="status err">لم تصل بيانات أسعار. أعد المحاولة بعد بضع دقائق.</td></tr>';endScan();return;}
+    $('#scanBody').innerHTML='<tr><td colspan="12" class="status err">لم تصل بيانات أسعار. أعد المحاولة بعد بضع دقائق.</td></tr>';endScan();return;}
   if(!SC.stop&&SC.rows.some(r=>!r.sector)){$('#scanMeta').textContent='اكتمل فحص '+SC.rows.length+' شركة · '+fmtLocalTime.format(new Date())+' · جارٍ تصنيف القطاعات…';await loadSectors();}
   else $('#scanMeta').textContent='آخر فحص '+fmtLocalTime.format(new Date())+' · '+SC.rows.length+' شركة';
   renderHeat();
@@ -175,17 +175,18 @@ function scanFiltered(){
   return SC.rows.filter(r=>(!st||r.stance===st)&&(!seg||seg.has(r.segment))&&(!minC||(r.conf||0)>=minC)&&(!sh||sh.has(shariaCat(r))||(sh.has('egx33')&&SC.ex==='CA'&&(egSharia(r.code)||{}).egx33))&&(!SC.sector||sectorAr(r.sector)===SC.sector));
 }
 function renderScan(){
-  for(const r of SC.rows){const c=shariaCat(r);r.shN=c==='none'?-1:SH_RANK[c];}
+  for(const r of SC.rows){const c=shariaCat(r);r.shN=c==='none'?-1:SH_RANK[c];const p=purifyInfo(r.code,SC.ex);r.purN=p?p.val:null;}
   const rows=scanFiltered().slice();const {k,dir}=SC.sort;const m=dir==='asc'?1:-1;
   rows.sort((a,b)=>{const x=a[k],y=b[k];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y,'ar'):x-y)*m;});
   $$('#scanTable th button').forEach(b=>{if(b.dataset.sort===k)b.dataset.dir=dir;else delete b.dataset.dir;});
-  $('#scanBody').innerHTML=rows.length?rows.slice(0,2000).map(r=>{const shr=rowSharia(r);
+  $('#scanBody').innerHTML=rows.length?rows.slice(0,2000).map(r=>{const shr=rowSharia(r),pur=purifyInfo(r.code,SC.ex);
     const e33=SC.ex==='CA'&&(egSharia(r.code)||{}).egx33,spus=SC.ex==='US'&&shr&&shr.spus;
     return '<tr class="clickable" data-sym="'+esc(r.symbol)+'"><td class="nm"><b>'+esc(r.name)+'</b> <span class="num small muted">'+esc(/^\d+$/.test(r.code)||SC.ex==='US'?r.code:'')+'</span>'+(r.segment&&r.segment!=='main'?'<span class="tag seg-'+r.segment+'">'+SEG_AR[r.segment]+'</span>':'')+'</td>'+
       '<td class="sh">'+(shr?shariaTagHTML(shr):'<span class="muted small">—</span>')+(e33?'<span class="tag v" title="ضمن مكونات مؤشر الشريعة EGX33">EGX33</span>':'')+(spus?'<span class="tag v" title="ضمن مؤشر S&P 500 الشرعي">S&P</span>':'')+'</td>'+
+      '<td class="pur">'+(pur?'<span class="tag sh-tag v" tabindex="0">'+purifyValHTML(pur)+'<span class="sh-pop" hidden>'+purifyPopHTML(pur.all)+'</span></span>':'<span class="muted small" title="'+esc(_t('غير متوفرة'))+'">—</span>')+'</td>'+
       '<td>'+NUM(fp(r.price))+'</td><td>'+chgSpan(r.chg)+'</td><td><span class="kind '+stanceKind(r.stance)+'">'+STANCE_AR[r.stance]+'</span></td><td>'+(r.conf!=null?NUM(r.conf+'%'):'—')+'</td>'+
       '<td>'+(r.distBuy!=null?NUM(pct(r.distBuy)):'—')+'</td><td>'+(r.rsi!=null?NUM(r.rsi.toFixed(0)):'—')+'</td><td>'+r.trend+'</td><td>'+esc(r.notable||'')+'</td><td>'+esc(r.sector?sectorAr(r.sector):'')+'</td></tr>';}).join('')
-    :'<tr><td colspan="11" class="empty">'+(SC.rows.length?'لا توجد نتائج تطابق التصفية.':'اختر السوق واضغط «ابدأ الفحص».')+'</td></tr>';
+    :'<tr><td colspan="12" class="empty">'+(SC.rows.length?'لا توجد نتائج تطابق التصفية.':'اختر السوق واضغط «ابدأ الفحص».')+'</td></tr>';
 }
 function renderHeat(){
   const g={};const seg=SC.ex==='SR'?segChoice():null;for(const r of SC.rows){if(r.sector==null||(seg&&!seg.has(r.segment)))continue;const s=sectorAr(r.sector);(g[s]=g[s]||{n:0,chg:0,buy:0});g[s].n++;g[s].chg+=r.chg||0;if(r.stance==='buy')g[s].buy++;}

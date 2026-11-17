@@ -438,7 +438,7 @@ def test_sharia_refresh_runs_the_connectors(monkeypatch):
     monkeypatch.setattr(sharia, "fetch_spus", lambda: {"source": "spus"})
     admin.set_enabled("spus", False)
     res = markets.sharia_refresh()
-    assert res == {"sa": True, "eg": False}
+    assert res == {"sa": True, "eg": False, "pur_sa": None}     # the purification study ships with the app: nothing newer
     assert core.cache_get("sharia|sa")[0] == {"source": "sa"} and sources.REG.stats["egsharia"]["fail"] >= 1
 
 
