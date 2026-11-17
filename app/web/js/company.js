@@ -39,6 +39,7 @@ function nineChecks(c){c=c||{};const D=c.data||[],now=c.now||Date.now(),f=c.fund
   const d90=now-90*DAY;
   if(file&&file.insiders){const r=file.insiders.filter(x=>x.date>=d90),b=r.filter(x=>x.side==='buy'),s=r.filter(x=>x.side==='sell');
     out.insiders={key:'insiders',status:r.length?'notable':'usual',facts:[['شراء',b.length],['بيع',s.length]],src:'تقارير Form 4 في SEC، آخر 90 يومًا'};}
+  else if(file&&file.insidersNeed==='contact')na('insiders','لعرضها أضف بريد التعريف لدى SEC في الإعدادات > مصادر البيانات.');
   else if(file&&file.watching){const r=(file.items||[]).filter(x=>x.type==='insider'&&x.date>=d90);
     out.insiders={key:'insiders',status:r.length?'notable':'usual',facts:[['إعلانات تعاملات',r.length]],src:'إعلانات الشركة منذ',srcX:fmtDate.format(file.since),partial:true};}
   else na('insiders','لا يتوفر مصدر لتعاملات الداخليين لهذا السوق بعد.');
@@ -81,7 +82,8 @@ function renderCompanyFile(){const j=S.cfile;if(!j)return;
   $('#fileList').innerHTML=(j.items||[]).slice(0,15).map(x=>'<li><span class="kind n">'+esc(_t(FILE_TYPE[x.type]||FILE_TYPE.other))+'</span><span><a href="'+esc(x.url)+'" data-url="'+esc(x.url)+'">'+fileTitle(x)+'</a></span><span class="small muted">'+(x.date?(x.dated?'':esc(_t('رُصد في'))+' ')+fmtDate.format(x.date):'')+'</span></li>').join('')
     ||'<li class="plain"><p class="empty">'+esc(_t(j.complete?'لا توجد إفصاحات.':'لم يُرصد إفصاح لهذه الشركة بعد.'))+'</p></li>';
   const ins=j.insiders;
-  $('#fileInsBox').hidden=!ins;
+  $('#fileInsBox').hidden=!ins&&j.insidersNeed!=='contact';
+  if(!ins&&j.insidersNeed==='contact')$('#fileIns').innerHTML='<tr><td colspan="6" class="empty">'+esc(_t('لعرضها أضف بريد التعريف لدى SEC في الإعدادات > مصادر البيانات.'))+'</td></tr>';
   if(ins){const cur=S.meta&&S.meta.currency||'';
     $('#fileIns').innerHTML=ins.length?ins.slice(0,12).map(x=>'<tr><td>'+fmtDate.format(x.date)+'</td><td>'+esc(_t(ROLE[x.role]||ROLE.other))+(x.title?' <span class="small muted" dir="ltr">'+esc(x.title)+'</span>':'')+'</td><td><span class="kind '+(x.side==='buy'?'s':'r')+'">'+esc(_t(x.side==='buy'?'شراء':'بيع'))+'</span></td><td>'+NUM(fmtMoney.format(x.shares))+'</td><td>'+(x.price?NUM(fp(x.price)):'—')+'</td><td>'+(x.value?NUM(fmtVol.format(x.value))+' '+esc(cur):'—')+'</td></tr>').join('')
       :'<tr><td colspan="6" class="empty">'+esc(_t('لا شراء ولا بيع من السوق في تقارير آخر سنة.'))+'</td></tr>';}

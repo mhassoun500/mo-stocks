@@ -87,11 +87,25 @@ def merge_feed(old, new, keep=FEED_KEEP):
 
 
 # ---------------------------------------------------------------- SEC EDGAR
-def sec_get(url, timeout=25):
-    """The SEC answers the app's usual browser-like request (the fundamentals reader uses it daily); the live check on
-    GitHub showed a request naming the app was refused, so the same headers as the rest of the app are sent."""
+def sec_contact():
+    """The e-mail the user chose to give the SEC (Settings > Data sources), or "" when none: the SEC's archive refuses
+    programs that do not name themselves with a contact address (live check, 17 Nov 2026)."""
+    import core
+    c = str(core.pref("secContact", "") or "").strip()
+    return c if re.match(r"^[^@\s]{1,64}@[^@\s]{1,120}\.[A-Za-z]{2,}$", c) else ""
+
+
+def sec_get(url, timeout=25, archive=False):
+    """data.sec.gov answers the app's usual request; the filings archive (www.sec.gov) only answers when the app
+    names itself with the user's contact address, which is sent to the SEC and nowhere else."""
     from sources.base import http_get
-    return http_get(url, headers={"Accept": "application/json,application/xml,text/*"}, timeout=timeout)
+    h = {"Accept": "application/json,application/xml,text/*"}
+    if archive:
+        c = sec_contact()
+        if not c:
+            raise LookupError("no SEC contact")
+        h["User-Agent"] = "MoStocks desktop app " + c
+    return http_get(url, headers=h, timeout=timeout)
 
 
 def parse_sec_submissions(d):
@@ -238,7 +252,8 @@ def company_file(code, ex):
             return {"ok": False, "error": "تعذّر جلب الإفصاحات من SEC الآن."}
         items = d["items"]
         out.update(source="SEC EDGAR", items=[{k: v for k, v in x.items() if k != "raw"} for x in items[:40]],
-                   insiders=d.get("insiders"), record=record_of(items), since=items[-1]["date"] if items else None, complete=True)
+                   insiders=d.get("insiders"), insidersNeed=d.get("insidersNeed"), record=record_of(items),
+                   since=items[-1]["date"] if items else None, complete=True)
         core.cache_put(key, out)
         return out
     feed, _ = core.cache_get("feed|" + ex)

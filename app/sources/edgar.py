@@ -126,14 +126,17 @@ class Edgar(Connector):
         items = F.parse_sec_submissions(d)
         if not items:
             raise NoData()
-        ins, year_ago = [], (_t.time() - 365 * 86400) * 1000
+        if not F.sec_contact():
+            return {"items": items, "insiders": None, "insidersNeed": "contact"}
+        ins, year_ago, read = [], (_t.time() - 365 * 86400) * 1000, 0
         for x in [i for i in items if i["form"] == "4" and i["date"] >= year_ago][:12]:
             try:
-                ins += F.parse_form4(F.sec_get(x["raw"]).decode("utf-8", errors="replace"))
+                ins += F.parse_form4(F.sec_get(x["raw"], archive=True).decode("utf-8", errors="replace"))
+                read += 1
             except Exception:
                 continue          # one unreadable report does not hide the others
         ins.sort(key=lambda r: r["date"], reverse=True)
-        return {"items": items, "insiders": ins}
+        return {"items": items, "insiders": ins, "insidersRead": read}
 
 
 REG.register(Edgar())

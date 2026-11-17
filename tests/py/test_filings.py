@@ -132,7 +132,8 @@ def test_us_company_file_through_the_edgar_connector(monkeypatch):
     def sec(url, timeout=25):
         calls.append(url)
         return (json.dumps(SEC_SUB) if "submissions" in url else FORM4).encode()
-    monkeypatch.setattr(filings, "sec_get", sec)
+    monkeypatch.setattr(filings, "sec_get", lambda url, timeout=25, archive=False: sec(url, timeout))
+    core.Store.set("prefs", {"secContact": "me@example.com"})
     monkeypatch.setattr(REG.items["edgar"], "cik", lambda t: "320193")
     monkeypatch.setattr(filings.time, "time", lambda: ms(2026, 11, 17) / 1000)
     f = filings.company_file("AAPL", "US")
@@ -140,6 +141,28 @@ def test_us_company_file_through_the_edgar_connector(monkeypatch):
     assert "raw" not in f["items"][1] and len(f["insiders"]) == 2
     assert calls[0].endswith("CIK0000320193.json") and calls[1].endswith("/000032019326000090/wk-form4_1.xml")
     assert filings.company_file("AAPL", "US") == f and len(calls) == 2, "kept for a few hours"
+
+
+def test_without_a_contact_email_insiders_are_explained_not_fetched(monkeypatch):
+    calls = []
+    monkeypatch.setattr(filings, "sec_get", lambda url, timeout=25, archive=False: calls.append((url, archive)) or json.dumps(SEC_SUB).encode())
+    monkeypatch.setattr(REG.items["edgar"], "cik", lambda t: "320193")
+    core.Store.set("prefs", {"secContact": "not an email"})
+    f = filings.company_file("MSFT", "US")
+    assert f["ok"] and f["insiders"] is None and f["insidersNeed"] == "contact" and len(f["items"]) == 4
+    assert calls == [("https://data.sec.gov/submissions/CIK0000320193.json", False)], "the archive is not asked at all"
+
+
+def test_the_contact_goes_only_in_the_archive_request(monkeypatch):
+    seen = []
+    monkeypatch.setattr(base, "http_get", lambda url, headers=None, timeout=20, data=None: seen.append((url, dict(headers or {}))) or b"{}")
+    core.Store.set("prefs", {"secContact": "me@example.com"})
+    filings.sec_get("https://data.sec.gov/submissions/CIK1.json")
+    filings.sec_get("https://www.sec.gov/Archives/x.xml", archive=True)
+    assert "User-Agent" not in seen[0][1] and seen[1][1]["User-Agent"] == "MoStocks desktop app me@example.com"
+    core.Store.set("prefs", {})
+    with pytest.raises(LookupError):
+        filings.sec_get("https://www.sec.gov/Archives/x.xml", archive=True)
 
 
 def test_record_counts_and_estimates_the_next_results_date():

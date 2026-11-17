@@ -86,10 +86,17 @@ def egx_disclosures():
 
 
 def sec_company_file():
+    """The insiders part needs a contact e-mail; the run uses the repository secret SEC_CONTACT when the owner set one."""
+    import core
     import filings
+    c = os.environ.get("SEC_CONTACT", "").strip()
+    if c:
+        core.Store.set("prefs", {"secContact": c})
     f = filings.company_file("AAPL", "US")
     assert f.get("ok"), f.get("error")
-    return "%d filings, %d insider buys/sells in a year, results due %s" % (len(f["items"]), len(f["insiders"] or []), (f["record"].get("due") or {}).get("date"))
+    ins = ("no contact e-mail set, insiders skipped" if f.get("insidersNeed") == "contact"
+           else "%d insider buys/sells in a year" % len(f["insiders"] or []))
+    return "%d filings, %s, results due %s" % (len(f["items"]), ins, (f["record"].get("due") or {}).get("date"))
 
 
 def mubasher_funds():

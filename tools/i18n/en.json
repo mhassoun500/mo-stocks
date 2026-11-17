@@ -2028,5 +2028,9 @@
  "آخر إعلانات الشركات المدرجة في السوق السعودية، تُقرأ كل 10 دقائق ويُحفظ سجلها": "The latest announcements of Saudi listed companies, read every 10 minutes and kept",
  "البورصة المصرية (إفصاحات الشركات)": "Egyptian Exchange (company disclosures)",
  "أحدث إفصاحات الشركات المقيدة في البورصة المصرية، تُقرأ كل 10 دقائق ويُحفظ سجلها": "The latest disclosures of EGX-listed companies, read every 10 minutes and kept",
- "في الفترة من": "from"
+ "في الفترة من": "from",
+ "لعرضها أضف بريد التعريف لدى SEC في الإعدادات > مصادر البيانات.": "To see them, add the SEC contact e-mail in Settings > Data sources.",
+ "تعاملات الداخليين الأمريكية (اختياري)": "US insider dealings (optional)",
+ "أرشيف هيئة الأوراق المالية الأمريكية (SEC) لا يجيب البرامج إلا إذا عرّفت نفسها ببريد للتواصل. اكتب بريدًا هنا لتظهر تعاملات مسؤولي الشركات الأمريكية في «ملف الشركة». يُرسل البريد إلى SEC وحدها مع كل طلب، ولا يُرسل إلى أي جهة أخرى. وبدونه تبقى بقية الإفصاحات تعمل.": "The SEC's archive only answers programs that name themselves with a contact e-mail. Enter one here to see US company insiders' dealings in the company file. The e-mail is sent to the SEC alone with each request, and nowhere else. Without it the other disclosures still work.",
+ "بريد التعريف لدى SEC": "Contact e-mail for the SEC"
 }
