@@ -1,10 +1,13 @@
 name: Build installers
 
-# Runs when a release is published on GitHub (any tag name) and attaches the installers to it.
+# Runs when a release is published on GitHub (any tag name) and attaches the installers to it,
+# or when a version tag (v2.15.0, ...) is pushed: then it creates the release itself with the installers.
 # Can also be started by hand; give release_tag to attach the files to an existing release.
 on:
   release:
     types: [published]
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -116,16 +119,29 @@ jobs:
 
   release:
     needs: [windows, macos]
-    if: github.event_name == 'release' || inputs.release_tag != ''
+    if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+        with:
+          path: src
+      - name: Release notes from the README
+        if: github.event_name == 'push'
+        run: |
+          # the newest "what's new" section (it carries the fixes since the previous version as sub-headings)
+          awk '/^## /{if(on)exit} /^## (ما الجديد في|What.s new)/{on=1} on' src/README.md > notes.md || true
+          [ -s notes.md ] || echo "${GITHUB_REF_NAME}" > notes.md
       - uses: actions/download-artifact@v4
         with:
           path: out
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.release.tag_name || inputs.release_tag }}
+          tag_name: ${{ github.event.release.tag_name || inputs.release_tag || github.ref_name }}
+          name: ${{ github.event.release.name || inputs.release_tag || github.ref_name }}
+          body_path: ${{ github.event_name == 'push' && 'notes.md' || '' }}
+          make_latest: true
           files: out/*
