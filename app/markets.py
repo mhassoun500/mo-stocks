@@ -4,6 +4,7 @@ from core import *  # noqa: F401,F403
 from prices import *  # noqa: F401,F403
 from sources import REG, NoData, SourcesFailed
 import sources.consensus
+import localgold
 from concurrent.futures import ThreadPoolExecutor
 # ---------------------------------------------------------------- search, profile, universe, sectors
 def search_yahoo(q, ex):
@@ -1008,7 +1009,7 @@ MAIN_INDICES = {
 }
 
 
-def index_card(code, name, short, tv_only, hist=None):
+def index_card(code, name, short, tv_only, hist=None, ex="XX"):
     """Last value, the day's change and the last month of closes for one index."""
     hist = hist or get_history
     out = {"code": code, "name": name, "short": short, "ok": False}
@@ -1016,7 +1017,7 @@ def index_card(code, name, short, tv_only, hist=None):
         out["error"] = "متاح من TradingView فقط."
         return out
     try:
-        h = hist(code, "XX", "3mo")
+        h = hist(code, ex, "3mo")
     except Exception as e:
         h = {"ok": False, "error": str(e)}
     rows = [r for r in (h.get("rows") or []) if r and r[4]]
@@ -1030,11 +1031,22 @@ def index_card(code, name, short, tv_only, hist=None):
     return out
 
 
-def get_main_indices(ex=None, hist=None):
+def get_main_indices(ex=None, hist=None, gold=None):
     markets = [ex] if ex in MAIN_INDICES else list(MAIN_INDICES)
     jobs = [(m, it) for m in markets for it in MAIN_INDICES[m]]
+    want_gold = ex in (None, "", "GOLD")
     with ThreadPoolExecutor(max_workers=6) as pool:
-        cards = list(pool.map(lambda j: dict(index_card(*j[1], hist=hist), ex=j[0]), jobs))
+        futs = [pool.submit(lambda j=j: dict(index_card(*j[1], hist=hist), ex=j[0])) for j in jobs]
+        if want_gold:
+            oz = pool.submit(lambda: dict(index_card("XAU-USD-OZ", "الذهب — أوقية بالدولار", "أوقية بالدولار", False, hist=hist, ex="GOLD"), ex="GOLD", open="GOLD:XAU-USD-OZ"))
+            loc = pool.submit(gold or localgold.local_gold)
+        cards = [f.result() for f in futs]
+        if want_gold:
+            cards.append(oz.result())
+            for c in loc.result():
+                c["ex"] = "GOLD"
+                c["open"] = "GOLD:" + {"SA24": "XAU-SAR-24", "EG21": "XAU-EGP-21"}.get(c["code"], "XAU-USD-OZ")
+                cards.append(c)
     return {"ok": True, "items": cards}
 
 

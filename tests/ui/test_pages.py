@@ -250,10 +250,13 @@ def test_home_opportunities_show_their_market_and_settings_layout(page_for):
     page.wait_for_selector("#homeOpp .mk-badge")
     assert page.inner_text("#homeOpp .mk-badge") == "مصر"
     page.wait_for_selector("#homeIdx .idx-group")
-    assert page.locator("#homeIdx .idx-group").count() == 3 and page.locator("#homeIdx .idx-card").count() == 9
-    assert page.locator("#homeIdx a.idx-card").count() == 8 and "TradingView" in page.inner_text("#homeIdx")
-    g = page.evaluate("[...document.querySelectorAll('#homeIdx .idx-group')].map(x=>x.getBoundingClientRect().top)")
+    assert page.locator("#homeIdx .idx-group").count() == 4 and page.locator("#homeIdx .idx-card").count() == 12
+    assert page.locator("#homeIdx a.idx-card").count() == 11 and "TradingView" in page.inner_text("#homeIdx")
+    g = page.evaluate("[...document.querySelectorAll('#homeIdx .idx-group')].slice(0,3).map(x=>x.getBoundingClientRect().top)")
     assert max(g) - min(g) < 4, "the three markets side by side on a wide screen"
+    gold = page.locator("#homeIdx .idx-group").nth(3).inner_text()
+    assert "مصراوي" in gold and "ZahabPrice" in gold and "5,830.00" in gold and "شراء" in gold, gold
+    assert page.get_attribute("#homeIdx a.local[data-open='GOLD:XAU-EGP-21']", "data-open")
     page.goto(page.base + "#prefs")
     page.click("#prefTabs button[data-pg='data']")
     page.wait_for_timeout(300)

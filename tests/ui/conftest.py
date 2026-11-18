@@ -65,6 +65,13 @@ def route_api(route):
                 spark = [base * (1 + 0.004 * ((k * 7) % 5 - 2)) for k in range(23)]
                 items.append({"ex": ex, "code": code, "name": name, "short": short, "ok": True, "last": spark[-1],
                               "chg": spark[-1] / spark[-2] - 1, "month": spark[-1] / spark[0] - 1, "spark": spark, "t": 0})
+        oz = [4000 * (1 + 0.003 * ((k * 5) % 7 - 3)) for k in range(23)]
+        items += [{"ex": "GOLD", "code": "XAU-USD-OZ", "open": "GOLD:XAU-USD-OZ", "name": "الذهب — أوقية بالدولار", "short": "أوقية بالدولار", "ok": True,
+                   "last": oz[-1], "chg": oz[-1] / oz[-2] - 1, "spark": oz},
+                  {"ex": "GOLD", "code": "SA24", "open": "GOLD:XAU-SAR-24", "name": "جرام عيار 24", "short": "جرام عيار 24", "cur": "SAR", "karat": 24,
+                   "source": "ZahabPrice", "ok": True, "last": 453.82, "chg": None, "updated": "2026-11-18T14:23:54+03:00"},
+                  {"ex": "GOLD", "code": "EG21", "open": "GOLD:XAU-EGP-21", "name": "جرام عيار 21", "short": "جرام عيار 21", "cur": "EGP", "karat": 21,
+                   "source": "مصراوي", "ok": True, "last": 5830.0, "buy": 5780.0, "chg": -70 / 5900, "updated": "2026-11-18T12:22:54+02:00"}]
         return route.fulfill(json={"ok": True, "items": items})
     if p == "/api/news":
         return route.fulfill(json={"ok": True, "items": [{"title": "خبر", "link": "https://n.example/1", "source": "x", "date": "2026-11-17T10:00:00Z"}]})

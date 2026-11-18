@@ -2538,5 +2538,16 @@
  "ناسداك المركب": "Nasdaq Composite",
  "داو جونز الصناعي": "Dow Jones Industrial",
  "متاح من TradingView فقط.": "Available from TradingView only.",
- "لا توجد بيانات.": "No data."
+ "لا توجد بيانات.": "No data.",
+ "ريال": "SAR",
+ "جنيه": "EGP",
+ "الرسم عند الضغط محسوب من الأونصة وسعر الصرف": "the chart it opens is worked out from the ounce and the exchange rate",
+ "٠١٢٣٤٥٦٧٨٩٫٬": "٠١٢٣٤٥٦٧٨٩٫٬",
+ "عيار\\s*(\\d+)": "عيار\\s*(\\d+)",
+ "تعذّر قراءة صفحة المصدر.": "Could not read the source page.",
+ "لم يُعثر على السعر في صفحة المصدر.": "The price was not found on the source page.",
+ "جرام عيار 24": "Gram 24K",
+ "جرام عيار 21": "Gram 21K",
+ "مصراوي": "Masrawy",
+ "أوقية بالدولار": "Ounce in USD"
 }

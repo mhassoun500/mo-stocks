@@ -31,14 +31,22 @@ const fmtIdx=new Intl.NumberFormat('en-US',{maximumFractionDigits:2,minimumFract
 function idxSpark(v){const a=(v||[]).filter(x=>x!=null&&isFinite(x));if(a.length<2)return'';
   const lo=Math.min(...a),hi=Math.max(...a),sp=hi-lo||1,w=140,h=26,pts=a.map((x,i)=>(i*w/(a.length-1)).toFixed(1)+','+(h-2-(x-lo)/sp*(h-4)).toFixed(1)).join(' ');
   return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="'+(a[a.length-1]>=a[0]?'var(--up)':'var(--down)')+'" stroke-width="1.6" points="'+pts+'"/></svg>';}
+const IDX_CUR={SAR:'ريال',EGP:'جنيه'};
+function idxWhen(x){const t=x.updated?Date.parse(x.updated):x.at;if(!t||!isFinite(t))return'';
+  return new Intl.DateTimeFormat(EN?'en-GB':'ar-EG-u-nu-latn',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(t));}
 function idxCard(x){
-  const head='<span class="k"><b>'+esc(x.short)+'</b></span>';
-  if(!x.ok)return '<div class="metric idx-card na" title="'+esc(_t(x.name))+' — '+esc(_t(x.error||''))+'">'+head+'<span class="v">—</span><span class="s">'+esc(_t('غير متاح'))+'</span></div>';
-  return '<a href="#" class="metric idx-card" data-open="XX:'+esc(x.code)+'" title="'+esc(_t(x.name))+(x.month!=null?' · '+esc(_t('آخر شهر'))+' '+(x.month>=0?'+':'')+(x.month*100).toFixed(1)+'%':'')+'">'+head
-    +'<span class="v">'+NUM(fmtIdx.format(x.last))+'</span><span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.offline?' · '+esc(_t('محفوظ')):'')+'</span>'+idxSpark(x.spark)+'</a>';}
+  const head='<span class="k"><b>'+esc(_t(x.short))+'</b></span>',open=x.open||('XX:'+x.code);
+  if(!x.ok)return '<div class="metric idx-card na" title="'+esc(_t(x.name))+' — '+esc(_t(x.error||''))+'">'+head+'<span class="v">—</span><span class="s">'+esc(_t('غير متاح'))+'</span>'+(x.source?'<span class="s src">'+esc(_t(x.source))+'</span>':'')+'</div>';
+  const local=!!x.source&&x.ex==='GOLD'&&x.cur;   /* a local gram price, read from the source's page */
+  const tip=_t(x.name)+(x.month!=null?' · '+_t('آخر شهر')+' '+(x.month>=0?'+':'')+(x.month*100).toFixed(1)+'%':'')+(local?' · '+_t('الرسم عند الضغط محسوب من الأونصة وسعر الصرف'):'');
+  return '<a href="#" class="metric idx-card'+(local?' local':'')+'" data-open="'+esc(open)+'" title="'+esc(tip)+'">'+head
+    +'<span class="v">'+NUM(fmtIdx.format(x.last))+(x.cur?' <small>'+esc(_t(IDX_CUR[x.cur]||x.cur))+'</small>':'')+'</span>'
+    +'<span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.buy?' '+esc(_t('شراء'))+' '+NUM(fmtIdx.format(x.buy)):'')+(x.offline?' · '+esc(_t('محفوظ')):'')+'</span>'
+    +(local?'<span class="s src">'+esc(_t(x.source))+(idxWhen(x)?' · '+NUM(esc(idxWhen(x))):'')+'</span>':idxSpark(x.spark))+'</a>';}
+const IDX_GROUPS=[['SR',()=>SESSIONS.SR.ar],['CA',()=>SESSIONS.CA.ar],['US',()=>SESSIONS.US.ar],['GOLD',()=>'الذهب']];
 function indicesHTML(items){
-  return ['SR','CA','US'].map(ex=>{const g=(items||[]).filter(x=>x.ex===ex);if(!g.length)return'';
-    return '<div class="idx-group" style="--n:'+g.length+'"><h4>'+esc(_t(SESSIONS[ex].ar))+'</h4><div class="idx-cards">'+g.map(idxCard).join('')+'</div></div>';}).join('');}
+  return IDX_GROUPS.map(([ex,nm])=>{const g=(items||[]).filter(x=>x.ex===ex);if(!g.length)return'';
+    return '<div class="idx-group" style="--n:'+g.length+'"><h4>'+esc(_t(nm()))+'</h4><div class="idx-cards">'+g.map(idxCard).join('')+'</div></div>';}).join('');}
 async function renderIndices(){const box=$('#homeIdx');if(!box)return;
   const j=await api('/api/indices').catch(()=>null);
   if(!j||!j.ok){box.innerHTML='<p class="small err">'+esc(_t('تعذّر جلب المؤشرات.'))+'</p>';return;}

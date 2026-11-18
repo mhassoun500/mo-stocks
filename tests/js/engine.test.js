@@ -1103,5 +1103,7 @@ test('dashboard: the main indices grouped by market, with a spark line and a lin
   assert.ok(h.indexOf('TASI') < h.indexOf('EGX33') && h.indexOf('EGX33') < h.indexOf('S&amp;P 500'), 'Saudi, Egypt, then the US');
   assert.match(h, /data-open="XX:\^GSPC"/); assert.match(h, /6,012\.50/);
   assert.ok(!/data-open="XX:\^EGX33"/.test(h) && /غير متاح/.test(h), 'an index with no data is not a link');
+  const g = H.indicesHTML(items.concat([{ ex: 'GOLD', code: 'EG21', open: 'GOLD:XAU-EGP-21', short: 'جرام عيار 21', name: 'جرام عيار 21', cur: 'EGP', source: 'مصراوي', ok: true, last: 5830, buy: 5780, chg: -0.0119, updated: '2026-11-18T12:22:54+02:00' }]));
+  assert.ok(g.indexOf('S&amp;P 500') < g.indexOf('مصراوي'), 'gold after the markets'); assert.match(g, /data-open="GOLD:XAU-EGP-21"/); assert.match(g, /جنيه/);
   assert.match(H.idxSpark([1, 2, 3]), /var\(--up\)/); assert.match(H.idxSpark([3, 2, 1]), /var\(--down\)/); assert.equal(H.idxSpark([1]), '');
 });
