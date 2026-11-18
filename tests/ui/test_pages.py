@@ -257,6 +257,10 @@ def test_home_opportunities_show_their_market_and_settings_layout(page_for):
     gold = page.locator("#homeIdx .idx-group").nth(3).inner_text()
     assert "مصراوي" in gold and "ZahabPrice" in gold and "5,830.00" in gold and "شراء" in gold, gold
     assert page.get_attribute("#homeIdx a.local[data-open='GOLD:XAU-EGP-21']", "data-open")
+    sizes = page.evaluate("[...new Set([...document.querySelectorAll('#homeIdx .idx-card')].map(c=>{const r=c.getBoundingClientRect();return Math.round(r.width)+'x'+Math.round(r.height)}))]")
+    assert len(sizes) == 1, "every index card the same size: %s" % sizes
+    assert page.evaluate("[...document.querySelectorAll('#homeIdx .idx-group>h4')].every(h=>getComputedStyle(h).textAlign==='center'&&+getComputedStyle(h).fontWeight>=700)")
+    assert page.evaluate("[...document.querySelectorAll('#homeIdx .idx-card')].every(c=>c.scrollHeight<=c.clientHeight+1)"), "nothing cut off"
     page.goto(page.base + "#prefs")
     page.click("#prefTabs button[data-pg='data']")
     page.wait_for_timeout(300)

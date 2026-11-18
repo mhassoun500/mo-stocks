@@ -33,7 +33,8 @@ function idxSpark(v){const a=(v||[]).filter(x=>x!=null&&isFinite(x));if(a.length
   return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="'+(a[a.length-1]>=a[0]?'var(--up)':'var(--down)')+'" stroke-width="1.6" points="'+pts+'"/></svg>';}
 const IDX_CUR={SAR:'ريال',EGP:'جنيه'};
 function idxWhen(x){const t=x.updated?Date.parse(x.updated):x.at;if(!t||!isFinite(t))return'';
-  return new Intl.DateTimeFormat(EN?'en-GB':'ar-EG-u-nu-latn',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(t));}
+  const d=new Date(t),today=d.toDateString()===new Date().toDateString();   /* today: the time only, so the card stays one size */
+  return new Intl.DateTimeFormat(EN?'en-GB':'ar-EG-u-nu-latn',today?{hour:'2-digit',minute:'2-digit'}:{day:'numeric',month:'short'}).format(d);}
 function idxCard(x){
   const head='<span class="k"><b>'+esc(_t(x.short))+'</b></span>',open=x.open||('XX:'+x.code);
   if(!x.ok)return '<div class="metric idx-card na" title="'+esc(_t(x.name))+' — '+esc(_t(x.error||''))+'">'+head+'<span class="v">—</span><span class="s">'+esc(_t('غير متاح'))+'</span>'+(x.source?'<span class="s src">'+esc(_t(x.source))+'</span>':'')+'</div>';
@@ -41,7 +42,8 @@ function idxCard(x){
   const tip=_t(x.name)+(x.month!=null?' · '+_t('آخر شهر')+' '+(x.month>=0?'+':'')+(x.month*100).toFixed(1)+'%':'')+(local?' · '+_t('الرسم عند الضغط محسوب من الأونصة وسعر الصرف'):'');
   return '<a href="#" class="metric idx-card'+(local?' local':'')+'" data-open="'+esc(open)+'" title="'+esc(tip)+'">'+head
     +'<span class="v">'+NUM(fmtIdx.format(x.last))+(x.cur?' <small>'+esc(_t(IDX_CUR[x.cur]||x.cur))+'</small>':'')+'</span>'
-    +'<span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.buy?' '+esc(_t('شراء'))+' '+NUM(fmtIdx.format(x.buy)):'')+(x.offline?' · '+esc(_t('محفوظ')):'')+'</span>'
+    +'<span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.offline?' · '+esc(_t('محفوظ')):'')+'</span>'
+    +(x.buy?'<span class="s">'+esc(_t('شراء'))+' '+NUM(fmtIdx.format(x.buy))+'</span>':'')
     +(local?'<span class="s src">'+esc(_t(x.source))+(idxWhen(x)?' · '+NUM(esc(idxWhen(x))):'')+'</span>':idxSpark(x.spark))+'</a>';}
 const IDX_GROUPS=[['SR',()=>SESSIONS.SR.ar],['CA',()=>SESSIONS.CA.ar],['US',()=>SESSIONS.US.ar],['GOLD',()=>'الذهب']];
 function indicesHTML(items){

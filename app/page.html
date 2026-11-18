@@ -232,19 +232,20 @@ html[dir=ltr] .scale span{transform:translateX(-50%)}
 @media (max-width:520px){#verdictSec .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>.mtf{grid-column:1/-1}}
 /* 2.18.2: the main indices on the dashboard, one group per market */
 #homeMarkets{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:600px){#homeMarkets{grid-template-columns:minmax(0,1fr)}}
-.idx-groups{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px}
-.idx-group{flex:var(--n) 1 calc(var(--n) * 135px + 16px);min-width:0}
+.idx-groups{--cw:132px;--ch:136px;display:flex;flex-wrap:wrap;gap:12px;margin-bottom:8px}   /* every card the same width and height */
+.idx-group{flex:0 0 auto;min-width:0}
 .idx-group{background:var(--surface-2);border:1px solid var(--line);border-top:3px solid var(--accent);border-radius:12px;padding:8px 8px 8px}
 .idx-group>h4{margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line);text-align:center;font-size:14px;font-weight:700;color:var(--ink)}
 .idx-group .idx-card{background:var(--surface)}
-.idx-cards{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:8px}
-.idx-card{text-decoration:none;color:inherit;cursor:pointer;padding:10px 8px;gap:2px}
+.idx-cards{display:grid;grid-template-columns:repeat(var(--n),var(--cw));grid-auto-rows:var(--ch);gap:8px}
+.idx-card{text-decoration:none;color:inherit;cursor:pointer;padding:8px 6px;gap:2px;width:var(--cw);height:var(--ch);box-sizing:border-box;overflow:hidden}
+.idx-card .k,.idx-card .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .idx-card:hover{border-color:var(--accent)}.idx-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .idx-card .k b{font-family:var(--f-num)}.idx-card .v{font-size:17px}
 .idx-card svg{display:block;width:100%;max-width:140px;height:26px;margin-top:4px}
-.idx-card .v small{font-size:11px;color:var(--muted);font-weight:500}.idx-card .src{font-size:11px;color:var(--muted);margin-top:4px}
+.idx-card .v small{font-size:11px;color:var(--muted);font-weight:500}.idx-card .src{font-size:11px;color:var(--muted);margin-top:2px}.idx-card .src.t{margin-top:0}.idx-card .s.src{white-space:normal;line-height:1.35}
 .idx-card.na{cursor:default;opacity:.75}.idx-card.na:hover{border-color:var(--line)}
-@media (max-width:700px){.idx-group{flex-basis:100%}.idx-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){.idx-groups{--cw:calc((100vw - 92px) / 2)}.idx-group{flex-basis:100%}.idx-cards{grid-template-columns:repeat(2,var(--cw));justify-content:center}}
 .metric{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .metric .k{font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
 .metric .k i{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -5312,7 +5313,8 @@ function idxSpark(v){const a=(v||[]).filter(x=>x!=null&&isFinite(x));if(a.length
   return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="'+(a[a.length-1]>=a[0]?'var(--up)':'var(--down)')+'" stroke-width="1.6" points="'+pts+'"/></svg>';}
 const IDX_CUR={SAR:_t('ريال'),EGP:_t('جنيه')};
 function idxWhen(x){const t=x.updated?Date.parse(x.updated):x.at;if(!t||!isFinite(t))return'';
-  return new Intl.DateTimeFormat(EN?'en-GB':'ar-EG-u-nu-latn',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(t));}
+  const d=new Date(t),today=d.toDateString()===new Date().toDateString();   /* today: the time only, so the card stays one size */
+  return new Intl.DateTimeFormat(EN?'en-GB':'ar-EG-u-nu-latn',today?{hour:'2-digit',minute:'2-digit'}:{day:'numeric',month:'short'}).format(d);}
 function idxCard(x){
   const head='<span class="k"><b>'+esc(_t(x.short))+'</b></span>',open=x.open||('XX:'+x.code);
   if(!x.ok)return '<div class="metric idx-card na" title="'+esc(_t(x.name))+' — '+esc(_t(x.error||''))+'">'+head+'<span class="v">—</span><span class="s">'+esc(_t(_t('غير متاح')))+'</span>'+(x.source?'<span class="s src">'+esc(_t(x.source))+'</span>':'')+'</div>';
@@ -5320,7 +5322,8 @@ function idxCard(x){
   const tip=_t(x.name)+(x.month!=null?' · '+_t(_t('آخر شهر'))+' '+(x.month>=0?'+':'')+(x.month*100).toFixed(1)+'%':'')+(local?' · '+_t(_t('الرسم عند الضغط محسوب من الأونصة وسعر الصرف')):'');
   return '<a href="#" class="metric idx-card'+(local?' local':'')+'" data-open="'+esc(open)+'" title="'+esc(tip)+'">'+head
     +'<span class="v">'+NUM(fmtIdx.format(x.last))+(x.cur?' <small>'+esc(_t(IDX_CUR[x.cur]||x.cur))+'</small>':'')+'</span>'
-    +'<span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.buy?' '+esc(_t(_t('شراء')))+' '+NUM(fmtIdx.format(x.buy)):'')+(x.offline?' · '+esc(_t(_t('محفوظ'))):'')+'</span>'
+    +'<span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.offline?' · '+esc(_t(_t('محفوظ'))):'')+'</span>'
+    +(x.buy?'<span class="s">'+esc(_t(_t('شراء')))+' '+NUM(fmtIdx.format(x.buy))+'</span>':'')
     +(local?'<span class="s src">'+esc(_t(x.source))+(idxWhen(x)?' · '+NUM(esc(idxWhen(x))):'')+'</span>':idxSpark(x.spark))+'</a>';}
 const IDX_GROUPS=[['SR',()=>SESSIONS.SR.ar],['CA',()=>SESSIONS.CA.ar],['US',()=>SESSIONS.US.ar],['GOLD',()=>_t('الذهب')]];
 function indicesHTML(items){
