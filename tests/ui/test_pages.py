@@ -149,7 +149,8 @@ def test_analysis_layout_chart_first_details_in_tabs(page_for, width):
     page.set_viewport_size({"width": width, "height": 1000 if width > 500 else 844})
     open_stock(page, "SR", "1120")
     y = lambda sel: page.evaluate("document.querySelector(%r).getBoundingClientRect().top+scrollY" % sel)
-    assert y("#chartCard") < y("#verdictSec") < y("#moreCard") < y("#planCard") < y("#infoRow"), "chart, verdict, levels, plan, company"
+    assert y("#chartCard") < y("#verdictSec") < y("#moreCard") < y("#planCard") < y("#infoRow") < y("#aiCard"), "chart, verdict, levels, plan, company, AI"
+    assert page.is_visible("#aiCard #aiBox") and not page.evaluate("!!document.querySelector('#planCard #aiBox')")
     box = lambda sel: page.evaluate("(r=>[r.left,r.top,r.width,r.height])(document.querySelector(%r).getBoundingClientRect())" % sel)
     assert page.evaluate("document.querySelector('#mtfBox').parentElement.classList.contains('metrics')"), "timeframes among the metric cards"
     if width >= 1440:
@@ -248,6 +249,11 @@ def test_home_opportunities_show_their_market_and_settings_layout(page_for):
     page.goto(page.base + "#home")
     page.wait_for_selector("#homeOpp .mk-badge")
     assert page.inner_text("#homeOpp .mk-badge") == "مصر"
+    page.wait_for_selector("#homeIdx .idx-group")
+    assert page.locator("#homeIdx .idx-group").count() == 3 and page.locator("#homeIdx .idx-card").count() == 9
+    assert page.locator("#homeIdx a.idx-card").count() == 8 and "TradingView" in page.inner_text("#homeIdx")
+    g = page.evaluate("[...document.querySelectorAll('#homeIdx .idx-group')].map(x=>x.getBoundingClientRect().top)")
+    assert max(g) - min(g) < 4, "the three markets side by side on a wide screen"
     page.goto(page.base + "#prefs")
     page.click("#prefTabs button[data-pg='data']")
     page.wait_for_timeout(300)

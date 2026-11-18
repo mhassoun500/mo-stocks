@@ -1094,3 +1094,14 @@ test('the timeframes box fills what is left of the last row of metric cards', ()
   assert.equal(U.mtfSpan(6, 9), 3); assert.equal(U.mtfSpan(4, 9), 3); assert.equal(U.mtfSpan(4, 8), 4);
   assert.equal(U.mtfSpan(6, 8), 4); assert.equal(U.mtfSpan(2, 9), 2, 'one cell left: a row of its own'); assert.equal(U.mtfSpan(3, 9), 3);
 });
+test('dashboard: the main indices grouped by market, with a spark line and a link to the chart', () => {
+  const H = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'alerts', 'watch', 'calendar', 'journal', 'reports', 'home'], ['indicesHTML', 'idxSpark']);
+  const items = [{ ex: 'US', code: '^GSPC', short: 'S&P 500', name: 'إس آند بي 500', ok: true, last: 6012.5, chg: 0.01, spark: [1, 2, 3] },
+    { ex: 'SR', code: '^TASI.SR', short: 'TASI', name: 'مؤشر تاسي', ok: true, last: 11000, chg: -0.002, spark: [3, 2, 1] },
+    { ex: 'CA', code: '^EGX33', short: 'EGX33', name: 'إي جي إكس 33', ok: false, error: 'متاح من TradingView فقط.' }];
+  const h = H.indicesHTML(items);
+  assert.ok(h.indexOf('TASI') < h.indexOf('EGX33') && h.indexOf('EGX33') < h.indexOf('S&amp;P 500'), 'Saudi, Egypt, then the US');
+  assert.match(h, /data-open="XX:\^GSPC"/); assert.match(h, /6,012\.50/);
+  assert.ok(!/data-open="XX:\^EGX33"/.test(h) && /غير متاح/.test(h), 'an index with no data is not a link');
+  assert.match(H.idxSpark([1, 2, 3]), /var\(--up\)/); assert.match(H.idxSpark([3, 2, 1]), /var\(--down\)/); assert.equal(H.idxSpark([1]), '');
+});

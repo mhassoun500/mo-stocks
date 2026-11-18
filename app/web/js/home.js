@@ -17,13 +17,33 @@ function marketStatus(ex,now){
   else{let d=0,m=c.min;for(;d<8;d++){const day=(c.day+d)%7;if(s.days.includes(day)&&(d>0||m<s.open)){mins=d*1440+s.open-m;break;}}}
   return{ex,open,mins};
 }
-const durText=m=>m>=1440?NUM(Math.floor(m/1440))+' '+_t('يوم')+(m%1440>=60?' '+NUM(Math.floor((m%1440)/60))+' '+_t('ساعة'):''):m>=60?NUM(Math.floor(m/60))+' '+_t('ساعة')+(m%60?' '+NUM(m%60)+' '+_t('دقيقة'):''):NUM(m)+' '+_t('دقيقة');
+/* the words alone are timeframe names in the dictionary ('Hourly', 'Daily'), so the units here are spelt out */
+const DUR_U=EN?{d:'d',h:'h',m:'min'}:{d:'يوم',h:'ساعة',m:'دقيقة'};
+const durText=m=>m>=1440?NUM(Math.floor(m/1440))+' '+DUR_U.d+(m%1440>=60?' '+NUM(Math.floor((m%1440)/60))+' '+DUR_U.h:''):m>=60?NUM(Math.floor(m/60))+' '+DUR_U.h+(m%60?' '+NUM(m%60)+' '+DUR_U.m:''):NUM(m)+' '+DUR_U.m;
 
 /* the strongest buy setups of the last scan */
 function topOpportunities(scan,n){if(!scan||!scan.rows)return[];
   return scan.rows.filter(r=>r.stance==='buy').sort((a,b)=>(b.conf||0)-(a.conf||0)||(b.q||0)-(a.q||0)).slice(0,n||5);}
 
 const H={busy:false};
+/* 2.18.2: the main indices of the three markets */
+const fmtIdx=new Intl.NumberFormat('en-US',{maximumFractionDigits:2,minimumFractionDigits:2});
+function idxSpark(v){const a=(v||[]).filter(x=>x!=null&&isFinite(x));if(a.length<2)return'';
+  const lo=Math.min(...a),hi=Math.max(...a),sp=hi-lo||1,w=140,h=26,pts=a.map((x,i)=>(i*w/(a.length-1)).toFixed(1)+','+(h-2-(x-lo)/sp*(h-4)).toFixed(1)).join(' ');
+  return '<svg viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" stroke="'+(a[a.length-1]>=a[0]?'var(--up)':'var(--down)')+'" stroke-width="1.6" points="'+pts+'"/></svg>';}
+function idxCard(x){
+  const head='<span class="k"><b>'+esc(x.short)+'</b></span>';
+  if(!x.ok)return '<div class="metric idx-card na" title="'+esc(_t(x.name))+' — '+esc(_t(x.error||''))+'">'+head+'<span class="v">—</span><span class="s">'+esc(_t('غير متاح'))+'</span></div>';
+  return '<a href="#" class="metric idx-card" data-open="XX:'+esc(x.code)+'" title="'+esc(_t(x.name))+(x.month!=null?' · '+esc(_t('آخر شهر'))+' '+(x.month>=0?'+':'')+(x.month*100).toFixed(1)+'%':'')+'">'+head
+    +'<span class="v">'+NUM(fmtIdx.format(x.last))+'</span><span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.offline?' · '+esc(_t('محفوظ')):'')+'</span>'+idxSpark(x.spark)+'</a>';}
+function indicesHTML(items){
+  return ['SR','CA','US'].map(ex=>{const g=(items||[]).filter(x=>x.ex===ex);if(!g.length)return'';
+    return '<div class="idx-group" style="--n:'+g.length+'"><h4>'+esc(_t(SESSIONS[ex].ar))+'</h4><div class="idx-cards">'+g.map(idxCard).join('')+'</div></div>';}).join('');}
+async function renderIndices(){const box=$('#homeIdx');if(!box)return;
+  const j=await api('/api/indices').catch(()=>null);
+  if(!j||!j.ok){box.innerHTML='<p class="small err">'+esc(_t('تعذّر جلب المؤشرات.'))+'</p>';return;}
+  box.innerHTML=indicesHTML(j.items);
+  if(j.items.some(x=>!x.ok&&/TradingView/.test(x.error||'')))box.insertAdjacentHTML('beforeend','<p class="small muted" style="flex-basis:100%;margin:0">'+esc(_t('بعض المؤشرات متاحة من TradingView فقط. اختر TradingView مصدرًا للأسعار في الإعدادات لتظهر.'))+'</p>');}
 async function renderHome(){
   if(!$('#view-home')||H.busy)return;H.busy=true;
   try{
@@ -33,6 +53,7 @@ async function renderHome(){
         +'<span class="s">'+esc(_t(st.open?'تغلق بعد':'تفتح بعد'))+' '+durText(st.mins)+'</span><span class="s" data-idx="'+ex+'"></span></div>';}).join('');
     for(const ex of Object.keys(SESSIONS))api('/api/index',{ex,range:'1mo'}).then(j=>{const el=$('[data-idx="'+ex+'"]');if(!el||!j||!j.ok||!j.rows||j.rows.length<2)return;
       const r=j.rows,ch=r[r.length-1][4]/r[r.length-2][4]-1;el.innerHTML=esc(_t(j.label||''))+' '+chgSpan(ch);}).catch(()=>{});
+    renderIndices();
     /* portfolio */
     if(!J.loaded)await loadJournal();
     const s=weekSummary(J.all),curs=Object.keys(s.cur);

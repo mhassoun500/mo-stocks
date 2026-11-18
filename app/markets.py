@@ -4,6 +4,7 @@ from core import *  # noqa: F401,F403
 from prices import *  # noqa: F401,F403
 from sources import REG, NoData, SourcesFailed
 import sources.consensus
+from concurrent.futures import ThreadPoolExecutor
 # ---------------------------------------------------------------- search, profile, universe, sectors
 def search_yahoo(q, ex):
     url = ("https://query2.finance.yahoo.com/v1/finance/search?q=%s&quotesCount=15&newsCount=0&listsCount=0"
@@ -995,6 +996,46 @@ def get_sectors(symbols, budget_s=25):
                 json.dump(known, f, ensure_ascii=False)
     missing = [s for s in symbols if s not in known]
     return {"ok": True, "sectors": {s: known.get(s, "") for s in symbols if s in known}, "missing": len(missing)}
+
+
+# 2.18.2: the main indices of each market, for the dashboard: (code, Arabic name, short name, only on TradingView)
+MAIN_INDICES = {
+    "SR": [("^TASI.SR", "مؤشر تاسي", "TASI", False), ("^MT30", "مؤشر إم تي 30", "MT30", True)],
+    "CA": [("^CASE30", "إي جي إكس 30", "EGX30", False), ("^EGX70", "إي جي إكس 70 متساوي الأوزان", "EGX70", True),
+           ("^EGX100", "إي جي إكس 100 متساوي الأوزان", "EGX100", True), ("^EGX33", "إي جي إكس 33 للشريعة", "EGX33", True)],
+    "US": [("^GSPC", "إس آند بي 500", "S&P 500", False), ("^IXIC", "ناسداك المركب", "Nasdaq", False),
+           ("^DJI", "داو جونز الصناعي", "Dow Jones", False)],
+}
+
+
+def index_card(code, name, short, tv_only, hist=None):
+    """Last value, the day's change and the last month of closes for one index."""
+    hist = hist or get_history
+    out = {"code": code, "name": name, "short": short, "ok": False}
+    if tv_only and not prefer_tv():
+        out["error"] = "متاح من TradingView فقط."
+        return out
+    try:
+        h = hist(code, "XX", "3mo")
+    except Exception as e:
+        h = {"ok": False, "error": str(e)}
+    rows = [r for r in (h.get("rows") or []) if r and r[4]]
+    if not h.get("ok") or len(rows) < 2:
+        out["error"] = h.get("error") or "لا توجد بيانات."
+        return out
+    last, prev = rows[-1][4], rows[-2][4]
+    out.update(ok=True, last=last, chg=last / prev - 1 if prev else None, t=rows[-1][0],
+               month=last / rows[-23][4] - 1 if len(rows) > 23 and rows[-23][4] else None,
+               spark=[round(r[4], 4) for r in rows[-23:]], source=h.get("source"), offline=bool(h.get("offline")))
+    return out
+
+
+def get_main_indices(ex=None, hist=None):
+    markets = [ex] if ex in MAIN_INDICES else list(MAIN_INDICES)
+    jobs = [(m, it) for m in markets for it in MAIN_INDICES[m]]
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        cards = list(pool.map(lambda j: dict(index_card(*j[1], hist=hist), ex=j[0]), jobs))
+    return {"ok": True, "items": cards}
 
 
 def get_index(ex, rng):

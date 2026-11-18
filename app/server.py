@@ -133,6 +133,8 @@ class Handler(BaseHTTPRequestHandler):
                 log("  fetch %-16s %-5s %s %s" % (code, q.get("ex", "SR"), q.get("range", "2y"), q.get("interval", "1d")))
                 return self._json(get_history(code, q.get("ex", "SR"), q.get("range", "2y"), q.get("interval", "1d"),
                                               q.get("lite") == "1"))
+            if p == "/api/indices":
+                return self._json(get_main_indices(q.get("ex") or None))
             if p == "/api/index":
                 return self._json(get_index(q.get("ex", "SR"), q.get("range", "2y")))
             if p == "/api/tgbot":

@@ -36,6 +36,8 @@
         <button class="btn sm" id="homeCheck" type="button">افحص المراقبة الآن</button><button class="btn sm ghost" id="homeScan" type="button">افتح الماسح</button></span></div>
       <h3 class="sub-h">الأسواق</h3>
       <div class="metrics" id="homeMarkets"></div>
+      <h3 class="sub-h">المؤشرات الرئيسية</h3>
+      <div class="idx-groups" id="homeIdx"><p class="muted small">جارٍ جلب المؤشرات…</p></div>
       <p class="small muted">حسب ساعات التداول المعتادة لكل سوق، ولا يعرف البرنامج العطل الرسمية. التغير من آخر جلستين للمؤشر.</p>
     </section>
     <section class="grid-2 even">
@@ -356,44 +358,6 @@
         <p class="edu" id="planEdu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
         </div>
       </div>
-      <div class="ai-box" id="aiBox">
-        <div class="ai-head"><b>رأي الذكاء الاصطناعي</b><span class="muted small" id="aiMeta"></span></div>
-        <input id="aiQ" type="text" class="ai-q" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
-        <div class="ai-way local-only">
-          <span class="ai-way-h">١. تحليل مباشر داخل البرنامج بمفتاحك</span>
-          <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
-          <div id="aiControls" class="ai-controls" hidden>
-            <select id="aiProv" aria-label="المساعد"></select>
-            <select id="aiTpl" aria-label="القالب" title="القارئ الذي يكتب له المساعد"></select>
-            <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
-            <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
-          </div>
-        </div>
-        <div class="ai-way">
-          <span class="ai-way-h"><span class="local-only">٢. </span>أو انسخ البرومبت والصقه في المساعد الذي تشترك فيه</span>
-          <div class="ai-controls"><button class="btn sm" id="aiCopy" type="button">نسخ البرومبت</button><span class="muted small">أو افتح مباشرة (يُنسخ تلقائيًا):</span></div>
-          <div class="ai-sites" id="aiSites"></div>
-          <p class="status" id="aiCopyNote" hidden></p>
-          <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
-        </div>
-        <div class="ai-out" id="aiOut" hidden></div>
-        <div class="ai-chat local-only" id="aiChatBox" hidden>
-          <div id="aiChat"></div>
-          <div class="ai-controls"><input id="aiChatQ" type="text" class="ai-q" placeholder="اسأل المساعد عن تحليله: مثلًا لماذا اخترت هذا الوقف؟"><button class="btn sm" id="aiChatGo" type="button">اسأل</button></div>
-        </div>
-        <details class="ai-hist local-only" id="aiCmp"><summary class="small">قارن مع سهم آخر</summary>
-          <div class="ai-controls"><select id="aiCmpEx" aria-label="السوق"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select>
-            <input id="aiCmpCode" type="text" class="ai-q" placeholder="رمز السهم الثاني، مثل 1120 أو COMI أو AAPL" style="direction:ltr"><button class="btn sm" id="aiCmpGo" type="button">قارن</button></div>
-          <div class="ai-out" id="aiCmpOut" hidden></div>
-        </details>
-        <details class="ai-hist local-only" id="aiHist"><summary class="small">سجل تحليلات هذا الأصل (<span id="aiHistN">0</span>)</summary><div id="aiHistList"></div></details>
-        <div class="ai-fill local-only" id="aiFill" hidden>
-          <div class="ai-head"><b>املأ الناقص بالمساعد الذكي</b><span class="badge off">من بحث المساعد</span></div>
-          <p class="small muted" id="aiFillMissing"></p>
-          <button class="btn sm" id="aiFillRun" type="button">ابحث عن الناقص</button>
-          <div id="aiFillOut" class="small"></div>
-        </div>
-      </div>
     </section>
 
     <section class="info-grid local-only" id="infoRow">
@@ -433,6 +397,47 @@
         <div class="tab-panel" data-tab="news" id="cpNews">
           <div class="actions news-q"><input id="newsQ" class="small" style="font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:180px" aria-label="كلمات البحث عن الأخبار"><button class="btn xs" id="newsGo" type="button">بحث</button></div>
           <ul class="list news" id="newsList"></ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="card panel ai-card" id="aiCard" hidden>
+      <div class="ai-box" id="aiBox">
+        <div class="ai-head"><b>رأي الذكاء الاصطناعي</b><span class="muted small" id="aiMeta"></span></div>
+        <input id="aiQ" type="text" class="ai-q" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
+        <div class="ai-way local-only">
+          <span class="ai-way-h">١. تحليل مباشر داخل البرنامج بمفتاحك</span>
+          <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
+          <div id="aiControls" class="ai-controls" hidden>
+            <select id="aiProv" aria-label="المساعد"></select>
+            <select id="aiTpl" aria-label="القالب" title="القارئ الذي يكتب له المساعد"></select>
+            <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
+            <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
+          </div>
+        </div>
+        <div class="ai-way">
+          <span class="ai-way-h"><span class="local-only">٢. </span>أو انسخ البرومبت والصقه في المساعد الذي تشترك فيه</span>
+          <div class="ai-controls"><button class="btn sm" id="aiCopy" type="button">نسخ البرومبت</button><span class="muted small">أو افتح مباشرة (يُنسخ تلقائيًا):</span></div>
+          <div class="ai-sites" id="aiSites"></div>
+          <p class="status" id="aiCopyNote" hidden></p>
+          <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
+        </div>
+        <div class="ai-out" id="aiOut" hidden></div>
+        <div class="ai-chat local-only" id="aiChatBox" hidden>
+          <div id="aiChat"></div>
+          <div class="ai-controls"><input id="aiChatQ" type="text" class="ai-q" placeholder="اسأل المساعد عن تحليله: مثلًا لماذا اخترت هذا الوقف؟"><button class="btn sm" id="aiChatGo" type="button">اسأل</button></div>
+        </div>
+        <details class="ai-hist local-only" id="aiCmp"><summary class="small">قارن مع سهم آخر</summary>
+          <div class="ai-controls"><select id="aiCmpEx" aria-label="السوق"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select>
+            <input id="aiCmpCode" type="text" class="ai-q" placeholder="رمز السهم الثاني، مثل 1120 أو COMI أو AAPL" style="direction:ltr"><button class="btn sm" id="aiCmpGo" type="button">قارن</button></div>
+          <div class="ai-out" id="aiCmpOut" hidden></div>
+        </details>
+        <details class="ai-hist local-only" id="aiHist"><summary class="small">سجل تحليلات هذا الأصل (<span id="aiHistN">0</span>)</summary><div id="aiHistList"></div></details>
+        <div class="ai-fill local-only" id="aiFill" hidden>
+          <div class="ai-head"><b>املأ الناقص بالمساعد الذكي</b><span class="badge off">من بحث المساعد</span></div>
+          <p class="small muted" id="aiFillMissing"></p>
+          <button class="btn sm" id="aiFillRun" type="button">ابحث عن الناقص</button>
+          <div id="aiFillOut" class="small"></div>
         </div>
       </div>
     </section>

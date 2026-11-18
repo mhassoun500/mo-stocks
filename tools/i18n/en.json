@@ -2521,5 +2521,22 @@
  "الأحداث والتوزيعات": "Events and dividends",
  "الإفصاحات والداخليون": "Disclosures and insiders",
  "الأخبار": "News",
- "توزيع": "dividends"
+ "توزيع": "dividends",
+ "غير متاح": "Not available",
+ "آخر شهر": "last month",
+ "محفوظ": "saved",
+ "تعذّر جلب المؤشرات.": "Could not fetch the indices.",
+ "بعض المؤشرات متاحة من TradingView فقط. اختر TradingView مصدرًا للأسعار في الإعدادات لتظهر.": "Some indices are available from TradingView only. Choose TradingView as the price source in Settings to see them.",
+ "المؤشرات الرئيسية": "Main indices",
+ "جارٍ جلب المؤشرات…": "Fetching the indices…",
+ "مؤشر إم تي 30": "MSCI Tadawul 30 index",
+ "إي جي إكس 30": "EGX 30",
+ "إي جي إكس 70 متساوي الأوزان": "EGX 70 equal weight",
+ "إي جي إكس 100 متساوي الأوزان": "EGX 100 equal weight",
+ "إي جي إكس 33 للشريعة": "EGX 33 Shariah",
+ "إس آند بي 500": "S&P 500",
+ "ناسداك المركب": "Nasdaq Composite",
+ "داو جونز الصناعي": "Dow Jones Industrial",
+ "متاح من TradingView فقط.": "Available from TradingView only.",
+ "لا توجد بيانات.": "No data."
 }

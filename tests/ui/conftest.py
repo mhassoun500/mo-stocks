@@ -53,6 +53,19 @@ def route_api(route):
     if p == "/api/universe":
         return route.fulfill(json={"ok": True, "ex": "SR", "items": [{"symbol": "1120.SR", "name": "الراجحي", "short": "الراجحي", "chg": 0.5},
                                                                       {"symbol": "2222.SR", "name": "أرامكو", "short": "أرامكو", "chg": -0.2}]})
+    if p == "/api/indices":
+        import markets
+        items = []
+        for ex, lst in markets.MAIN_INDICES.items():
+            for i, (code, name, short, tv_only) in enumerate(lst):
+                if code == "^EGX33":
+                    items.append({"ex": ex, "code": code, "name": name, "short": short, "ok": False, "error": "متاح من TradingView فقط."})
+                    continue
+                base = 1000.0 * (i + 2)
+                spark = [base * (1 + 0.004 * ((k * 7) % 5 - 2)) for k in range(23)]
+                items.append({"ex": ex, "code": code, "name": name, "short": short, "ok": True, "last": spark[-1],
+                              "chg": spark[-1] / spark[-2] - 1, "month": spark[-1] / spark[0] - 1, "spark": spark, "t": 0})
+        return route.fulfill(json={"ok": True, "items": items})
     if p == "/api/news":
         return route.fulfill(json={"ok": True, "items": [{"title": "خبر", "link": "https://n.example/1", "source": "x", "date": "2026-11-17T10:00:00Z"}]})
     if p in ("/api/profile", "/api/index", "/api/update", "/api/sharialists", "/api/yaaqen", "/api/purify_est", "/api/filings",

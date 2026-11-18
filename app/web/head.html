@@ -155,6 +155,7 @@ html[dir=ltr] .scale span{transform:translateX(-50%)}
 .plan-card.no-fv .plan-cols{grid-template-columns:minmax(0,1fr)}.plan-card.no-fv .plan-cols>.fair{grid-row:2}
 .plan-card.no-fv .plan-cols .ladder{grid-template-columns:repeat(6,minmax(0,1fr))}
 .fair,.ai-box{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.ai-card>.ai-box{background:none;border:0;padding:0}.ai-card .ai-head b{font-size:17px}
 .fair .fv-top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}.fair .fv-v{font-family:var(--f-num);font-size:24px;font-weight:700;color:var(--accent)}
 .fair .fv-verdict{font-weight:700}.fair .fv-verdict.b{color:var(--buy)}.fair .fv-verdict.x{color:var(--sell)}.fair .fv-verdict.n{color:var(--neutral)}
 .fair ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
@@ -218,16 +219,29 @@ html[dir=ltr] .scale span{transform:translateX(-50%)}
 .reasons .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);transform:translateY(-1px)}
 .reasons .p .dot{background:var(--buy)} .reasons .m .dot{background:var(--sell)}
 .stance .actions{margin-top:4px}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-content:start;grid-auto-flow:row dense}
+.metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;align-content:start}
+#verdictSec .metrics{grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-flow:row dense}
 .metrics>.mtf{grid-column:span 3}
 /* 2.18: the number cards (metrics, the price plan, the dashboard, the journal) are centred both ways */
 .metric,.lad{justify-content:center;align-items:center;text-align:center}
 .metric .k,.lad .k{justify-content:center;text-align:center}
 .metric>.gauge,.metric>.edu,.metric>.explain,.metric>details{align-self:stretch}
 .metric .explain summary{text-align:center}.metric .explain p{text-align:start}
-@media (min-width:1700px){.metrics{grid-template-columns:repeat(6,minmax(0,1fr))}}
-@media (max-width:700px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media (max-width:520px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>.mtf{grid-column:1/-1}}
+@media (min-width:1700px){#verdictSec .metrics{grid-template-columns:repeat(6,minmax(0,1fr))}}
+@media (max-width:700px){#verdictSec .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:520px){#verdictSec .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>.mtf{grid-column:1/-1}}
+/* 2.18.2: the main indices on the dashboard, one group per market */
+#homeMarkets{grid-template-columns:repeat(3,minmax(0,1fr))}@media (max-width:600px){#homeMarkets{grid-template-columns:minmax(0,1fr)}}
+.idx-groups{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:8px}
+.idx-group{flex:var(--n) 1 calc(var(--n) * 135px);min-width:0}
+.idx-group>h4{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600}
+.idx-cards{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:8px}
+.idx-card{text-decoration:none;color:inherit;cursor:pointer;padding:10px 8px;gap:2px}
+.idx-card:hover{border-color:var(--accent)}.idx-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.idx-card .k b{font-family:var(--f-num)}.idx-card .v{font-size:17px}
+.idx-card svg{display:block;width:100%;max-width:140px;height:26px;margin-top:4px}
+.idx-card.na{cursor:default;opacity:.75}.idx-card.na:hover{border-color:var(--line)}
+@media (max-width:700px){.idx-group{flex-basis:100%}.idx-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .metric{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
 .metric .k{font-size:12.5px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
 .metric .k i{width:10px;height:10px;border-radius:3px;display:inline-block}

@@ -112,7 +112,10 @@ function fitMtf(){const m=$('#verdictSec .metrics'),x=$('#mtfBox');if(!m||!x||x.
 function setupFitMtf(){const m=$('#verdictSec .metrics');if(!m)return;
   if(typeof ResizeObserver==='function')new ResizeObserver(()=>fitMtf()).observe(m);
   new MutationObserver(()=>fitMtf()).observe(m,{subtree:true,attributes:true,attributeFilter:['hidden','class']});fitMtf();}
+/* 2.18.2: the AI opinion is its own card at the foot of the page, shown with the price plan */
+function setupAiCard(){const pc=$('#planCard'),ac=$('#aiCard');if(!pc||!ac)return;const sync=()=>{if(ac.hidden!==pc.hidden)ac.hidden=pc.hidden;};
+  new MutationObserver(sync).observe(pc,{attributes:true,attributeFilter:['hidden']});sync();}
 function setupMoreTabs(){
-  setupFitMtf();
+  setupFitMtf();setupAiCard();
   setupTabCard('moreCard','mo-more-tab','lv',{hideEmpty:true,onShow:t=>{if(t==='bt'&&typeof drawSimCanvas==='function')requestAnimationFrame(()=>{try{drawSimCanvas();}catch(e){}});}});
   setupTabCard('companyRow','mo-co-tab','data');}
