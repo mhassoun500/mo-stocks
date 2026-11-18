@@ -24,8 +24,13 @@ def test_index_card_missing_or_tradingview_only(monkeypatch):
 def test_all_markets_and_the_requested_ones():
     names = {it[2] for lst in markets.MAIN_INDICES.values() for it in lst}
     assert {"TASI", "MT30", "EGX30", "EGX70", "EGX100", "EGX33", "S&P 500", "Nasdaq", "Dow Jones"} == names
-    r = markets.get_main_indices(hist=lambda code, ex, rng: {"ok": True, "rows": rows(30)})
-    assert r["ok"] and len(r["items"]) == 9 and [x["ex"] for x in r["items"]].count("CA") == 4
-    assert len(markets.get_main_indices("SR", hist=lambda *a: {"ok": True, "rows": rows(30)})["items"]) == 2
+    asked = []
+    r = markets.get_main_indices(hist=lambda code, ex, rng: asked.append((code, ex)) or {"ok": True, "rows": rows(30)},
+                                 gold=lambda: [{"code": "SA24", "ok": True}, {"code": "EG21", "ok": False}])
+    assert r["ok"] and len(r["items"]) == 12 and [x["ex"] for x in r["items"]].count("CA") == 4
+    g = [x for x in r["items"] if x["ex"] == "GOLD"]
+    assert [x["code"] for x in g] == ["XAU-USD-OZ", "SA24", "EG21"] and ("XAU-USD-OZ", "GOLD") in asked
+    assert [x["open"] for x in g] == ["GOLD:XAU-USD-OZ", "GOLD:XAU-SAR-24", "GOLD:XAU-EGP-21"]
+    assert len(markets.get_main_indices("SR", hist=lambda *a: {"ok": True, "rows": rows(30)}, gold=lambda: 1 / 0)["items"]) == 2
     for code, _n, _s, tv_only in [it for lst in markets.MAIN_INDICES.values() for it in lst]:
         assert code in markets.TV_INDEX, code + " has a TradingView symbol"
