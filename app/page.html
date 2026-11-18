@@ -220,6 +220,11 @@ html[dir=ltr] .scale span{transform:translateX(-50%)}
 .stance .actions{margin-top:4px}
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-content:start;grid-auto-flow:row dense}
 .metrics>.mtf{grid-column:span 3}
+/* 2.18: the number cards (metrics, the price plan, the dashboard, the journal) are centred both ways */
+.metric,.lad{justify-content:center;align-items:center;text-align:center}
+.metric .k,.lad .k{justify-content:center;text-align:center}
+.metric>.gauge,.metric>.edu,.metric>.explain,.metric>details{align-self:stretch}
+.metric .explain summary{text-align:center}.metric .explain p{text-align:start}
 @media (min-width:1700px){.metrics{grid-template-columns:repeat(6,minmax(0,1fr))}}
 @media (max-width:700px){.metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:520px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metrics>.mtf{grid-column:1/-1}}
