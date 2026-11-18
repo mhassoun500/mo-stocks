@@ -41,7 +41,7 @@ function idxCard(x){
   const local=!!x.source&&x.ex==='GOLD'&&x.cur;   /* a local gram price, read from the source's page */
   const tip=_t(x.name)+(x.month!=null?' · '+_t('آخر شهر')+' '+(x.month>=0?'+':'')+(x.month*100).toFixed(1)+'%':'')+(local?' · '+_t('الرسم عند الضغط محسوب من الأونصة وسعر الصرف'):'');
   return '<a href="#" class="metric idx-card'+(local?' local':'')+'" data-open="'+esc(open)+'" title="'+esc(tip)+'">'+head
-    +'<span class="v">'+NUM(fmtIdx.format(x.last))+(x.cur?' <small>'+esc(_t(IDX_CUR[x.cur]||x.cur))+'</small>':'')+'</span>'
+    +'<span class="v">'+NUM(fmtIdx.format(x.last))+(x.cur?'<small>'+esc(_t(IDX_CUR[x.cur]||x.cur))+'</small>':'')+'</span>'
     +'<span class="s">'+(x.chg!=null?chgSpan(x.chg):'')+(x.offline?' · '+esc(_t('محفوظ')):'')+'</span>'
     +(x.buy?'<span class="s">'+esc(_t('شراء'))+' '+NUM(fmtIdx.format(x.buy))+'</span>':'')
     +(local?'<span class="s src">'+esc(_t(x.source))+(idxWhen(x)?' · '+NUM(esc(idxWhen(x))):'')+'</span>':idxSpark(x.spark))+'</a>';}
@@ -53,7 +53,10 @@ async function renderIndices(){const box=$('#homeIdx');if(!box)return;
   const j=await api('/api/indices').catch(()=>null);
   if(!j||!j.ok){box.innerHTML='<p class="small err">'+esc(_t('تعذّر جلب المؤشرات.'))+'</p>';return;}
   box.innerHTML=indicesHTML(j.items);
-  if(j.items.some(x=>!x.ok&&/TradingView/.test(x.error||'')))box.insertAdjacentHTML('beforeend','<p class="small muted" style="flex-basis:100%;margin:0">'+esc(_t('بعض المؤشرات متاحة من TradingView فقط. اختر TradingView مصدرًا للأسعار في الإعدادات لتظهر.'))+'</p>');}
+  /* one row: what the frames and gaps take, so the rest is shared equally between the cards */
+  const groups=box.querySelectorAll('.idx-group').length,cards=box.querySelectorAll('.idx-card').length;
+  box.style.setProperty('--cnt',cards||1);box.style.setProperty('--fix',(groups*18+Math.max(0,groups-1)*12+Math.max(0,cards-groups)*8+2)+'px');
+  const note=$('#homeIdxNote');if(note)note.hidden=!j.items.some(x=>!x.ok&&/TradingView/.test(x.error||''));}
 async function renderHome(){
   if(!$('#view-home')||H.busy)return;H.busy=true;
   try{

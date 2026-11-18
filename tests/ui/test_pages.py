@@ -251,7 +251,7 @@ def test_home_opportunities_show_their_market_and_settings_layout(page_for):
     assert page.inner_text("#homeOpp .mk-badge") == "مصر"
     page.wait_for_selector("#homeIdx .idx-group")
     assert page.locator("#homeIdx .idx-group").count() == 4 and page.locator("#homeIdx .idx-card").count() == 12
-    assert page.locator("#homeIdx a.idx-card").count() == 11 and "TradingView" in page.inner_text("#homeIdx")
+    assert page.locator("#homeIdx a.idx-card").count() == 11 and page.is_visible("#homeIdxNote")
     g = page.evaluate("[...document.querySelectorAll('#homeIdx .idx-group')].slice(0,3).map(x=>x.getBoundingClientRect().top)")
     assert max(g) - min(g) < 4, "the three markets side by side on a wide screen"
     gold = page.locator("#homeIdx .idx-group").nth(3).inner_text()
@@ -259,6 +259,9 @@ def test_home_opportunities_show_their_market_and_settings_layout(page_for):
     assert page.get_attribute("#homeIdx a.local[data-open='GOLD:XAU-EGP-21']", "data-open")
     sizes = page.evaluate("[...new Set([...document.querySelectorAll('#homeIdx .idx-card')].map(c=>{const r=c.getBoundingClientRect();return Math.round(r.width)+'x'+Math.round(r.height)}))]")
     assert len(sizes) == 1, "every index card the same size: %s" % sizes
+    tops = page.evaluate("new Set([...document.querySelectorAll('#homeIdx .idx-card')].map(c=>Math.round(c.getBoundingClientRect().top))).size")
+    assert tops == 1, "all the cards in one row on a wide screen"
+    assert page.evaluate("document.documentElement.scrollWidth<=innerWidth"), "no sideways scroll"
     assert page.evaluate("[...document.querySelectorAll('#homeIdx .idx-group>h4')].every(h=>getComputedStyle(h).textAlign==='center'&&+getComputedStyle(h).fontWeight>=700)")
     assert page.evaluate("[...document.querySelectorAll('#homeIdx .idx-card')].every(c=>c.scrollHeight<=c.clientHeight+1)"), "nothing cut off"
     page.goto(page.base + "#prefs")

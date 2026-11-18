@@ -1038,7 +1038,7 @@ def get_main_indices(ex=None, hist=None, gold=None):
     with ThreadPoolExecutor(max_workers=6) as pool:
         futs = [pool.submit(lambda j=j: dict(index_card(*j[1], hist=hist), ex=j[0])) for j in jobs]
         if want_gold:
-            oz = pool.submit(lambda: dict(index_card("XAU-USD-OZ", "الذهب — أوقية بالدولار", "أوقية بالدولار", False, hist=hist, ex="GOLD"), ex="GOLD", open="GOLD:XAU-USD-OZ"))
+            oz = pool.submit(lambda: dict(index_card("XAU-USD-OZ", "الذهب — أوقية بالدولار", "الأوقية ($)", False, hist=hist, ex="GOLD"), ex="GOLD", open="GOLD:XAU-USD-OZ"))
             loc = pool.submit(gold or localgold.local_gold)
         cards = [f.result() for f in futs]
         if want_gold:
