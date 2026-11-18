@@ -167,3 +167,56 @@ def test_gold_hides_the_company_parts_and_keeps_its_news(page_for):
     open_stock(page, "GOLD", "")
     assert page.is_hidden("#fileRow") and page.is_visible("#companyRow .card")
     assert page.errors == []
+
+
+@pytest.mark.parametrize("lang", LANGS)
+def test_portfolios_backtest_performance_telegram_and_cloud(page_for, lang):
+    """2.18: a second portfolio, a trade in it, the views per portfolio; the scanner's past-data test; the performance
+    card; the Telegram commands switch; the cloud copy section."""
+    import core
+    core.Store.set("journal", [{"id": "old1", "code": "1120", "name": "الراجحي", "ex": "SR", "qty": 10, "entry": 80, "date": 1767225600000, "exit": None}])
+    core.Store.set("portfolios", [])
+    core.Store.set("pfCur", "all")
+    page = page_for(lang)
+    page.goto(page.base + "#journal")
+    page.wait_for_function("document.querySelectorAll('#pfSel option').length==2")
+    page.fill("#pfName", "Retire" if lang == "en" else "تقاعد")
+    page.click("#pfAdd")
+    page.wait_for_function("document.querySelectorAll('#pfSel option').length==3")
+    assert page.eval_on_selector("#pfSel", "s=>s.value") != "all"
+    assert page.locator("#jOpen tr[data-id], #jOpen tr:has(button[data-close])").count() == 0, "the new portfolio starts empty"
+    page.click("#jNew")
+    page.fill("#fCode", "2222"); page.fill("#fQty", "5"); page.fill("#fEntry", "27")
+    page.click("#fSave")
+    page.wait_for_timeout(400)
+    saved = core.Store.get("journal")
+    assert len(saved) == 2 and saved[0].get("pf") in (None, "main") and saved[1]["pf"].startswith("p"), saved
+    page.select_option("#pfSel", "main")
+    page.wait_for_timeout(200)
+    assert "2222" not in page.inner_text("#jOpen")
+    page.select_option("#pfSel", "all")
+    page.wait_for_timeout(200)
+    assert "2222" in page.inner_text("#jOpen") and "1120" in page.inner_text("#jOpen")
+    page.select_option("#jOpen select[data-mv='%s']" % saved[1]["id"], "main")
+    page.wait_for_timeout(400)
+    assert all(t.get("pf", "main") == "main" for t in core.Store.get("journal")), "moved to the main portfolio"
+    assert page.is_visible("#pfGo")
+    # the scanner's conditions on past data
+    page.goto(page.base + "#scanner")
+    page.click("#scanGo")
+    page.wait_for_function("!document.querySelector('#scanGo').hidden", timeout=60000)
+    page.click("#scanAdv summary")
+    page.click("#scanAddRule")
+    page.click("#scanBtGo")
+    page.wait_for_function("document.querySelector('#scanBtOut').textContent.length>20 && !/…/.test(document.querySelector('#scanBtOut').textContent)", timeout=30000)
+    # settings: Telegram commands and the cloud copy
+    page.goto(page.base + "#prefs")
+    page.click("#prefTabs button[data-pg='alerts']")
+    assert page.locator("#pTgCmd").count() == 1
+    page.click("#prefTabs button[data-pg='sys']")
+    page.wait_for_function("document.querySelectorAll('#bkCloudPick option').length>=1")
+    assert page.is_visible("#bkCloudNow") and page.is_visible("#pCloudDir")
+    page.click("#bkCloudNow")
+    page.wait_for_function("document.querySelector('#bkCloudStatus').textContent.length>3")
+    assert "status err" in page.get_attribute("#bkCloudStatus", "class"), "no folder chosen: told so, nothing written"
+    assert page.errors == []

@@ -1,13 +1,46 @@
 /* ================= trade journal & portfolio ================= */
-const J={trades:[],editing:null,closing:null,loaded:false};  /* nothing is saved before the saved journal has been read */
+const J={trades:[],all:[],pf:'all',pfs:[],editing:null,closing:null,loaded:false};  /* nothing is saved before the saved journal has been read */
 const TAGS_GOOD=['التزام بالخطة','دخول من منطقة الشراء','احترام وقف الخسارة'];
 const TAGS_BAD=['دخول متسرع','مطاردة السعر','تجاهل وقف الخسارة','خروج مبكر','حجم صفقة كبير','قرار عاطفي'];
 const dateInput=t=>{const d=new Date(t||Date.now());return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
 const parseDateInput=s=>s?Date.parse(s+'T12:00:00'):Date.now();
 
-async function loadJournal(){J.trades=await Store.get('journal',[]);J.loaded=true;renderJournal();purFetchEst();
+/* ---------- several portfolios (2.18): J.all holds every trade, J.trades only those of the chosen portfolio ---------- */
+const PF_MAIN='main';
+const pfOf=t=>(t&&t.pf)||PF_MAIN;
+function pfFilter(trades,pf){return pf==='all'?trades.slice():trades.filter(t=>pfOf(t)===pf);}
+function pfList(saved){const l=(Array.isArray(saved)?saved:[]).filter(x=>x&&x.id&&x.name);if(!l.some(x=>x.id===PF_MAIN))l.unshift({id:PF_MAIN,name:'المحفظة الرئيسية'});return l;}
+function pfName(id){const x=J.pfs.find(p=>p.id===id);return x?_t(x.name):'—';}
+function jView(){J.trades=pfFilter(J.all,J.pf);}
+function jAdd(t){if(!t.pf)t.pf=J.pf==='all'?PF_MAIN:J.pf;J.all.push(t);jView();}
+function jRemove(id){J.all=J.all.filter(t=>t.id!==id);jView();}
+async function loadJournal(){J.all=await Store.get('journal',[]);J.pfs=pfList(await Store.get('portfolios',[]));
+  const cur=await Store.get('pfCur','all');J.pf=cur==='all'||J.pfs.some(p=>p.id===cur)?cur:'all';jView();J.loaded=true;renderPfBar();renderJournal();purFetchEst();
   if((location.hash||'')==='#journal')refreshJournalPrices();}  /* opened straight on this page: the refresh skipped while loading runs now */
-async function saveJournal(){if(!J.loaded)return;await Store.set('journal',J.trades);}
+async function saveJournal(){if(!J.loaded)return;await Store.set('journal',J.all);}
+async function savePfs(){await Store.set('portfolios',J.pfs);await Store.set('pfCur',J.pf);}
+function renderPfBar(){const sel=$('#pfSel');if(!sel)return;
+  const cnt=id=>J.all.filter(t=>pfOf(t)===id).length;
+  sel.innerHTML='<option value="all">'+esc(_t('كل المحافظ'))+' ('+NUM(J.all.length)+')</option>'+J.pfs.map(p=>'<option value="'+esc(p.id)+'">'+esc(_t(p.name))+' ('+NUM(cnt(p.id))+')</option>').join('');sel.value=J.pf;
+  const f=$('#fPf');if(f){const v=f.value;f.innerHTML=J.pfs.map(p=>'<option value="'+esc(p.id)+'">'+esc(_t(p.name))+'</option>').join('');f.value=v&&J.pfs.some(p=>p.id===v)?v:(J.pf==='all'?PF_MAIN:J.pf);}
+  const one=J.pf!=='all';for(const id of ['#pfRen','#pfDel'])if($(id))$(id).disabled=!one;if($('#pfDel'))$('#pfDel').disabled=!one||J.pf===PF_MAIN;}
+async function pfSwitch(id){J.pf=id;jView();await savePfs();renderPfBar();renderJournal();if(typeof renderStats==='function')renderStats();}
+async function pfAddNew(){const inp=$('#pfName'),name=inp.value.trim();if(!name){toast('اكتب اسم المحفظة.');inp.focus();return;}
+  if(J.pfs.some(p=>p.name===name)){toast('يوجد محفظة بهذا الاسم.');return;}
+  const id='p'+Date.now().toString(36);J.pfs.push({id,name});inp.value='';await pfSwitch(id);toast('أُنشئت المحفظة.');}
+async function pfRename(){if(J.pf==='all')return;const inp=$('#pfName'),name=inp.value.trim();if(!name){toast('اكتب الاسم الجديد في الخانة.');inp.focus();return;}
+  const p=J.pfs.find(x=>x.id===J.pf);if(p){p.name=name;inp.value='';await savePfs();renderPfBar();toast('غُيّر اسم المحفظة.');}}
+async function pfDelete(){if(J.pf==='all'||J.pf===PF_MAIN)return;
+  if(J.all.some(t=>pfOf(t)===J.pf)){toast('في هذه المحفظة صفقات. انقلها أولًا إلى محفظة أخرى من القائمة بجانب كل صفقة.');return;}
+  if(!(await confirmBox(_t('حذف المحفظة')+' «'+pfName(J.pf)+'»؟')))return;
+  J.pfs=J.pfs.filter(p=>p.id!==J.pf);await pfSwitch('all');}
+function pfMoveHTML(t){if(J.pfs.length<2)return'';
+  return '<select class="pf-mv" data-mv="'+esc(t.id)+'" aria-label="'+esc(_t('نقل إلى محفظة'))+'" title="'+esc(_t('نقل إلى محفظة'))+'">'+J.pfs.map(p=>'<option value="'+esc(p.id)+'"'+(p.id===pfOf(t)?' selected':'')+'>'+esc(_t(p.name))+'</option>').join('')+'</select>';}
+async function pfMove(id,to){const t=J.all.find(x=>x.id===id);if(!t||!J.pfs.some(p=>p.id===to))return;t.pf=to;jView();await saveJournal();renderPfBar();renderJournal();toast(_t('نُقلت الصفقة إلى')+' «'+pfName(to)+'».');}
+function setupPfBar(){const sel=$('#pfSel');if(!sel)return;sel.addEventListener('change',()=>pfSwitch(sel.value));
+  $('#view-journal').addEventListener('change',e=>{const m=e.target.closest('select[data-mv]');if(m)pfMove(m.dataset.mv,m.value);});
+  $('#pfAdd').addEventListener('click',pfAddNew);$('#pfRen').addEventListener('click',pfRename);$('#pfDel').addEventListener('click',pfDelete);
+  $('#pfName').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();pfAddNew();}});}
 function tradeR(t,px){const risk=t.entry-(t.stop||0);return t.stop&&risk>0?(px-t.entry)/risk:null;}
 
 function renderTagChips(sel){
@@ -16,6 +49,7 @@ function renderTagChips(sel){
 function openTradeForm(pre){
   location.hash='#journal';J.editing=null;J.closing=null;
   $('#jFormTitle').textContent='صفقة جديدة';$('#fCloseBox').hidden=true;
+  if($('#fPf'))$('#fPf').value=J.pf==='all'?PF_MAIN:J.pf;
   $('#fCode').value=S.source!=='sample'?(S.code||''):'';$('#fName').value=S.source!=='sample'?(S.meta&&S.meta.short||S.name||''):'';$('#fEx').value=S.ex||'SR';
   $('#fQty').value=pre.qty||'';$('#fEntry').value=pre.entry!=null?+(+pre.entry).toFixed(4):'';$('#fStop').value=pre.stop!=null?+(+pre.stop).toFixed(4):'';$('#fTarget').value=pre.target!=null?+(+pre.target).toFixed(4):'';
   $('#fSetup').value=S.A&&S.A.buy&&S.A.buy.inside?_t('ارتداد من منطقة الشراء'):'';$('#fDate').value=dateInput();$('#fReason').value=S.A&&S.A.stance==='buy'?'إشارة الأداة: '+$('#stanceText').textContent:'';
@@ -25,23 +59,23 @@ function openCloseForm(id){
   const t=J.trades.find(x=>x.id===id);if(!t)return;J.closing=id;J.editing=null;
   $('#jFormTitle').textContent='إغلاق صفقة '+(t.name||t.code);
   $('#fCode').value=t.code;$('#fName').value=t.name||'';$('#fEx').value=t.ex;$('#fQty').value=t.qty;$('#fEntry').value=t.entry;$('#fStop').value=t.stop||'';$('#fTarget').value=t.target||'';
-  $('#fDate').value=dateInput(t.date);$('#fReason').value=t.reason||'';$('#fSetup').value=t.setup||'';
+  $('#fDate').value=dateInput(t.date);$('#fReason').value=t.reason||'';$('#fSetup').value=t.setup||'';if($('#fPf'))$('#fPf').value=pfOf(t);
   $('#fExit').value=t.last?+t.last.toFixed(4):'';$('#fExitDate').value=dateInput();$('#fExitReason').value='';
   $('#fCloseBox').hidden=false;renderTagChips(t.tags||[]);$('#jForm').hidden=false;$('#fExit').focus();
 }
 async function saveTradeForm(){
   const tags=$$('#fTags input:checked').map(i=>i.value);
   const base={code:$('#fCode').value.trim().toUpperCase(),name:$('#fName').value.trim(),ex:$('#fEx').value,qty:+$('#fQty').value,entry:+$('#fEntry').value,
-    stop:+$('#fStop').value||null,target:+$('#fTarget').value||null,date:parseDateInput($('#fDate').value),reason:$('#fReason').value.trim(),setup:$('#fSetup').value.trim(),tags};
+    stop:+$('#fStop').value||null,target:+$('#fTarget').value||null,date:parseDateInput($('#fDate').value),reason:$('#fReason').value.trim(),setup:$('#fSetup').value.trim(),tags,pf:($('#fPf')&&$('#fPf').value)||(J.pf==='all'?PF_MAIN:J.pf)};
   if(!base.code||!(base.qty>0)||!(base.entry>0)){toast('أدخل الرمز والكمية وسعر الدخول.');return;}
   if(J.closing){const t=J.trades.find(x=>x.id===J.closing);const exit=+$('#fExit').value;if(!(exit>0)){toast('أدخل سعر الخروج.');return;}
     Object.assign(t,base,{exit,exitDate:parseDateInput($('#fExitDate').value),exitReason:$('#fExitReason').value.trim()});}
-  else J.trades.push(Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),exit:null},base));
-  await saveJournal();$('#jForm').hidden=true;J.closing=null;renderJournal();toast('حُفظت الصفقة.');refreshJournalPrices();
+  else jAdd(Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),exit:null},base));
+  jView();await saveJournal();renderPfBar();$('#jForm').hidden=true;J.closing=null;renderJournal();toast('حُفظت الصفقة.');refreshJournalPrices();
 }
 async function refreshJournalPrices(){
   if(!J.loaded)return;  /* opened straight on this page: the journal is still loading, and an empty list must never be saved over it */
-  const open=J.trades.filter(t=>!t.exit);const seen={};
+  const open=J.all.filter(t=>!t.exit);const seen={};
   for(const t of open){const k=t.ex+':'+t.code;
     if(S.source==='live'&&S.ex===t.ex&&S.code===t.code&&S.A){t.last=S.A.close;t.lastAt=Date.now();continue;}
     if(!LOCAL)continue;
@@ -58,11 +92,11 @@ function renderJournal(){
       '<td>'+(px?NUM(fp(px)):'<span class="small muted">'+(LOCAL?'اضغط تحديث الأسعار':'افتح الأصل في التحليل')+'</span>')+'</td>'+
       '<td>'+(pl!=null?'<b style="color:'+(pl>=0?'var(--up)':'var(--down)')+'">'+NUM(fmtMoney.format(pl))+'</b> '+chgSpan(px/t.entry-1,1):'—')+'</td>'+
       '<td>'+(t.stop?NUM(fp(t.stop)):'—')+'</td><td>'+(t.target?NUM(fp(t.target)):'—')+'</td><td>'+(R!=null?NUM(R.toFixed(2)+'R'):'—')+'</td>'+
-      '<td><span class="actions"><button class="btn xs" type="button" data-close="'+t.id+'">إغلاق</button><button class="btn xs ghost danger" type="button" data-rm="'+t.id+'">حذف</button></span></td></tr>';}).join('')
+      '<td><span class="actions"><button class="btn xs" type="button" data-close="'+t.id+'">إغلاق</button><button class="btn xs ghost danger" type="button" data-rm="'+t.id+'">حذف</button>'+pfMoveHTML(t)+'</span></td></tr>';}).join('')
     :'<tr><td colspan="9" class="empty">لا توجد صفقات مفتوحة. سجّل صفقتك من حاسبة حجم الصفقة أو بزر «صفقة جديدة».</td></tr>';
   $('#jClosed').innerHTML=closed.length?closed.map(t=>{const r=t.exit/t.entry-1,R=tradeR(t,t.exit),days=Math.max(0,Math.round((t.exitDate-t.date)/DAY));
     return '<tr><td><b>'+esc(t.name||t.code)+'</b></td><td>'+NUM(fp(t.entry))+'</td><td>'+NUM(fp(t.exit))+'</td><td>'+chgSpan(r,1)+' '+NUM(fmtMoney.format((t.exit-t.entry)*t.qty))+'</td>'+
-      '<td>'+(R!=null?NUM(R.toFixed(2)+'R'):'—')+'</td><td>'+days+' يوم</td><td class="small">'+esc((t.tags||[]).join('، '))+'</td><td><button class="btn xs ghost danger" type="button" data-rm="'+t.id+'">حذف</button></td></tr>';}).join('')
+      '<td>'+(R!=null?NUM(R.toFixed(2)+'R'):'—')+'</td><td>'+days+' يوم</td><td class="small">'+esc((t.tags||[]).join('، '))+'</td><td><span class="actions"><button class="btn xs ghost danger" type="button" data-rm="'+t.id+'">حذف</button>'+pfMoveHTML(t)+'</span></td></tr>';}).join('')
     :'<tr><td colspan="8" class="empty">لا توجد صفقات مغلقة بعد.</td></tr>';
   /* stats */
   const wins=closed.filter(t=>t.exit>t.entry),losses=closed.filter(t=>t.exit<=t.entry);
@@ -176,8 +210,8 @@ function renderZakat(){if(!$('#zakRows'))return;
     :'<tr><td colspan="6" class="empty">'+esc(_t('لا توجد أسهم في سجل صفقاتك بعد.'))+'</td></tr>';
   /* dividends you recorded */
   const sel=$('#dvTrade'),cur=sel.value;sel.innerHTML=J.trades.filter(t=>t.ex!=='GOLD').map(t=>'<option value="'+esc(t.id)+'">'+esc((t.name||t.code)+' · '+fmtDate.format(t.date))+'</option>').join('');if(cur)sel.value=cur;
-  const name=id=>{const t=J.trades.find(x=>x.id===id);return t?(t.name||t.code):'—';};
-  $('#dvList').innerHTML=ZK.divLog.length?ZK.divLog.slice().sort((a,b)=>b.date-a.date).map(d=>{const t=J.trades.find(x=>x.id===d.tradeId);
+  const name=id=>{const t=J.all.find(x=>x.id===id);return t?(t.name||t.code):'—';};
+  $('#dvList').innerHTML=ZK.divLog.length?ZK.divLog.slice().sort((a,b)=>b.date-a.date).map(d=>{const t=J.all.find(x=>x.id===d.tradeId);
       return '<li><span class="kind s">'+money(d.amount,t?PUR_CUR[t.ex]:'')+'</span><span>'+esc(name(d.tradeId))+' · '+fmtDate.format(d.date)+'</span><span><button class="btn xs ghost danger" type="button" data-dvrm="'+d.id+'">'+esc(_t('حذف'))+'</button></span></li>';}).join('')
     :'<li class="plain"><p class="empty">'+esc(_t('لم تسجّل توزيعات بنفسك.'))+'</p></li>';}
 function setupZakat(){
@@ -193,7 +227,7 @@ function setupZakat(){
     ZK.divLog=ZK.divLog.filter(d=>d.id!==b.dataset.dvrm);await Store.set('divLog',ZK.divLog);renderZakat();});
   loadDivLog().then(renderZakat);}
 function setupJournal(){
-  setupPurify();setupZakat();setupJTools();
+  setupPurify();setupZakat();setupJTools();setupPfBar();
   $('#jNew').addEventListener('click',()=>openTradeForm({}));
   $('#fSave').addEventListener('click',saveTradeForm);
   $('#fCancel').addEventListener('click',()=>{$('#jForm').hidden=true;J.closing=null;});
@@ -202,6 +236,6 @@ function setupJournal(){
   document.querySelector('#view-journal').addEventListener('click',async e=>{
     const c=e.target.closest('[data-close]');if(c){openCloseForm(c.dataset.close);return;}
     const rm=e.target.closest('[data-rm]');if(rm){if(rm.dataset.confirm!=='1'){rm.dataset.confirm='1';rm.textContent='تأكيد الحذف';setTimeout(()=>{if(rm.isConnected){rm.dataset.confirm='';rm.textContent='حذف';}},3500);return;}
-      J.trades=J.trades.filter(t=>t.id!==rm.dataset.rm);await saveJournal();renderJournal();}});
+      jRemove(rm.dataset.rm);await saveJournal();renderPfBar();renderJournal();}});
   loadJournal();
 }

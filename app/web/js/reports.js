@@ -51,7 +51,7 @@ function weeklyText(s,dues,when){
 function morningExtras(log,events,now){
   now=now||Date.now();const L=[];
   const recent=(log||[]).filter(l=>l.t>=now-DAY);
-  if(recent.length){L.push('','🔔 '+_t('تنبيهات آخر 24 ساعة')+': '+recent.length);for(const l of recent.slice(0,5))L.push('   • '+l.msg);}
+  if(recent.length){L.push('','🔔 '+_t('تنبيهات آخر 24 ساعة')+': '+recent.length);for(const l of recent.slice(0,5))L.push('   • '+alertText(l));}
   const soon=(events||[]).filter(e=>e.t>=now-DAY/2&&e.t<=now+7*DAY);
   if(soon.length){L.push('','📅 '+_t('أحداث الأسبوع القادم'));
     for(const e of soon.slice(0,10))L.push('   • '+fmtDay.format(e.t)+' — '+(e.name||e.code)+': '+_t(CAL_KIND[e.kind]||e.kind)+(e.est?' ('+_t('تقدير')+')':''));}
@@ -74,8 +74,8 @@ const withAi=(text,ai)=>!ai?text:ai.ok?text+'\n\n🤖 '+_t('ملخص المسا�
 async function buildWeekly(){
   if(!J.loaded)await loadJournal();
   await refreshJournalPrices();
-  const s=weekSummary(J.trades);
-  const dues=weekDues(J.trades,{divs:PUR.divs,paid:PUR.paid,gains:P.sharia.gains!==false,
+  const s=weekSummary(J.all);
+  const dues=weekDues(J.all,{divs:PUR.divs,paid:PUR.paid,gains:P.sharia.gains!==false,
     zakat:{method:P.zakat.method,cal:P.zakat.cal,saPays:P.zakat.saPays!==false,assets:zakatAssetsMap(P.zakat.assets),over:P.zakat.over||{}}});
   const text=withAi(weeklyText(s,dues),await reportAiSummary(weeklyText(s,dues)));
   $('#weekText').textContent=text;$('#weekMeta').textContent=_t('أُنشئ')+' '+fmtLocalTime.format(new Date());

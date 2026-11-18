@@ -541,6 +541,9 @@
         <div id="scanRules"></div>
         <button class="btn xs" id="scanAddRule" type="button">+ أضف شرطًا</button>
         <p class="small muted">كل الشروط يجب أن تتحقق معًا. الشركة التي لا تتوفر لها قيمة الشرط تُستبعد ولا تُخمَّن قيمتها. الخصم عن السعر العادل موجب عندما يكون السعر أقل من العادل.</p>
+        <div class="ai-controls"><button class="btn sm" id="scanBtGo" type="button">اختبر الشروط تاريخيًا</button>
+          <select id="scanBtRange" aria-label="فترة الاختبار"><option value="2y">آخر سنتين</option><option value="5y">آخر 5 سنوات</option></select></div>
+        <div id="scanBtOut" hidden></div>
       </details>
       <div class="form-grid scan-saved">
         <label class="field" for="scanSaved"><span>الفحوص المحفوظة</span><select id="scanSaved"></select></label>
@@ -628,6 +631,12 @@
 
   <!-- ===================================================== JOURNAL -->
   <section class="view" id="view-journal" hidden>
+    <section class="card pf-bar" id="pfBar" aria-label="المحافظ">
+      <label class="field" for="pfSel"><span>المحفظة</span><select id="pfSel"><option value="all">كل المحافظ</option></select></label>
+      <label class="field" for="pfName"><span>اسم محفظة</span><input id="pfName" type="text" maxlength="40" placeholder="مثل: محفظة التقاعد"></label>
+      <div class="actions"><button class="btn sm" id="pfAdd" type="button">محفظة جديدة</button><button class="btn sm ghost" id="pfRen" type="button">إعادة تسمية</button><button class="btn sm ghost" id="pfDel" type="button">حذف المحفظة</button></div>
+      <p class="small muted pf-note">الإحصاءات والتطهير والزكاة والأداء تُحسب للمحفظة المختارة. التقرير الأسبوعي وتنبيهات الوقف وتيليجرام تشمل كل المحافظ.</p>
+    </section>
     <section class="kpis" id="jKpis"></section>
     <section class="card panel">
       <div class="panel-head"><h2>المحفظة: الصفقات المفتوحة</h2><span class="actions"><button class="btn sm local-only" id="jRefresh" type="button">تحديث الأسعار</button><button class="btn sm primary" id="jNew" type="button">صفقة جديدة</button></span></div>
@@ -699,6 +708,7 @@
         <label class="field" for="fDate"><span>تاريخ الدخول</span><input id="fDate" type="date"></label>
         <label class="field" for="fStop"><span>وقف الخسارة</span><input id="fStop" type="number" step="0.01"></label>
         <label class="field" for="fTarget"><span>الهدف</span><input id="fTarget" type="number" step="0.01"></label>
+        <label class="field" for="fPf"><span>المحفظة</span><select id="fPf"><option value="main">المحفظة الرئيسية</option></select></label>
         <label class="field" for="fSetup"><span>الإعداد</span><input id="fSetup" type="text" list="fSetupList" placeholder="اختر أو اكتب"><datalist id="fSetupList"></datalist></label>
         <label class="field wide" for="fReason"><span>سبب الدخول</span><input id="fReason" type="text" placeholder="مثال: ارتداد من منطقة الشراء مع تشبّع بيعي"></label>
       </div>
@@ -723,6 +733,22 @@
         <ul class="list" id="jMistakes"></ul>
         <p class="edu">المضاعف R = الربح أو الخسارة مقسومة على المخاطرة الأصلية (الدخول ناقص الوقف). متوسط مضاعف موجب يعني أن أسلوبك رابح حتى لو خسرت أغلب الصفقات.</p>
       </div>
+    </section>
+    <section class="card panel local-only" id="pfCard">
+      <div class="panel-head"><h2>أداء المحفظة مقارنة بالسوق</h2>
+        <span class="actions"><select id="pfCur" aria-label="العملة"><option value="SAR">ريال سعودي</option><option value="EGP">جنيه مصري</option><option value="USD">دولار</option></select>
+        <button class="btn sm" id="pfGo" type="button">احسب الأداء</button></span></div>
+      <div id="pfOut" hidden></div>
+      <canvas id="pfCv" style="width:100%;height:260px" role="img" aria-label="أداء المحفظة والمؤشر"></canvas>
+      <div class="small" id="pfLegend"></div>
+      <h3 class="sub-h">سيناريوهات: ماذا لو تحرك السوق؟</h3>
+      <div class="form-grid">
+        <label class="field" for="scSR"><span>السوق السعودية %</span><input id="scSR" type="number" step="1" value="-10"></label>
+        <label class="field" for="scCA"><span>البورصة المصرية %</span><input id="scCA" type="number" step="1" value="-10"></label>
+        <label class="field" for="scUS"><span>السوق الأمريكية %</span><input id="scUS" type="number" step="1" value="-10"></label>
+        <label class="field" for="scGOLD"><span>الذهب %</span><input id="scGOLD" type="number" step="1" value="5"></label>
+      </div>
+      <div id="pfScen"><p class="small muted">اضغط «احسب الأداء» أولًا لتظهر السيناريوهات للعملة المختارة.</p></div>
     </section>
     <section class="card panel local-only" id="aiPortCard">
       <div class="panel-head"><h2>حلّل محفظتي بالمساعد الذكي</h2><button class="btn sm" id="aiPortGo" type="button">حلّل المحفظة</button></div>
@@ -899,6 +925,8 @@
         </div>
         <div class="actions"><button class="btn sm" id="tgDetect" type="button">اكتشاف المعرّف</button><button class="btn sm" id="tgTest" type="button">إرسال رسالة تجريبية</button><button class="btn sm ghost" id="tgClear" type="button" hidden>حذف الرمز</button></div>
         <p class="small muted">يُحفظ رمز البوت مشفّرًا بنظام التشغيل، لا داخل ملف الإعدادات.</p>
+        <label class="field row" for="pTgCmd"><input id="pTgCmd" type="checkbox" data-pref="telegram.commands"><span>استقبال الأوامر من تيليجرام</span></label>
+        <p class="small muted">أرسل للبوت رمز سهم (مثل 1120 أو COMI أو AAPL أو «ذهب») فيرد بالسعر والحكم والمناطق، أو «محفظتي» أو «مراقبة» أو «تنبيه 1120 فوق 65» أو «مساعدة». يجيب البرنامج فقط على محادثتك المسجلة أعلاه، ويتجاهل أي محادثة أخرى، ويجيب ما دام مفتوحًا أو مصغّرًا على جهازك.</p>
         <p class="status" id="tgStatus"></p>
       </section>
 
@@ -982,6 +1010,15 @@
         </div>
         <p class="status" id="bkStatus"></p>
         <div class="tbl-wrap"><table id="bkTable"><thead><tr><th>التاريخ</th><th>النوع</th><th>الحجم</th><th></th></tr></thead><tbody id="bkList"></tbody></table></div>
+        <h3 class="sub-h">نسخة يومية في مجلد سحابي</h3>
+        <p class="small muted">اختر مجلد iCloud Drive أو Google Drive أو OneDrive على جهازك. يكتب البرنامج كل يوم نسخة داخل مجلد «Mo Stocks Backups» فيه، وبرنامج المزامنة على جهازك يرفعها. لا يتصل البرنامج بحسابك السحابي.</p>
+        <label class="field row" for="pCloudOn"><input id="pCloudOn" type="checkbox" data-pref="cloudBackup.on"><span>نسخة يومية في المجلد السحابي</span></label>
+        <div class="form-grid">
+          <label class="field" for="bkCloudPick"><span>المجلدات التي وُجدت على جهازك</span><select id="bkCloudPick"><option value="">—</option></select></label>
+          <label class="field" for="pCloudDir"><span>مسار المجلد</span><input id="pCloudDir" type="text" dir="ltr" data-pref="cloudBackup.dir" placeholder="C:\Users\…\OneDrive"></label>
+        </div>
+        <div class="actions"><button class="btn sm" id="bkCloudNow" type="button">نسخة سحابية الآن</button><button class="btn sm ghost" id="bkCloudOpen" type="button">فتح المجلد السحابي</button></div>
+        <p class="status" id="bkCloudStatus"></p>
       </section>
 
       <section data-pg="sys" class="card panel local-only" id="errPanel">

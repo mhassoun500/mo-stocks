@@ -98,7 +98,7 @@ const IMP={rows:null,map:{},out:null};
 async function impReadFile(f){const buf=await f.arrayBuffer();let t=new TextDecoder('utf-8').decode(buf);
   if((t.match(/�/g)||[]).length>3){try{t=new TextDecoder('windows-1256').decode(buf);}catch(e){}}return t;}
 function impBuild(){if(!IMP.rows)return;const map={};$$('#impMap select').forEach(s=>{if(s.value!=='')map[s.dataset.f]=+s.value;});IMP.map=map;
-  const {tx,bad}=impTx(IMP.rows.slice(1),map,{fmt:$('#impFmt').value,ex:$('#impEx').value}),{trades,unmatched}=impTrades(tx),fresh=impNew(trades,J.trades);
+  const {tx,bad}=impTx(IMP.rows.slice(1),map,{fmt:$('#impFmt').value,ex:$('#impEx').value}),{trades,unmatched}=impTrades(tx),fresh=impNew(trades,J.all);
   IMP.out=fresh;const money=v=>NUM(fp(v));
   $('#impSum').innerHTML=esc(_t('عمليات مقروءة:'))+' '+NUM(tx.length)+' · '+esc(_t('أسطر مرفوضة:'))+' '+NUM(bad.length)+' · '+esc(_t('صفقات ناتجة:'))+' '+NUM(trades.length)
     +(trades.length-fresh.length?' · '+esc(_t('موجودة مسبقًا ولن تُكرّر:'))+' '+NUM(trades.length-fresh.length):'')
@@ -120,6 +120,6 @@ function setupJTools(){
   ['#impFmt','#impEx'].forEach(s=>$(s).addEventListener('change',impBuild));
   $('#impMap').addEventListener('change',impBuild);
   $('#impGo').addEventListener('click',async()=>{if(!IMP.out||!IMP.out.length)return;const n=IMP.out.length;
-    for(const t of IMP.out)J.trades.push(Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,8)},t));
+    for(const t of IMP.out)jAdd(Object.assign({id:Date.now().toString(36)+Math.random().toString(36).slice(2,8)},t));
     await saveJournal();IMP.out=null;IMP.rows=null;$('#impBox').hidden=true;$('#impFile').value='';renderJournal();refreshJournalPrices();toast(_t('أُضيفت صفقات من الكشف:')+' '+n);});
   $('#impCancel').addEventListener('click',()=>{IMP.rows=null;IMP.out=null;$('#impBox').hidden=true;$('#impFile').value='';});}

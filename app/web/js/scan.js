@@ -103,6 +103,22 @@ async function scanLoadFair(ex,size){
   if(!d||!d.ok){SC.fairNote=_t('تعذّر جلب الأرقام المالية لحساب السعر العادل.');return;}
   for(const r of SC.rows){const x=scanFairOf(d,r,ex);r.fair=x?x.fair:null;r.fairDisc=x?x.disc:null;}
   SC.fairNote='';
+  if(ex==='CA')await scanFillYahoo(d,ex);
+}
+/* 2.18: Egyptian results that TradingView left without enough figures get them from Yahoo Finance (kept a day).
+   Only the rows that pass the other conditions are asked for, at most 75; the share covered is shown. */
+function scanFillMerge(d,extra){let n=0;for(const [c,f] of Object.entries(extra||{})){const cur=d.f[c];
+  if(!cur){d.f[c]=Object.assign({},f);n++;continue;}for(const [k,v] of Object.entries(f))if(cur[k]==null&&v!=null){cur[k]=v;n++;}}return n;}
+async function scanFillYahoo(d,ex){
+  const rules=(SCR.rules||[]).filter(x=>x.f!=='fairDisc'),keep=SCR.rules;
+  let want;try{SCR.rules=rules;want=scanFiltered();}catch(e){want=SC.rows;}finally{SCR.rules=keep;}
+  const miss=want.filter(r=>r.fair==null).slice(0,75),before=want.filter(r=>r.fair!=null).length;
+  let got=0;
+  for(let i=0;i<miss.length&&!SC.stop;i+=25){const part=miss.slice(i,i+25);
+    const j=await api('/api/scanfund',{ex,fill:part.map(r=>r.code).join(',')}).catch(()=>null);if(!j||!j.ok)break;
+    scanFillMerge(d,j.f);for(const r of part){const x=scanFairOf(d,r,ex);if(x){r.fair=x.fair;r.fairDisc=x.disc;got++;}}}
+  SC.fairCover={n:want.length,have:before+got,yahoo:got};
+  if(want.length)SC.fairNote=_t('السعر العادل متاح لـ')+' '+NUM(before+got)+' '+_t('من')+' '+NUM(want.length)+(got?' ('+NUM(got)+' '+_t('منها من Yahoo Finance')+')':'');
 }
 
 /* ---------- the daily run ---------- */

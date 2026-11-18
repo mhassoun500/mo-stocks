@@ -295,20 +295,89 @@ def backup_write(folder, kind):
     return path
 
 
-def backup_list():
+def backup_list(folder=None):
+    folder = folder or BACKUP_DIR
     out = []
     try:
-        names = os.listdir(BACKUP_DIR)
+        names = os.listdir(folder)
     except OSError:
         return out
     for n in names:
         m = re.match(r"^mostocks-backup-(auto|manual|before-restore)-(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})\d{2}\.json$", n)
         if m:
-            p = os.path.join(BACKUP_DIR, n)
+            p = os.path.join(folder, n)
             out.append({"name": n, "kind": m.group(1), "date": "%s %s:%s" % (m.group(2), m.group(3), m.group(4)),
                         "size": os.path.getsize(p), "t": os.path.getmtime(p)})
     out.sort(key=lambda x: -x["t"])
     return out
+
+
+# ---------------------------------------------------------------- a copy in a cloud folder (2.18)
+# The app never talks to iCloud, Google Drive or OneDrive itself: it writes a file into the folder their own program
+# keeps in sync. The folder is found on the disk or chosen by the user.
+CLOUD_SUB = "Mo Stocks Backups"
+CLOUD_EVERY = 86400
+
+
+def cloud_dirs(home=None, env=None):
+    """Sync folders that exist on this computer: [{kind, path}]."""
+    home = home or os.path.expanduser("~")
+    env = os.environ if env is None else env
+    cand = []
+    for k in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
+        if env.get(k):
+            cand.append(("onedrive", env[k]))
+    cand += [("icloud", os.path.join(home, "iCloudDrive")),
+             ("icloud", os.path.join(home, "Library", "Mobile Documents", "com~apple~CloudDocs")),
+             ("onedrive", os.path.join(home, "OneDrive")),
+             ("gdrive", os.path.join(home, "Google Drive")), ("gdrive", os.path.join(home, "My Drive")),
+             ("gdrive", os.path.join(home, "Google Drive", "My Drive")), ("dropbox", os.path.join(home, "Dropbox"))]
+    cs = os.path.join(home, "Library", "CloudStorage")      # macOS keeps newer sync folders here
+    try:
+        for n in sorted(os.listdir(cs)):
+            kind = "gdrive" if n.startswith("GoogleDrive") else "onedrive" if n.startswith("OneDrive") else "dropbox" if n.startswith("Dropbox") else None
+            if kind:
+                sub = os.path.join(cs, n, "My Drive")
+                cand.append((kind, sub if os.path.isdir(sub) else os.path.join(cs, n)))
+    except OSError:
+        pass
+    if os.name == "nt":                                      # Google Drive for desktop shows up as its own drive letter
+        for d in "DEFGHIJ":
+            cand.append(("gdrive", d + ":\\My Drive"))
+    out, seen = [], set()
+    for kind, pth in cand:
+        key = os.path.normcase(os.path.abspath(pth))
+        if key not in seen and os.path.isdir(pth):
+            seen.add(key)
+            out.append({"kind": kind, "path": pth})
+    return out
+
+
+def cloud_target():
+    """The subfolder the copies go to, or None when the copy is off or the folder is missing."""
+    if not pref("cloudBackup.on", False):
+        return None
+    base = str(pref("cloudBackup.dir", "") or "").strip()
+    if not base or not os.path.isdir(base):
+        return None
+    return os.path.join(base, CLOUD_SUB)
+
+
+def backup_cloud(force=False):
+    """A daily copy in the cloud folder; the newest 8 automatic ones are kept there."""
+    folder = cloud_target()
+    if not folder or not os.path.exists(STORE_FILE):
+        return None
+    autos = [b for b in backup_list(folder) if b["kind"] == "auto"]
+    if not force and autos and time.time() - autos[0]["t"] < CLOUD_EVERY:
+        return None
+    path = backup_write(folder, "auto")
+    for b in [x for x in backup_list(folder) if x["kind"] == "auto"][BACKUP_KEEP:]:
+        try:
+            os.remove(os.path.join(folder, b["name"]))
+        except OSError:
+            pass
+    return path
 
 
 def backup_prune():
@@ -368,7 +437,11 @@ def backup_refresher():
             backup_auto()
         except Exception as e:
             record("WARN", "backup", e)
-        QUIT.wait(6 * 3600)
+        try:
+            backup_cloud()
+        except Exception as e:
+            record("WARN", "backup.cloud", e)
+        QUIT.wait(3 * 3600)
 
 
 def open_file(path):

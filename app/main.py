@@ -67,6 +67,8 @@ def start_server():
     threading.Thread(target=sources.defs.loop, args=(QUIT,), daemon=True).start()
     import filings
     threading.Thread(target=filings.feeds_loop, args=(QUIT,), daemon=True).start()
+    import tgbot
+    threading.Thread(target=tgbot.loop, args=(QUIT,), daemon=True).start()
     return srv, "http://%s:%d/" % (HOST, srv.server_address[1])
 
 

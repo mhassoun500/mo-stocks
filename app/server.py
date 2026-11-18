@@ -135,6 +135,9 @@ class Handler(BaseHTTPRequestHandler):
                                               q.get("lite") == "1"))
             if p == "/api/index":
                 return self._json(get_index(q.get("ex", "SR"), q.get("range", "2y")))
+            if p == "/api/tgbot":
+                import tgbot
+                return self._json({"ok": True, "items": tgbot.pending(), "on": tgbot.enabled(), "state": dict(tgbot.STATE)})
             if p == "/api/search":
                 return self._json({"ok": True, "items": search_yahoo(q.get("q", ""), q.get("ex", "XX"))})
             if p == "/api/profile":
@@ -147,6 +150,8 @@ class Handler(BaseHTTPRequestHandler):
                 size = q.get("size") if re.match(r"^(\d+|cap300|all)$", q.get("size", "")) else None
                 return self._json(get_universe(q.get("ex", "SR"), None if size == "all" else size))
             if p == "/api/scanfund":
+                if q.get("fill"):
+                    return self._json(scan_fill_yahoo(q.get("ex", "CA"), q.get("fill", "").split(",")))
                 size = q.get("size") if re.match(r"^(\d+|cap300|all)$", q.get("size", "")) else None
                 return self._json(scan_fundamentals(q.get("ex", "SR"), None if size == "all" else size))
             if p == "/api/ussharia":
@@ -180,7 +185,9 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/api/ai":
                 return self._json(AI.status())
             if p == "/api/backup":
-                return self._json({"ok": True, "list": backup_list(), "folder": BACKUP_DIR})
+                ct = cloud_target()
+                cl = [dict(x, where="cloud") for x in backup_list(ct)] if ct else []
+                return self._json({"ok": True, "list": backup_list(), "folder": BACKUP_DIR, "cloud": {"dirs": cloud_dirs(), "target": ct, "list": cl}})
             if p == "/api/errors":
                 return self._json({"ok": True, "text": errors_text(), "path": ERROR_LOG, "version": VERSION,
                                    "platform": sys.platform, "python": sys.version.split()[0], "frozen": FROZEN})
@@ -349,12 +356,24 @@ class Handler(BaseHTTPRequestHandler):
                 if act == "restore":
                     if b.get("name"):
                         name = os.path.basename(str(b["name"]))
-                        with open(os.path.join(BACKUP_DIR, name), encoding="utf-8-sig") as f:
+                        folder = cloud_target() if b.get("where") == "cloud" else BACKUP_DIR
+                        if not folder:
+                            return self._json({"ok": False, "error": "مجلد النسخ السحابية غير متاح."})
+                        with open(os.path.join(folder, name), encoding="utf-8-sig") as f:
                             obj = json.load(f)
                     else:
                         obj = b.get("data")
                     return self._json(backup_restore(obj))
+                if act == "cloudNow":
+                    if not cloud_target():
+                        return self._json({"ok": False, "error": "اختر مجلدًا سحابيًا موجودًا وفعّل النسخ إليه أولًا."})
+                    return self._json({"ok": True, "path": backup_cloud(force=True)})
                 if act == "folder":
+                    ct = cloud_target()
+                    if b.get("where") == "cloud" and ct:
+                        os.makedirs(ct, exist_ok=True)
+                        reveal(ct)
+                        return self._json({"ok": True})
                     os.makedirs(BACKUP_DIR, exist_ok=True)
                     lst = backup_list()
                     reveal(os.path.join(BACKUP_DIR, lst[0]["name"]) if lst else BACKUP_DIR)

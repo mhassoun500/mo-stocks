@@ -33,7 +33,7 @@ async function renderHome(){
       const r=j.rows,ch=r[r.length-1][4]/r[r.length-2][4]-1;el.innerHTML=esc(_t(j.label||''))+' '+chgSpan(ch);}).catch(()=>{});
     /* portfolio */
     if(!J.loaded)await loadJournal();
-    const s=weekSummary(J.trades),curs=Object.keys(s.cur);
+    const s=weekSummary(J.all),curs=Object.keys(s.cur);
     $('#homePort').innerHTML=curs.length?curs.map(c=>{const x=s.cur[c];return '<div class="metric"><span class="k">'+esc(_t('المفتوحة'))+' ('+esc(purCurLabel(c))+')</span><span class="v">'+(x.value?NUM(fmtMoney.format(x.value)):'—')+'</span>'
         +'<span class="s">'+NUM(x.n)+' '+esc(_t('صفقة'))+(x.value?' · <b style="color:'+(x.pl>=0?'var(--up)':'var(--down)')+'">'+NUM(fmtMoney.format(x.pl))+'</b>':'')+(x.noPrice?' · '+NUM(x.noPrice)+' '+esc(_t('بلا سعر حديث')):'')+'</span></div>';}).join('')
       :'<p class="small muted">'+esc(_t('لا توجد صفقات مفتوحة. سجّلها من «الصفقات والمحفظة».'))+'</p>';
@@ -45,11 +45,11 @@ async function renderHome(){
       :'<p class="small muted">'+esc(_t(scan?'لا توجد أسهم في منطقة شراء في آخر فحص.':'شغّل الماسح مرة لتظهر هنا أقوى الفرص.'))+'</p>';
     /* alerts */
     const log=(await Store.get('alertLog',[])).slice(0,5);
-    $('#homeAlerts').innerHTML=log.length?'<ul class="list">'+log.map(l=>'<li class="plain"><span>'+esc(l.msg)+'</span><br><span class="d">'+fmtLocalTime.format(new Date(l.t))+'</span></li>').join('')+'</ul>'
+    $('#homeAlerts').innerHTML=log.length?'<ul class="list">'+log.map(l=>'<li class="plain"><span>'+esc(alertText(l))+'</span><br><span class="d">'+fmtLocalTime.format(new Date(l.t))+'</span></li>').join('')+'</ul>'
       :'<p class="small muted">'+esc(_t('لا توجد تنبيهات بعد.'))+'</p>';
     /* events of the week */
     if(LOCAL&&!CAL.events)await loadCalendar(false).catch(()=>{});
-    const groups=calendarRows(CAL.events,calAssets(W.items,J.trades),{days:7});
+    const groups=calendarRows(CAL.events,calAssets(W.items,J.all),{days:7});
     $('#homeEvents').innerHTML=groups.length?calendarHTML(groups):'<li class="plain"><p class="small muted">'+esc(_t('لا أحداث معروفة هذا الأسبوع لأسهمك.'))+'</p></li>';
     $('#homeMeta').textContent=fmtLocal.format(now);
   }finally{H.busy=false;}

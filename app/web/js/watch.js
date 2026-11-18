@@ -42,19 +42,19 @@ function renderWatch(){
 function alertFlags(it,r,trades){
   const A=r.A,D=r.D,N=D.length,nm=it.short||it.code,f=[];
   const yieldFund=r.j.isFund&&(r.j.category==='money'||r.j.category==='fixed');
-  if(!yieldFund&&A.buy&&A.close<=A.buy.hi*1.01)f.push({g:'zone',k:'buy',msg:nm+' دخل منطقة الشراء '+fp(A.buy.lo)+' – '+fp(A.buy.hi)+' (السعر '+fp(A.close)+')'});
-  if(!yieldFund&&A.sell&&A.close>=A.sell.lo*0.99)f.push({g:'zone',k:'sell',msg:nm+' وصل منطقة البيع '+fp(A.sell.lo)+' – '+fp(A.sell.hi)+' (السعر '+fp(A.close)+')'});
-  for(const b of A.brk)if(b.i===N-1&&b.status==='confirmed')f.push({g:'brk',k:'brk'+b.dir+'-'+r.lastT,msg:nm+(b.dir>0?': اختراق مؤكد للمستوى ':': كسر مؤكد للمستوى ')+fp(b.dir>0?b.z.hi:b.z.lo)
-    +(b.vr?' · '+_t('حجم التداول')+' '+b.vr.toFixed(1)+'× '+_t('المعتاد'):'')});
-  for(const p of A.pats)if(p.confirmed)f.push({g:'pat',k:'pat-'+p.key+'-'+Math.round(p.neck*100),msg:nm+': اكتمل نموذج '+p.name+'، والهدف '+fp(p.target)});
+  if(!yieldFund&&A.buy&&A.close<=A.buy.hi*1.01)f.push(Object.assign({g:'zone',k:'buy'},AM(nm,AW(' دخل منطقة الشراء '),fp(A.buy.lo)+' – '+fp(A.buy.hi),AW(' (السعر '),fp(A.close)+')')));
+  if(!yieldFund&&A.sell&&A.close>=A.sell.lo*0.99)f.push(Object.assign({g:'zone',k:'sell'},AM(nm,AW(' وصل منطقة البيع '),fp(A.sell.lo)+' – '+fp(A.sell.hi),AW(' (السعر '),fp(A.close)+')')));
+  for(const b of A.brk)if(b.i===N-1&&b.status==='confirmed')f.push(Object.assign({g:'brk',k:'brk'+b.dir+'-'+r.lastT},AM(nm,AW(b.dir>0?': اختراق مؤكد للمستوى ':': كسر مؤكد للمستوى '),fp(b.dir>0?b.z.hi:b.z.lo),
+    ...(b.vr?[' · ',AW(_t('حجم التداول')),' '+b.vr.toFixed(1)+'× ',AW(_t('المعتاد'))]:[]))));
+  for(const p of A.pats)if(p.confirmed)f.push(Object.assign({g:'pat',k:'pat-'+p.key+'-'+Math.round(p.neck*100)},AM(nm,AW(': اكتمل نموذج '),AW(p.name),AW('، والهدف '),fp(p.target))));
   if(!yieldFund)f.push(...techAlerts(D,nm));
   if(r.fair){const x=fairAlert(D,nm,r.fair);if(x)f.push(x);}
-  if(it.above&&A.close>=it.above)f.push({g:'price',k:'above-'+it.above,msg:nm+' تجاوز السعر '+fp(it.above)+' (الآن '+fp(A.close)+')'});
-  if(it.below&&A.close<=it.below)f.push({g:'price',k:'below-'+it.below,msg:nm+' نزل تحت '+fp(it.below)+' (الآن '+fp(A.close)+')'});
+  if(it.above&&A.close>=it.above)f.push(Object.assign({g:'price',k:'above-'+it.above},AM(nm,AW(' تجاوز السعر '),fp(it.above),AW(' (الآن '),fp(A.close)+')')));
+  if(it.below&&A.close<=it.below)f.push(Object.assign({g:'price',k:'below-'+it.below},AM(nm,AW(' نزل تحت '),fp(it.below),AW(' (الآن '),fp(A.close)+')')));
   f.push(...eventAlerts(r.events,nm,P.alerts.evDays!=null?+P.alerts.evDays:ALERT_DEFAULT_DAYS));
   for(const t of trades)if(t.ex===it.ex&&t.code===it.code&&!t.exit){
-    if(t.stop&&A.close<=t.stop)f.push({g:'trade',k:'stop-'+t.id,msg:nm+': وصل السعر '+fp(A.close)+' إلى وقف الخسارة '+fp(t.stop)+' لصفقتك المفتوحة'});
-    if(t.target&&A.close>=t.target)f.push({g:'trade',k:'tgt-'+t.id,msg:nm+': حققت صفقتك الهدف '+fp(t.target)+' (السعر '+fp(A.close)+')'});}
+    if(t.stop&&A.close<=t.stop)f.push(Object.assign({g:'trade',k:'stop-'+t.id},AM(nm,AW(': وصل السعر '),fp(A.close),AW(' إلى وقف الخسارة '),fp(t.stop),AW(' لصفقتك المفتوحة'))));
+    if(t.target&&A.close>=t.target)f.push(Object.assign({g:'trade',k:'tgt-'+t.id},AM(nm,AW(': حققت صفقتك الهدف '),fp(t.target),AW(' (السعر '),fp(A.close)+')')));}
   return f.filter(x=>alertWanted(it,x));
 }
 /* the fair value for a stock in the watchlist (cached by the server); null for funds, gold and when it cannot be worked out */
@@ -84,7 +84,7 @@ async function checkWatchlist(notify){
   }
   W.checking=false;W.lastCheck=Date.now();renderWatch();await Store.set('alertState',state);
   if(fresh.length){
-    const log=await Store.get('alertLog',[]);for(const f of fresh)log.unshift({t:Date.now(),msg:f.msg});await Store.set('alertLog',log.slice(0,150));renderAlertLog();
+    const log=await Store.get('alertLog',[]);for(const f of fresh)log.unshift({t:Date.now(),msg:f.msg,parts:f.parts});await Store.set('alertLog',log.slice(0,150));renderAlertLog();
     if(notify&&P.alerts.enabled){
       const body=fresh.slice(0,4).map(f=>f.msg).join('\n')+(fresh.length>4?'\nو'+(fresh.length-4)+' تنبيهات أخرى':'');
       apiPost('/api/notify',{title:'تنبيهات محلل الأسهم ('+fresh.length+')',body,desktop:P.alerts.desktop,telegram:P.alerts.telegram,
@@ -93,7 +93,7 @@ async function checkWatchlist(notify){
   }
 }
 async function renderAlertLog(){const log=await Store.get('alertLog',[]);
-  $('#alertLog').innerHTML=log.length?log.slice(0,60).map(l=>'<li class="plain"><span>'+esc(l.msg)+'</span><br><span class="d">'+fmtLocalTime.format(new Date(l.t))+'</span></li>').join(''):'<li class="plain"><p class="empty">لا توجد تنبيهات بعد.</p></li>';}
+  $('#alertLog').innerHTML=log.length?log.slice(0,60).map(l=>'<li class="plain"><span>'+esc(alertText(l))+'</span><br><span class="d">'+fmtLocalTime.format(new Date(l.t))+'</span></li>').join(''):'<li class="plain"><p class="empty">لا توجد تنبيهات بعد.</p></li>';}
 
 /* ---------- morning report ---------- */
 async function buildReport(){

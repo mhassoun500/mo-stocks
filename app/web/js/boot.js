@@ -16,7 +16,7 @@ function route(){
   await loadPrefs();
   applyTheme();applyEdu();applyFont();
   S.tf=P.ana.tf==='W'?'W':'D';
-  setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();setupScanTools();setupCalendar();setupReports();setupPlan();setupAiExtras();setupAiTools();setupHome();setupUx();setupReport();setupMaint();setupSources();setupSim();setupPrefTabs();$('#mtfHourly').addEventListener('click',async()=>{if(await ensureHourly())renderMtf();});
+  setupAnalysisView();setupChartInteraction();setupJournal();setupWatchViews();setupFavs();setupFunds();bindPrefs();setupScanTools();setupCalendar();setupReports();setupPlan();setupAiExtras();setupAiTools();setupHome();setupUx();setupReport();setupTgCmd();setupScanBt();setupPerformance();setupMaint();setupSources();setupSim();setupPrefTabs();$('#mtfHourly').addEventListener('click',async()=>{if(await ensureHourly())renderMtf();});
   window.addEventListener('hashchange',route);route();
   updateLinks();renderRecent();renderRangeSeg();
   setupShariaPop();setupCompanyFile();

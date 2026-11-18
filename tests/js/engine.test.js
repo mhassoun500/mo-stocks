@@ -986,3 +986,106 @@ test('performance: stock-open timing summary', () => {
   assert.equal(s.n, 3); assert.equal(s.median, 900); assert.equal(s.max, 2000); assert.equal(s.last.code, 'SR:1');
   assert.equal(P6.perfSummary([]), null);
 });
+
+/* ---------------- 2.18: Telegram commands ---------------- */
+const TG = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'alerts', 'watch', 'scan', 'calendar', 'journal', 'jtools', 'reports', 'aitools', 'home', 'ux', 'report', 'about', 'tgcmd'],
+  ['parseTgCommand', 'assetReply', 'watchReply', 'TG_HELP', 'analyzeCore']);
+test('telegram: commands in Arabic, English and Arabic digits', () => {
+  const p = t => JSON.stringify(TG.parseTgCommand(t));
+  assert.equal(p('1120'), JSON.stringify({ k: 'asset', ex: null, code: '1120' }));
+  assert.equal(p('١١٢٠'), JSON.stringify({ k: 'asset', ex: null, code: '1120' }));
+  assert.equal(p('ca:comi'), JSON.stringify({ k: 'asset', ex: 'CA', code: 'COMI' }));
+  assert.equal(p('الذهب'), JSON.stringify({ k: 'asset', ex: 'GOLD', code: 'XAU-USD-OZ' }));
+  assert.equal(p('/start'), JSON.stringify({ k: 'help' }));
+  assert.equal(p('محفظتي'), JSON.stringify({ k: 'port' }));
+  assert.equal(p('Watchlist'), JSON.stringify({ k: 'watch' }));
+  assert.equal(p('تنبيه 1120 فوق ٦٥٫٥'), JSON.stringify({ k: 'alert', ex: null, code: '1120', dir: 'above', price: 65.5 }));
+  assert.equal(p('alert US:AAPL below 300'), JSON.stringify({ k: 'alert', ex: 'US', code: 'AAPL', dir: 'below', price: 300 }));
+  assert.equal(TG.parseTgCommand('اشتر لي سهم الراجحي الآن').k, 'unknown', 'no orders: only questions and alerts');
+});
+test('telegram: replies carry the screen\'s numbers', () => {
+  const D = TG.rowsToData(fixture('1120').rows), I = TG.computeInd(D), A = TG.analyzeCore(D, I, { span: 250, sens: 5, zoneCount: 6 });
+  const t = TG.assetReply({ A, j: { name: 'مصرف الراجحي' }, chg: 0.0123, conf: 61 }, '1120');
+  assert.match(t, /مصرف الراجحي \(1120\)/); assert.match(t, /\+1\.23%/); assert.match(t, /الثقة 61%/); assert.match(t, /ليس توصية/);
+  const w = TG.watchReply([{ ex: 'SR', code: '1120', short: 'الراجحي' }, { ex: 'US', code: 'X' }], { 'SR:1120': { A } });
+  assert.match(w, /الراجحي: /); assert.match(w, /X: لم يُفحص بعد/);
+  assert.match(TG.TG_HELP(), /تنبيه 1120 فوق 65/);
+});
+
+/* ---------------- 2.18: historical test of scan conditions ---------------- */
+const BT = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'alerts', 'watch', 'scan', 'scanbt'], ['backtestRules', 'btHTML', 'btSeries']);
+test('scan backtest: a signal is the day the conditions start to hold; returns are compared with ordinary days', () => {
+  const D = BT.rowsToData(fixture('1120').rows);
+  const r = BT.backtestRules([{ code: '1120', D }], [{ f: 'rsi', op: 'le', a: 35 }, { f: 'fairDisc', op: 'ge', a: 10 }]);
+  assert.equal(r.use.length, 1); assert.equal(r.skipped[0], 'fairDisc', 'fair value has no past values: left out and said');
+  const X = BT.btSeries(D); let starts = 0, was = false;
+  for (let i = 200; i < D.length; i++) { const ok = X[i].rsi != null && X[i].rsi <= 35; if (ok && !was) starts++; was = ok; }
+  assert.equal(r.n, starts);
+  if (r.n) { const s = r.stats[5].sig; assert.ok(s.n <= r.n && s.win >= 0 && s.win <= 1); }
+  assert.ok(r.stats[20].base.n > 10);
+  assert.equal(BT.backtestRules([{ code: 'x', D }], [{ f: 'q', op: 'ge', a: 50 }]).use.length, 0);
+  assert.match(BT.btHTML(BT.backtestRules([{ code: 'x', D }], [{ f: 'q', op: 'ge', a: 50 }]), { stocks: 1, range: '' }), /لا يوجد بين شروطك شرط يمكن اختباره/);
+  assert.match(BT.btHTML(r, { stocks: 1, range: 'x' }), /عدد الإشارات/);
+});
+
+/* ---------------- 2.18: portfolio performance, dividends, scenarios ---------------- */
+const PFx = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'alerts', 'watch', 'scan', 'calendar', 'journal', 'jtools', 'reports', 'report', 'perf'],
+  ['equityTWR', 'betaOf', 'scenarioOf', 'closesOn']);
+test('performance: time-weighted return ignores when money came in, and counts dividends', () => {
+  const days = ['2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04'], t = d => Date.parse(d + 'T12:00:00Z');
+  const px = { a: [10, 11, 11, 12.1] };
+  /* 100 shares on day 1, 100 more on day 3: the price went +10% then +10% → +21%, whatever the second buy */
+  const tr = [{ key: 'a', entry: 10, qty: 100, date: t('2026-01-01') }, { key: 'a', entry: 11, qty: 100, date: t('2026-01-03') }];
+  const r = PFx.equityTWR(tr, days, px, {});
+  assert.ok(Math.abs(r.twr[3] - 0.21) < 1e-9, String(r.twr[3]));
+  const r2 = PFx.equityTWR([tr[0]], days, px, { a: [[t('2026-01-02'), 0.5]] });
+  assert.ok(Math.abs(r2.twr[3] - (1.15 * 1.1 - 1)) < 1e-9, 'dividend of 0.5 on day 2 adds 5% that day');
+  assert.equal(r2.div, 50);
+  const sold = PFx.equityTWR([{ key: 'a', entry: 10, qty: 100, date: t('2026-01-01'), exit: 11, exitDate: t('2026-01-02') }], days, px, {});
+  assert.ok(Math.abs(sold.twr[3] - 0.1) < 1e-9, 'after selling, later moves do not count');
+});
+test('performance: beta and a market scenario per position', () => {
+  const idx = [100], st = [50];
+  for (let i = 1; i < 120; i++) { const m = (i % 2 ? 0.01 : -0.008); idx.push(idx[i - 1] * (1 + m)); st.push(st[i - 1] * (1 + 1.5 * m)); }
+  assert.ok(Math.abs(PFx.betaOf(st, idx) - 1.5) < 1e-6);
+  assert.equal(PFx.betaOf(st.slice(0, 20), idx.slice(0, 20)), null, 'too few days');
+  const s = PFx.scenarioOf([{ ex: 'SR', cur: 'SAR', value: 1000, beta: 1.5 }, { ex: 'GOLD', cur: 'USD', value: 500 }, { ex: 'SR', cur: 'SAR', value: 200, beta: null }], { SR: -10, GOLD: 4 });
+  assert.equal(s.rows[0].pl, -150); assert.equal(s.rows[1].pl, 20); assert.equal(s.rows[2].pl, null);
+  assert.equal(s.tot.SAR.pl, -150); assert.equal(s.tot.USD.pl, 20);
+});
+
+/* ---------------- 2.18: several portfolios, Yahoo figures for the scanner, alerts in the chosen language ---------------- */
+const MP = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'alerts', 'watch', 'scan', 'calendar', 'journal', 'jtools', 'reports'],
+  ['pfFilter', 'pfList', 'pfOf', 'jAdd', 'jRemove', 'jView', 'J', 'scanFillMerge', 'AM', 'AW', 'alertText', 'trAny', 'I18R', 'techAlerts', 'eventAlerts']);
+test('portfolios: old trades belong to the main one, the view filters, adding goes to the chosen one', () => {
+  const tr = [{ id: 'a' }, { id: 'b', pf: 'p2' }, { id: 'c', pf: 'main' }];
+  assert.equal(JSON.stringify(MP.pfFilter(tr, 'main').map(t => t.id)), '["a","c"]');
+  assert.equal(JSON.stringify(MP.pfFilter(tr, 'p2').map(t => t.id)), '["b"]');
+  assert.equal(MP.pfFilter(tr, 'all').length, 3);
+  const l = MP.pfList([{ id: 'p2', name: 'تقاعد' }, { id: '', name: 'x' }, null]);
+  assert.equal(JSON.stringify(l.map(x => x.id)), '["main","p2"]', 'the main portfolio is always there');
+  MP.J.all = tr.slice(); MP.J.pf = 'p2'; MP.jView();
+  assert.equal(MP.J.trades.length, 1);
+  MP.jAdd({ id: 'd' });
+  assert.equal(MP.J.all.length, 4); assert.equal(MP.J.trades.length, 2); assert.equal(MP.J.all[3].pf, 'p2');
+  MP.J.pf = 'all'; MP.jAdd({ id: 'e' }); assert.equal(MP.J.all[4].pf, 'main', 'added while showing all → main');
+  MP.jRemove('b'); assert.equal(MP.J.all.length, 4); assert.ok(!MP.J.trades.some(t => t.id === 'b'));
+});
+test('scanner: Yahoo figures fill only what TradingView left empty', () => {
+  const d = { f: { COMI: { close: 80, price_earnings_ttm: null, sector: 'Finance' } } };
+  const n = MP.scanFillMerge(d, { COMI: { close: 81, price_earnings_ttm: 7 }, ETEL: { close: 40, price_book_fq: 1.2 } });
+  assert.equal(d.f.COMI.close, 80, 'TradingView figure kept'); assert.equal(d.f.COMI.price_earnings_ttm, 7);
+  assert.equal(d.f.ETEL.price_book_fq, 1.2); assert.equal(n, 2);
+});
+test('alerts: the log is shown in the language chosen now, not the one of the moment it fired', () => {
+  const m = MP.AM('الراجحي', MP.AW(' دخل منطقة الشراء '), '80 – 82');
+  assert.equal(m.msg, 'الراجحي دخل منطقة الشراء 80 – 82');
+  assert.equal(JSON.stringify(m.parts), JSON.stringify(['الراجحي', { p: ' دخل منطقة الشراء ' }, '80 – 82']));
+  /* saved while English was on: shown in Arabic again */
+  MP.I18R.m = { ' entered the buy zone ': ' دخل منطقة الشراء ', 'Today': 'اليوم' };
+  assert.equal(MP.alertText({ parts: ['Al Rajhi', { p: ' entered the buy zone ' }, '80'] }), 'Al Rajhi دخل منطقة الشراء 80');
+  assert.equal(MP.trAny('  Today '), '  اليوم ');
+  assert.equal(MP.alertText({ msg: 'old message' }), 'old message', 'old entries are shown as they were');
+  const ev = MP.eventAlerts([{ t: Date.now() + 1000, txt: 'إعلان النتائج' }], 'X', 3);
+  assert.equal(ev[0].parts[0], 'X'); assert.ok(ev[0].parts.some(p => p && p.p === 'إعلان النتائج'), 'the words are kept apart from the name');
+});

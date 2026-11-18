@@ -16,7 +16,7 @@ const AR_RE=/[\u0600-\u06FF]/;
 function trPhrase(raw){
   const key=raw.replace(/\s+/g,' ').trim();if(!key||!AR_RE.test(key))return null;
   let v=HAS.call(I18N.t,key)?I18N.t[key]:null;
-  if(v==null)for(const [re,x] of I18N.re){const m=key.match(re);if(m){v=x.replace(/\$(\d)/g,(_,i)=>m[+i]||'');break;}}
+  if(v==null)for(const [re,x] of I18N.re){const m=key.match(re);if(m){v=x.replace(/\$(\d)/g,(_,i)=>{const g=m[+i]||'';if(!AR_RE.test(g))return g;const k=g.replace(/\s+/g,' ').trim();return HAS.call(I18N.t,k)?g.replace(k,I18N.t[k]):g;});break;}  /* an Arabic value inside the message is translated too */}
   if(v==null)return null;
   const lead=raw.match(/^\s*/)[0],trail=raw.match(/\s*$/)[0];return lead+v+trail;
 }
@@ -102,7 +102,8 @@ const PREF_DEFAULTS={
   adv:{cloudFast:9,cloudSlow:21,stLen:10,stMult:3,swing:5,nwBand:8,nwMult:2.5,fibMode:'365'},advShow:{},
   alerts:{enabled:true,interval:15,desktop:true,telegram:true,evDays:3},
   scanAuto:{on:false,time:'16:00',name:'',top:10},
-  telegram:{enabled:false,chatId:''},
+  telegram:{enabled:false,chatId:'',commands:false},
+  cloudBackup:{on:false,dir:''},
   report:{enabled:false,time:'09:30',days:[0,1,2,3,4],ai:false,weekly:{on:false,day:5,time:'20:00'}},
   sharia:{ok:'',no:'',asOf:'',purify:'',gains:true},
   zakat:{method:'invest',cal:'hijri',saPays:true,assets:'',over:{}},

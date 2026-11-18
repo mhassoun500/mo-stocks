@@ -800,6 +800,32 @@ def scan_fundamentals(ex, size=None):
     return out
 
 
+def scan_fill_yahoo(ex, codes, fetch=None):
+    """2.18: Yahoo Finance figures for scanner results that TradingView left without enough numbers for a fair value
+    (most often Egyptian companies). Asked only for the rows on screen, at most 25 at a time, each kept for a day,
+    including "nothing found", so the same company is not asked again before tomorrow."""
+    fetch = fetch or _fundamentals_yahoo
+    out, miss = {}, 0
+    for c in [str(x).strip().upper().split(".")[0] for x in codes if str(x).strip()][:25]:
+        if not re.match(r"^[A-Z0-9\-]{1,12}$", c):
+            continue
+        key = "scanyf|%s|%s" % (ex, c)
+        hit, _ = cache_get(key, max_age=86400)
+        if hit is None:
+            try:
+                f = fetch(c, ex)
+            except Exception as e:
+                record("WARN", "markets.scan_fill_yahoo %s %s" % (ex, c), e)
+                f = None
+            hit = {k: v for k, v in (f or {}).items() if v not in (None, "")}
+            cache_put(key, hit)
+        if hit:
+            out[c] = hit
+        else:
+            miss += 1
+    return {"ok": True, "ex": ex, "f": out, "missing": miss, "source": "Yahoo Finance"}
+
+
 # ---------------------------------------------------------------- events calendar (Phase 4, step 3)
 def _asset_events(code, ex, now_ms):
     """Upcoming (and last week's) results, dividend and assembly dates of one stock, each with where it came from.
