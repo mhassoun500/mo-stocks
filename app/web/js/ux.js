@@ -80,21 +80,39 @@ function setupUx(){
   let t=0;new MutationObserver(()=>{clearTimeout(t);t=setTimeout(()=>glossApply(),400);}).observe(document.body,{childList:true,subtree:true});
 }
 
-/* ---------- analysis details in tabs: a tab whose panel is hidden (gold, short fund records) is hidden too ---------- */
-const MT={cur:null};
-function moreShow(t,save){const card=$('#moreCard');if(!card)return;
-  const btns=$$('#moreCard .more-tabs button'),vis=btns.filter(b=>!b.hidden);if(!vis.length){if(!card.hidden)card.hidden=true;return;}if(card.hidden)card.hidden=false;
-  if(!vis.some(b=>b.dataset.tab===t))t=vis[0].dataset.tab;MT.cur=t;
-  for(const b of btns)b.setAttribute('aria-selected',String(b.dataset.tab===t));
-  for(const p of $$('#moreCard .tab-panel'))p.classList.toggle('on',p.dataset.tab===t);
-  if(save)try{localStorage.setItem('mo-more-tab',t);}catch(e){}
-  if(t==='bt'&&typeof drawSimCanvas==='function')requestAnimationFrame(()=>{try{drawSimCanvas();}catch(e){}});}
-function moreSync(){for(const b of $$('#moreCard .more-tabs button')){const p=$('#moreCard .tab-panel[data-tab="'+b.dataset.tab+'"]'),h=!p||p.hidden||(b.classList.contains('local-only')&&!LOCAL);if(b.hidden!==h)b.hidden=h;}
-  moreShow(MT.cur);}
-function setupMoreTabs(){const card=$('#moreCard');if(!card)return;
-  let t='lv';try{t=localStorage.getItem('mo-more-tab')||'lv';}catch(e){}MT.cur=t;
-  card.querySelector('.more-tabs').addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(b)moreShow(b.dataset.tab,true);});
-  card.querySelector('.more-tabs').addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;const v=$$('#moreCard .more-tabs button').filter(b=>!b.hidden);
-    const i=v.findIndex(b=>b.dataset.tab===MT.cur),d=(e.key==='ArrowLeft')===(document.dir==='rtl'||document.documentElement.dir==='rtl')?1:-1,n=v[(i+d+v.length)%v.length];if(n){moreShow(n.dataset.tab,true);n.focus();}});
-  new MutationObserver(moreSync).observe(card,{subtree:true,attributes:true,attributeFilter:['hidden']});moreSync();
-}
+/* ---------- cards with tabs (the analysis details, the company file): a tab whose panel is hidden (gold, short fund
+   records, a market without disclosures) is hidden too, and a card with no tab left is hidden ---------- */
+const TABCARDS={};
+function tabShow(id,t,save){const c=TABCARDS[id],card=$('#'+id);if(!c||!card)return;
+  const btns=[...card.querySelectorAll(':scope > .more-tabs button')],vis=btns.filter(b=>!b.hidden);
+  if(!vis.length){if(c.hideEmpty&&!card.hidden)card.hidden=true;return;}if(c.hideEmpty&&card.hidden)card.hidden=false;
+  if(!vis.some(b=>b.dataset.tab===t))t=vis[0].dataset.tab;c.cur=t;
+  for(const b of btns){const on=String(b.dataset.tab===t);if(b.getAttribute('aria-selected')!==on)b.setAttribute('aria-selected',on);b.tabIndex=b.dataset.tab===t?0:-1;}
+  for(const p of card.querySelectorAll(':scope > .tab-panel'))p.classList.toggle('on',p.dataset.tab===t);
+  if(save)try{localStorage.setItem(c.key,t);}catch(e){}
+  if(c.onShow)c.onShow(t);}
+function tabSync(id){const card=$('#'+id);if(!card||!TABCARDS[id])return;
+  for(const b of card.querySelectorAll(':scope > .more-tabs button')){const p=card.querySelector(':scope > .tab-panel[data-tab="'+b.dataset.tab+'"]'),h=!p||p.hidden||(b.classList.contains('local-only')&&!LOCAL);if(b.hidden!==h)b.hidden=h;}
+  tabShow(id,TABCARDS[id].cur);}
+function setupTabCard(id,key,def,opt){const card=$('#'+id);if(!card)return;opt=opt||{};
+  let t=def;try{t=localStorage.getItem(key)||def;}catch(e){}
+  TABCARDS[id]={key,cur:t,hideEmpty:!!opt.hideEmpty,onShow:opt.onShow};
+  const bar=card.querySelector(':scope > .more-tabs');
+  bar.addEventListener('click',e=>{const b=e.target.closest('button[data-tab]');if(b)tabShow(id,b.dataset.tab,true);});
+  bar.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight'].includes(e.key))return;const v=[...bar.querySelectorAll('button')].filter(b=>!b.hidden);
+    const i=v.findIndex(b=>b.dataset.tab===TABCARDS[id].cur),d=(e.key==='ArrowLeft')===(document.documentElement.dir==='rtl')?1:-1,n=v[(i+d+v.length)%v.length];
+    if(n){e.preventDefault();tabShow(id,n.dataset.tab,true);n.focus();}});
+  new MutationObserver(()=>tabSync(id)).observe(card,{subtree:true,attributes:true,attributeFilter:['hidden']});tabSync(id);}
+/* the timeframes box fills what is left of the last row of metric cards (3 of 6 on a wide screen), or a row of its own */
+function mtfSpan(cols,n){const free=cols-(n%cols);return free>=2?free:cols;}
+function fitMtf(){const m=$('#verdictSec .metrics'),x=$('#mtfBox');if(!m||!x||x.hidden)return;
+  const cols=getComputedStyle(m).gridTemplateColumns.split(' ').filter(Boolean).length||1;
+  const n=[...m.children].filter(c=>c!==x&&getComputedStyle(c).display!=='none').length,v='span '+mtfSpan(cols,n);
+  if(x.style.gridColumn!==v)x.style.gridColumn=v;}
+function setupFitMtf(){const m=$('#verdictSec .metrics');if(!m)return;
+  if(typeof ResizeObserver==='function')new ResizeObserver(()=>fitMtf()).observe(m);
+  new MutationObserver(()=>fitMtf()).observe(m,{subtree:true,attributes:true,attributeFilter:['hidden','class']});fitMtf();}
+function setupMoreTabs(){
+  setupFitMtf();
+  setupTabCard('moreCard','mo-more-tab','lv',{hideEmpty:true,onShow:t=>{if(t==='bt'&&typeof drawSimCanvas==='function')requestAnimationFrame(()=>{try{drawSimCanvas();}catch(e){}});}});
+  setupTabCard('companyRow','mo-co-tab','data');}

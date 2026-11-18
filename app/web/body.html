@@ -252,14 +252,14 @@
           </details></div>
         <div class="metric local-only" id="mCmpCard"><span class="k" id="mCmpK">مقارنة بالمؤشر العام</span><span class="v" id="mCmp">—</span><span class="s" id="mCmpSub"></span>
           <p class="edu">الفرق بين أداء السهم وأداء السوق كله في نفس الفترة. الموجب يعني أن السهم أقوى من السوق.</p></div>
+          <div class="mtf card-lite" id="mtfBox" hidden>
+            <h4>توافق الأطر الزمنية</h4>
+            <div id="mtfRows"></div>
+            <p class="mtf-verdict" id="mtfVerdict"></p>
+            <button class="btn xs" type="button" id="mtfHourly" hidden>حمّل الإطار الساعي</button>
+            <details class="xi" id="xiBox"><summary>مؤشرات إضافية (اختيارية)</summary><ul id="xiList"></ul><p class="small muted" id="xiNote"></p></details>
+          </div>
       </div>
-        <div class="mtf card-lite" id="mtfBox" hidden>
-          <h4>توافق الأطر الزمنية</h4>
-          <div id="mtfRows"></div>
-          <p class="mtf-verdict" id="mtfVerdict"></p>
-          <button class="btn xs" type="button" id="mtfHourly" hidden>حمّل الإطار الساعي</button>
-          <details class="xi" id="xiBox"><summary>مؤشرات إضافية (اختيارية)</summary><ul id="xiList"></ul><p class="small muted" id="xiNote"></p></details>
-        </div>
       </div>
         <div class="qual card-lite qual-wide" id="qualBox" hidden>
           <div class="conf-row"><span>جودة الإعداد (للشراء)</span><b id="qualVal">—</b></div>
@@ -276,91 +276,6 @@
         <p class="small muted" id="egpGapOut"></p>
       </div>
       <p class="edu">نسبة الذهب إلى الفضة المرتفعة تعني أن الفضة رخيصة نسبيًا. مؤشر الدولار يتحرك غالبًا عكس الذهب. اجتماعات الفيدرالي الأمريكي تسبب تقلبات كبيرة في الذهب.</p>
-    </section>
-
-    <section class="card plan-card" id="planCard" hidden>
-      <div class="plan-head"><h2 id="planTitle">خطة السعر والقيمة العادلة</h2><span class="muted small" id="planNote"></span></div>
-      <div class="ladder" id="ladder"></div>
-      <div class="scale" id="planScale" aria-hidden="true"></div>
-      <div class="exit-plan" id="exitPlan"></div>
-      <p class="edu" id="planEdu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
-      <div class="plan-grid">
-        <div class="fair" id="fairBox"></div>
-        <div class="ai-box" id="aiBox">
-          <div class="ai-head"><b>رأي الذكاء الاصطناعي</b><span class="muted small" id="aiMeta"></span></div>
-          <input id="aiQ" type="text" class="ai-q" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
-          <div class="ai-way local-only">
-            <span class="ai-way-h">١. تحليل مباشر داخل البرنامج بمفتاحك</span>
-            <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
-            <div id="aiControls" class="ai-controls" hidden>
-              <select id="aiProv" aria-label="المساعد"></select>
-              <select id="aiTpl" aria-label="القالب" title="القارئ الذي يكتب له المساعد"></select>
-              <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
-              <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
-            </div>
-          </div>
-          <div class="ai-way">
-            <span class="ai-way-h"><span class="local-only">٢. </span>أو انسخ البرومبت والصقه في المساعد الذي تشترك فيه</span>
-            <div class="ai-controls"><button class="btn sm" id="aiCopy" type="button">نسخ البرومبت</button><span class="muted small">أو افتح مباشرة (يُنسخ تلقائيًا):</span></div>
-            <div class="ai-sites" id="aiSites"></div>
-            <p class="status" id="aiCopyNote" hidden></p>
-            <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
-          </div>
-          <div class="ai-out" id="aiOut" hidden></div>
-          <div class="ai-chat local-only" id="aiChatBox" hidden>
-            <div id="aiChat"></div>
-            <div class="ai-controls"><input id="aiChatQ" type="text" class="ai-q" placeholder="اسأل المساعد عن تحليله: مثلًا لماذا اخترت هذا الوقف؟"><button class="btn sm" id="aiChatGo" type="button">اسأل</button></div>
-          </div>
-          <details class="ai-hist local-only" id="aiCmp"><summary class="small">قارن مع سهم آخر</summary>
-            <div class="ai-controls"><select id="aiCmpEx" aria-label="السوق"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select>
-              <input id="aiCmpCode" type="text" class="ai-q" placeholder="رمز السهم الثاني، مثل 1120 أو COMI أو AAPL" style="direction:ltr"><button class="btn sm" id="aiCmpGo" type="button">قارن</button></div>
-            <div class="ai-out" id="aiCmpOut" hidden></div>
-          </details>
-          <details class="ai-hist local-only" id="aiHist"><summary class="small">سجل تحليلات هذا الأصل (<span id="aiHistN">0</span>)</summary><div id="aiHistList"></div></details>
-          <div class="ai-fill local-only" id="aiFill" hidden>
-            <div class="ai-head"><b>املأ الناقص بالمساعد الذكي</b><span class="badge off">من بحث المساعد</span></div>
-            <p class="small muted" id="aiFillMissing"></p>
-            <button class="btn sm" id="aiFillRun" type="button">ابحث عن الناقص</button>
-            <div id="aiFillOut" class="small"></div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="info-grid local-only" id="infoRow">
-      <div class="rows-contents" id="fileRow" hidden>
-      <div class="card panel nine-card">
-        <div class="panel-head"><h2>تسعة أسئلة قبل القرار</h2><span class="muted small" id="nineNote"></span></div>
-        <ul class="list nine-list" id="nineList"></ul>
-        <p class="edu">كل سؤال جوابه من بيانات منشورة مع مصدرها. «يستحق القراءة» يعني أن هناك ما يُقرأ، لا أنه سبب للشراء أو البيع. وما لا تتوفر بياناته يُكتب أنه غير متوفر ولا يُخمَّن.</p>
-      </div>
-      <div class="card panel">
-        <div class="panel-head"><h2>ملف الشركة: الإفصاحات والداخليون</h2><span class="muted small" id="fileNote"></span></div>
-        <p class="small muted" id="fileWatch" hidden></p>
-        <ul class="list" id="fileList"></ul>
-        <div id="fileInsBox" hidden>
-          <h3 class="sub-h">تعاملات الداخليين (آخر سنة، من السوق)</h3>
-          <div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>الصفة</th><th>العملية</th><th>الأسهم</th><th>السعر</th><th>القيمة</th></tr></thead><tbody id="fileIns"></tbody></table></div>
-          <p class="small muted">تُعرض صفة المتعامل لا اسمه. المنح والخيارات لا تُحسب، فقط الشراء والبيع من السوق.</p>
-        </div>
-        <h3 class="sub-h">سجل الشركة</h3>
-        <div id="fileRec"></div>
-      </div>
-      </div>
-    <div class="local-only rows-contents" id="companyRow">
-      <div class="card panel">
-        <div class="panel-head"><h2>بيانات الشركة والأحداث</h2><span class="muted small" id="profileNote"></span></div>
-        <div class="kv" id="profileKv"></div>
-        <ul class="list" id="eventsList"></ul>
-        <details id="profileSummaryBox" hidden><summary>نبذة عن الشركة (بالإنجليزية)</summary><p class="small muted" id="profileSummary" dir="ltr" style="text-align:left;margin-top:6px"></p></details>
-        <p class="edu">مكرر الربحية = السعر ÷ ربح السهم السنوي، والأقل يعني سعرًا أرخص نسبيًا مقارنة بشركات القطاع. العائد التوزيعي = التوزيعات السنوية ÷ السعر.</p>
-      </div>
-      <div class="card panel">
-        <div class="panel-head"><h2>آخر الأخبار</h2>
-          <span class="actions"><input id="newsQ" class="small" style="font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:180px" aria-label="كلمات البحث عن الأخبار"><button class="btn xs" id="newsGo" type="button">بحث</button></span></div>
-        <ul class="list news" id="newsList"></ul>
-      </div>
-    </div>
     </section>
 
     <section class="card more-card" id="moreCard">
@@ -428,9 +343,100 @@
         <p class="edu">القاعدة المهنية: لا تخاطر بأكثر من 1% إلى 2% من رأس مالك في الصفقة الواحدة. الحاسبة تحدد عدد الأسهم بحيث لا تتجاوز خسارتك هذه النسبة إذا ضُرب وقف الخسارة.</p>
       </div>
     </section>
-
-
     </section>
+
+    <section class="card plan-card" id="planCard" hidden>
+      <div class="plan-head"><h2 id="planTitle">خطة السعر والقيمة العادلة</h2><span class="muted small" id="planNote"></span></div>
+      <div class="plan-cols">
+        <div class="fair" id="fairBox"></div>
+        <div class="plan-main">
+        <div class="ladder" id="ladder"></div>
+        <div class="scale" id="planScale" aria-hidden="true"></div>
+        <div class="exit-plan" id="exitPlan"></div>
+        <p class="edu" id="planEdu">الأهداف هي مناطق المقاومة التالية فوق السعر بالترتيب، وإذا لم توجد مقاومة كافية يُقدَّر الهدف من أعلى سعر في الفترة أو من متوسط المدى اليومي. «R» تعني كم ضعف المخاطرة: 2R ربح يساوي ضعف الخسارة لو ضُرب الوقف.</p>
+        </div>
+      </div>
+      <div class="ai-box" id="aiBox">
+        <div class="ai-head"><b>رأي الذكاء الاصطناعي</b><span class="muted small" id="aiMeta"></span></div>
+        <input id="aiQ" type="text" class="ai-q" placeholder="سؤال إضافي (اختياري): مثلًا هل يناسب الاستثمار لمدة سنة؟">
+        <div class="ai-way local-only">
+          <span class="ai-way-h">١. تحليل مباشر داخل البرنامج بمفتاحك</span>
+          <div id="aiSetup" class="muted small" hidden>اربط مفتاح <bdi>Claude</bdi> أو <bdi>ChatGPT</bdi> أو <bdi>Gemini</bdi> أو <bdi>Grok</bdi> من <a href="#" id="aiGoSettings">الإعدادات ← الربط مع مساعدي الذكاء الاصطناعي</a>.</div>
+          <div id="aiControls" class="ai-controls" hidden>
+            <select id="aiProv" aria-label="المساعد"></select>
+            <select id="aiTpl" aria-label="القالب" title="القارئ الذي يكتب له المساعد"></select>
+            <label class="chip" id="aiWebLbl"><input type="checkbox" id="aiWeb" checked><span>ابحث في الأخبار</span></label>
+            <button class="btn sm primary" id="aiRun" type="button">حلّل الآن</button>
+          </div>
+        </div>
+        <div class="ai-way">
+          <span class="ai-way-h"><span class="local-only">٢. </span>أو انسخ البرومبت والصقه في المساعد الذي تشترك فيه</span>
+          <div class="ai-controls"><button class="btn sm" id="aiCopy" type="button">نسخ البرومبت</button><span class="muted small">أو افتح مباشرة (يُنسخ تلقائيًا):</span></div>
+          <div class="ai-sites" id="aiSites"></div>
+          <p class="status" id="aiCopyNote" hidden></p>
+          <details id="aiShow"><summary class="small">عرض البرومبت</summary><textarea id="aiPrompt" class="ltr-auto" rows="7" readonly></textarea></details>
+        </div>
+        <div class="ai-out" id="aiOut" hidden></div>
+        <div class="ai-chat local-only" id="aiChatBox" hidden>
+          <div id="aiChat"></div>
+          <div class="ai-controls"><input id="aiChatQ" type="text" class="ai-q" placeholder="اسأل المساعد عن تحليله: مثلًا لماذا اخترت هذا الوقف؟"><button class="btn sm" id="aiChatGo" type="button">اسأل</button></div>
+        </div>
+        <details class="ai-hist local-only" id="aiCmp"><summary class="small">قارن مع سهم آخر</summary>
+          <div class="ai-controls"><select id="aiCmpEx" aria-label="السوق"><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select>
+            <input id="aiCmpCode" type="text" class="ai-q" placeholder="رمز السهم الثاني، مثل 1120 أو COMI أو AAPL" style="direction:ltr"><button class="btn sm" id="aiCmpGo" type="button">قارن</button></div>
+          <div class="ai-out" id="aiCmpOut" hidden></div>
+        </details>
+        <details class="ai-hist local-only" id="aiHist"><summary class="small">سجل تحليلات هذا الأصل (<span id="aiHistN">0</span>)</summary><div id="aiHistList"></div></details>
+        <div class="ai-fill local-only" id="aiFill" hidden>
+          <div class="ai-head"><b>املأ الناقص بالمساعد الذكي</b><span class="badge off">من بحث المساعد</span></div>
+          <p class="small muted" id="aiFillMissing"></p>
+          <button class="btn sm" id="aiFillRun" type="button">ابحث عن الناقص</button>
+          <div id="aiFillOut" class="small"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="info-grid local-only" id="infoRow">
+      <div class="card panel nine-card" id="nineCard" hidden>
+        <div class="panel-head"><h2>تسعة أسئلة قبل القرار</h2><span class="muted small" id="nineNote"></span></div>
+        <ul class="list nine-list" id="nineList"></ul>
+        <p class="edu">كل سؤال جوابه من بيانات منشورة مع مصدرها. «يستحق القراءة» يعني أن هناك ما يُقرأ، لا أنه سبب للشراء أو البيع. وما لا تتوفر بياناته يُكتب أنه غير متوفر ولا يُخمَّن.</p>
+      </div>
+      <div class="card panel tabs-card co-card" id="companyRow">
+        <div class="panel-head"><h2>ملف الشركة</h2><span class="muted small" id="profileNote"></span></div>
+        <div class="more-tabs" role="tablist" aria-label="ملف الشركة">
+          <button type="button" role="tab" data-tab="data">البيانات</button>
+          <button type="button" role="tab" data-tab="ev">الأحداث والتوزيعات</button>
+          <button type="button" role="tab" data-tab="file">الإفصاحات والداخليون</button>
+          <button type="button" role="tab" data-tab="news">الأخبار</button>
+        </div>
+        <div class="tab-panel" data-tab="data" id="cpData">
+          <div class="kv" id="profileKv"></div>
+          <details id="profileSummaryBox" hidden><summary>نبذة عن الشركة (بالإنجليزية)</summary><p class="small muted" id="profileSummary" dir="ltr" style="text-align:left;margin-top:6px"></p></details>
+          <p class="edu">مكرر الربحية = السعر ÷ ربح السهم السنوي، والأقل يعني سعرًا أرخص نسبيًا مقارنة بشركات القطاع. العائد التوزيعي = التوزيعات السنوية ÷ السعر.</p>
+        </div>
+        <div class="tab-panel" data-tab="ev" id="cpEv">
+          <ul class="list" id="eventsList"></ul>
+        </div>
+        <div class="tab-panel" data-tab="file" id="fileRow" hidden>
+          <p class="small muted" id="fileNote"></p>
+          <p class="small muted" id="fileWatch" hidden></p>
+          <ul class="list" id="fileList"></ul>
+          <div id="fileInsBox" hidden>
+            <h3 class="sub-h">تعاملات الداخليين (آخر سنة، من السوق)</h3>
+            <div class="tbl-wrap"><table><thead><tr><th>التاريخ</th><th>الصفة</th><th>العملية</th><th>الأسهم</th><th>السعر</th><th>القيمة</th></tr></thead><tbody id="fileIns"></tbody></table></div>
+            <p class="small muted">تُعرض صفة المتعامل لا اسمه. المنح والخيارات لا تُحسب، فقط الشراء والبيع من السوق.</p>
+          </div>
+          <h3 class="sub-h">سجل الشركة</h3>
+          <div id="fileRec"></div>
+        </div>
+        <div class="tab-panel" data-tab="news" id="cpNews">
+          <div class="actions news-q"><input id="newsQ" class="small" style="font:inherit;font-size:13px;padding:4px 8px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--ink);width:180px" aria-label="كلمات البحث عن الأخبار"><button class="btn xs" id="newsGo" type="button">بحث</button></div>
+          <ul class="list news" id="newsList"></ul>
+        </div>
+      </div>
+    </section>
+
     <details class="howto-box" id="howtoBox"><summary>كيف تُحسب المناطق، ومصادر البيانات</summary>
     <section class="howto">
       <div class="card panel">
@@ -814,31 +820,38 @@
         <button class="btn sm ghost" id="pAnaReset" type="button">استعادة القيم الافتراضية</button>
       </section>
 
-      <section data-pg="data" class="card panel local-only" id="srcPanel">
-        <h2>مصدر الأسعار وحساب <bdi>TradingView</bdi></h2>
-        <div class="form-grid">
-          <label class="field wide" for="pSource"><span>مصدر الأسعار الأول</span><select id="pSource" data-pref="dataSource">
-            <option value="tv">TradingView أولًا، ثم Yahoo Finance</option><option value="yahoo">Yahoo Finance أولًا، ثم TradingView</option></select></label>
-        </div>
-        <p class="small muted">بدون حساب: بيانات <bdi>TradingView</bdi> العامة، وأسعار تداول والبورصة المصرية متأخرة 15 دقيقة. مع حسابك: نفس البيانات التي يعرضها لك <bdi>TradingView</bdi>، وتكون لحظية إذا كان اشتراكك يشمل بيانات السوق اللحظية.</p>
-        <div class="tv-acct" id="tvAcct"><span class="tv-dot" id="tvDot"></span><span id="tvState">جارٍ التحقق…</span></div>
-        <div class="actions"><button class="btn sm" id="tvLogin" type="button">تسجيل الدخول إلى TradingView</button><button class="btn sm ghost" id="tvLogout" type="button" hidden>تسجيل الخروج</button></div>
-        <p class="status" id="tvStatus"></p>
-        <details class="tv-manual" id="tvManual">
-          <summary>إدخال الجلسة يدويًا</summary>
-          <ol class="small muted" style="margin:6px 0;padding-inline-start:18px">
-            <li>سجّل الدخول إلى <bdi>tradingview.com</bdi> في متصفحك.</li>
-            <li>اضغط <bdi>F12</bdi>، ثم افتح <bdi>Application</bdi> (أو <bdi>Storage</bdi>)، ثم <bdi>Cookies</bdi>، ثم <bdi>https://www.tradingview.com</bdi>.</li>
-            <li>انسخ قيمة <code>sessionid</code> وقيمة <code>sessionid_sign</code> والصقهما هنا.</li>
-          </ol>
+      <section data-pg="data" class="pref-stack local-only" id="srcStack">
+        <section data-pg="data" class="card panel local-only" id="srcPanel">
+          <h2>مصدر الأسعار وحساب <bdi>TradingView</bdi></h2>
           <div class="form-grid">
-            <label class="field" for="tvSid"><span>sessionid</span><input id="tvSid" type="password" class="ltr" autocomplete="off"></label>
-            <label class="field" for="tvSign"><span>sessionid_sign</span><input id="tvSign" type="password" class="ltr" autocomplete="off"></label>
+            <label class="field wide" for="pSource"><span>مصدر الأسعار الأول</span><select id="pSource" data-pref="dataSource">
+              <option value="tv">TradingView أولًا، ثم Yahoo Finance</option><option value="yahoo">Yahoo Finance أولًا، ثم TradingView</option></select></label>
           </div>
-          <div class="actions"><button class="btn sm" id="tvSave" type="button">حفظ الجلسة</button></div>
-        </details>
-        <p class="small muted">لا يحفظ البرنامج كلمة المرور أبدًا؛ تسجّل الدخول في صفحة <bdi>TradingView</bdi> نفسها، ويحتفظ البرنامج بجلسة الدخول فقط مشفّرة بنظام التشغيل.</p>
-        <p class="small muted">موقع <bdi>Investing.com</bdi> يحجب أي جلب آلي لبياناته بحماية <bdi>Cloudflare</bdi> حتى مع تسجيل الدخول، لذلك لا يمكن ربطه بالبرنامج.</p>
+          <p class="small muted">بدون حساب: بيانات <bdi>TradingView</bdi> العامة، وأسعار تداول والبورصة المصرية متأخرة 15 دقيقة. مع حسابك: نفس البيانات التي يعرضها لك <bdi>TradingView</bdi>، وتكون لحظية إذا كان اشتراكك يشمل بيانات السوق اللحظية.</p>
+          <div class="tv-acct" id="tvAcct"><span class="tv-dot" id="tvDot"></span><span id="tvState">جارٍ التحقق…</span></div>
+          <div class="actions"><button class="btn sm" id="tvLogin" type="button">تسجيل الدخول إلى TradingView</button><button class="btn sm ghost" id="tvLogout" type="button" hidden>تسجيل الخروج</button></div>
+          <p class="status" id="tvStatus"></p>
+          <details class="tv-manual" id="tvManual">
+            <summary>إدخال الجلسة يدويًا</summary>
+            <ol class="small muted" style="margin:6px 0;padding-inline-start:18px">
+              <li>سجّل الدخول إلى <bdi>tradingview.com</bdi> في متصفحك.</li>
+              <li>اضغط <bdi>F12</bdi>، ثم افتح <bdi>Application</bdi> (أو <bdi>Storage</bdi>)، ثم <bdi>Cookies</bdi>، ثم <bdi>https://www.tradingview.com</bdi>.</li>
+              <li>انسخ قيمة <code>sessionid</code> وقيمة <code>sessionid_sign</code> والصقهما هنا.</li>
+            </ol>
+            <div class="form-grid">
+              <label class="field" for="tvSid"><span>sessionid</span><input id="tvSid" type="password" class="ltr" autocomplete="off"></label>
+              <label class="field" for="tvSign"><span>sessionid_sign</span><input id="tvSign" type="password" class="ltr" autocomplete="off"></label>
+            </div>
+            <div class="actions"><button class="btn sm" id="tvSave" type="button">حفظ الجلسة</button></div>
+          </details>
+          <p class="small muted">لا يحفظ البرنامج كلمة المرور أبدًا؛ تسجّل الدخول في صفحة <bdi>TradingView</bdi> نفسها، ويحتفظ البرنامج بجلسة الدخول فقط مشفّرة بنظام التشغيل.</p>
+          <p class="small muted">موقع <bdi>Investing.com</bdi> يحجب أي جلب آلي لبياناته بحماية <bdi>Cloudflare</bdi> حتى مع تسجيل الدخول، لذلك لا يمكن ربطه بالبرنامج.</p>
+        </section>
+        <section data-pg="data" class="card panel local-only" id="secPanel">
+          <h2>تعاملات الداخليين الأمريكية (اختياري)</h2>
+          <p class="small muted">أرشيف هيئة الأوراق المالية الأمريكية (SEC) لا يجيب البرامج إلا إذا عرّفت نفسها ببريد للتواصل. اكتب بريدًا هنا لتظهر تعاملات مسؤولي الشركات الأمريكية في «ملف الشركة». يُرسل البريد إلى SEC وحدها مع كل طلب، ولا يُرسل إلى أي جهة أخرى. وبدونه تبقى بقية الإفصاحات تعمل.</p>
+          <label class="field" for="pSecContact"><span>بريد التعريف لدى SEC</span><input id="pSecContact" type="email" dir="ltr" autocomplete="off" data-pref="secContact" placeholder="name@example.com"></label>
+        </section>
       </section>
 
       <section data-pg="ai" class="card panel local-only" id="aiPanel">
@@ -948,36 +961,37 @@
         <p class="small muted">الملخص يستخدم مفتاح المساعد الذي حفظته في الإعدادات، ويُرسل نص التقرير إلى شركة المساعد فقط. قد تكون له تكلفة حسب اشتراكك.</p>
       </section>
 
-      <section data-pg="data" class="card panel local-only" id="secPanel">
-        <h2>تعاملات الداخليين الأمريكية (اختياري)</h2>
-        <p class="small muted">أرشيف هيئة الأوراق المالية الأمريكية (SEC) لا يجيب البرامج إلا إذا عرّفت نفسها ببريد للتواصل. اكتب بريدًا هنا لتظهر تعاملات مسؤولي الشركات الأمريكية في «ملف الشركة». يُرسل البريد إلى SEC وحدها مع كل طلب، ولا يُرسل إلى أي جهة أخرى. وبدونه تبقى بقية الإفصاحات تعمل.</p>
-        <label class="field" for="pSecContact"><span>بريد التعريف لدى SEC</span><input id="pSecContact" type="email" dir="ltr" autocomplete="off" data-pref="secContact" placeholder="name@example.com"></label>
-      </section>
 
-      <section data-pg="data" class="card panel span2" id="shPanel">
+      <section data-pg="data" class="card panel sh-wide" id="shPanel">
         <h2>الضوابط الشرعية</h2>
         <p class="small muted">الصق رموز الأسهم المتوافقة وغير المتوافقة من أحدث قائمة تعتمدها (مثل قوائم الهيئات الشرعية في البنوك)، مفصولة بمسافات أو فواصل. تظهر الحالة بجانب اسم السهم وفي ماسح السوق.</p>
-        <div class="form-grid sh-two">
-          <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
-        <label class="field" for="pShNo"><span>غير متوافقة</span><textarea id="pShNo" data-pref="sharia.no" placeholder="1180 1050 ..."></textarea></label>
+        <div class="sh-cols">
+        <div>
+          <div class="form-grid sh-two">
+            <label class="field" for="pShOk"><span>متوافقة</span><textarea id="pShOk" data-pref="sharia.ok" placeholder="1120 2222 1010 ..."></textarea></label>
+          <label class="field" for="pShNo"><span>غير متوافقة</span><textarea id="pShNo" data-pref="sharia.no" placeholder="1180 1050 ..."></textarea></label>
+          </div>
+          <label class="field" for="pShDate"><span>تاريخ القائمة المعتمدة</span><input id="pShDate" type="text" data-pref="sharia.asOf" placeholder="مثال: الربع الثالث 2026"></label>
+          <label class="field" for="pShPur"><span>نسب التطهير (رمز ثم النسبة، سطر لكل سهم)</span><textarea id="pShPur" data-pref="sharia.purify" placeholder="1120 2.5&#10;AAPL 1.1"></textarea></label>
+          <p class="small muted">النسبة المئوية من كل ربح موزّع التي تُخرج للتطهير. تُملأ تلقائيًا للأسهم المصرية من القائمة المصرية إن توفرت، وما تكتبه هنا يتقدّم عليها. وللأسهم السعودية يُعرض مبلغ التطهير لكل سهم من دراسة مركز المقاصد السنوية. وما لا يغطيه أي مصدر (ومنه الأسهم الأمريكية) يُقدّره البرنامج تقديرًا تقريبيًا من دخل الفوائد ÷ الإيرادات ويكتب أنه تقدير، أو تُدخله يدويًا أو من «املأ الناقص بالمساعد» مع رابط المصدر.</p>
         </div>
-        <label class="field" for="pShDate"><span>تاريخ القائمة المعتمدة</span><input id="pShDate" type="text" data-pref="sharia.asOf" placeholder="مثال: الربع الثالث 2026"></label>
-        <label class="field" for="pShPur"><span>نسب التطهير (رمز ثم النسبة، سطر لكل سهم)</span><textarea id="pShPur" data-pref="sharia.purify" placeholder="1120 2.5&#10;AAPL 1.1"></textarea></label>
-        <p class="small muted">النسبة المئوية من كل ربح موزّع التي تُخرج للتطهير. تُملأ تلقائيًا للأسهم المصرية من القائمة المصرية إن توفرت، وما تكتبه هنا يتقدّم عليها. وللأسهم السعودية يُعرض مبلغ التطهير لكل سهم من دراسة مركز المقاصد السنوية. وما لا يغطيه أي مصدر (ومنه الأسهم الأمريكية) يُقدّره البرنامج تقديرًا تقريبيًا من دخل الفوائد ÷ الإيرادات ويكتب أنه تقدير، أو تُدخله يدويًا أو من «املأ الناقص بالمساعد» مع رابط المصدر.</p>
-        <h3 class="sub-h">استيراد قائمة من ملف</h3>
-        <p class="small muted">اختر ملف CSV أو PDF فيه رموز الأسهم وحكمها (متوافق / غير متوافق). تُعرض لك المعاينة أولًا ولا يُحفظ شيء قبل موافقتك. ملفات PDF العربية قد تُقرأ بترتيب معكوس، فراجع المعاينة جيدًا.</p>
-        <div class="actions local-only"><input id="shFile" type="file" accept=".csv,.txt,.pdf" aria-label="ملف القائمة الشرعية">
-          <select id="shImpEx" aria-label="سوق الملف"><option value="">السوق: تلقائي</option><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select></div>
-        <div id="shImpOut" class="small" hidden></div>
-        <h3 class="sub-h">قوائم مدمجة تتحدث تلقائيًا</h3>
-        <p class="small muted">قائمتك أعلاه لها الأولوية دائمًا. وإن لم يكن السهم فيها يُستخدم:</p>
-        <ul class="small muted sh-src" id="shInfo"></ul>
-        <div class="actions local-only"><button class="btn sm" id="shRefresh" type="button">تحديث قوائم السعودية ومصر الآن</button></div>
-        <p class="status" id="shStatus"></p>
-        <h3 class="sub-h">الأسهم الأمريكية — تصنيف موقع يقين</h3>
-        <p class="small muted" id="yqInfo"></p>
-        <div class="actions local-only"><button class="btn sm" id="yqRefresh" type="button">تحديث قائمة يقين الآن</button></div>
-        <p class="status" id="yqStatus"></p>
+        <div>
+          <h3 class="sub-h">استيراد قائمة من ملف</h3>
+          <p class="small muted">اختر ملف CSV أو PDF فيه رموز الأسهم وحكمها (متوافق / غير متوافق). تُعرض لك المعاينة أولًا ولا يُحفظ شيء قبل موافقتك. ملفات PDF العربية قد تُقرأ بترتيب معكوس، فراجع المعاينة جيدًا.</p>
+          <div class="actions local-only"><input id="shFile" type="file" accept=".csv,.txt,.pdf" aria-label="ملف القائمة الشرعية">
+            <select id="shImpEx" aria-label="سوق الملف"><option value="">السوق: تلقائي</option><option value="SR">السعودية</option><option value="CA">مصر</option><option value="US">أمريكا</option></select></div>
+          <div id="shImpOut" class="small" hidden></div>
+          <h3 class="sub-h">قوائم مدمجة تتحدث تلقائيًا</h3>
+          <p class="small muted">قائمتك أعلاه لها الأولوية دائمًا. وإن لم يكن السهم فيها يُستخدم:</p>
+          <ul class="small muted sh-src" id="shInfo"></ul>
+          <div class="actions local-only"><button class="btn sm" id="shRefresh" type="button">تحديث قوائم السعودية ومصر الآن</button></div>
+          <p class="status" id="shStatus"></p>
+          <h3 class="sub-h">الأسهم الأمريكية — تصنيف موقع يقين</h3>
+          <p class="small muted" id="yqInfo"></p>
+          <div class="actions local-only"><button class="btn sm" id="yqRefresh" type="button">تحديث قائمة يقين الآن</button></div>
+          <p class="status" id="yqStatus"></p>
+        </div>
+        </div>
       </section>
 
       <section data-pg="data" class="card panel local-only wide" id="dsPanel">

@@ -333,7 +333,7 @@ async function loadProfile(seq){
   S.profile=null;$('#profileKv').innerHTML='';$('#eventsList').innerHTML='';$('#profileSummaryBox').hidden=true;
   const row=$('#companyRow');
   if(!LOCAL||S.source!=='live'||S.isFund){row.hidden=true;return;}
-  row.hidden=false;loadNews(seq);
+  row.hidden=false;loadNews(seq);$('#cpData').hidden=S.ex==='GOLD';
   if(S.ex==='GOLD'){$('#profileNote').textContent='';renderEvents();return;}
   $('#profileNote').textContent='جارٍ التحميل…';
   const j=await api('/api/profile',{symbol:S.meta.symbol}).catch(()=>null);
@@ -361,9 +361,13 @@ function upcomingEvents(){
 function renderEvents(){
   const now=Date.now(),items=[];
   for(const e of upcomingEvents()){const days=Math.ceil((e.t-now)/DAY);items.push('<li><span class="kind '+(days<=7?'r':'n')+'">'+(days<=0?'اليوم':'بعد '+days+' يوم')+'</span><span>'+e.txt+'</span>'+'<span class=\"small muted\">'+fmtDate.format(e.t)+'</span>'+'</li>');}
-  const divs=((S.meta&&S.meta.dividends)||[]).slice(-3).reverse();
-  for(const d of divs)items.push('<li><span class="kind s">توزيع سابق</span><span>'+(d[1]!=null?NUM(fp(d[1]))+' للسهم':'')+'</span>'+'<span class=\"small muted\">'+fmtDate.format(d[0])+'</span>'+'</li>');
-  $('#eventsList').innerHTML=items.join('')||'<li class="plain"><p class="empty">لا توجد أحداث قادمة معروفة.</p></li>';
+  if(!items.length)items.push('<li class="plain"><p class="empty">لا توجد أحداث قادمة معروفة.</p></li>');
+  /* 2.18: the dividends paid, with the total of the last 12 months, in the company card's own tab */
+  const all=((S.meta&&S.meta.dividends)||[]).filter(d=>d&&d[1]!=null),yr=all.filter(d=>d[0]>now-365*DAY),tot=yr.reduce((a,d)=>a+d[1],0);
+  if(all.length){items.push('<li class="plain"><h3 class="sub-h">التوزيعات السابقة</h3>'+(yr.length?'<p class="small">'+esc(_t('مجموع آخر 12 شهرًا'))+': <b>'+NUM(fp(tot))+'</b> '+esc(_t('للسهم'))+' ('+NUM(yr.length)+' '+esc(_t('توزيع'))+')</p>':'')+'</li>');
+    for(const d of all.slice(-10).reverse())items.push('<li><span class="kind s">توزيع</span><span>'+NUM(fp(d[1]))+' للسهم</span>'+'<span class=\"small muted\">'+fmtDate.format(d[0])+'</span>'+'</li>');}
+  else if(S.ex!=='GOLD')items.push('<li class="plain"><p class="small muted">لا توجد توزيعات في سجل الأسعار للفترة المختارة.</p></li>');
+  $('#eventsList').innerHTML=items.join('');
 }
 async function loadNews(seq){
   const key=drawKey(),saved=await Store.get('newsQ',{});

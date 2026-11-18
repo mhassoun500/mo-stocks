@@ -71,8 +71,9 @@ const SEC_FORM={'8-K':'إفصاح عن حدث جوهري','10-Q':'القوائم
 const fileTitle=x=>x.form?esc(_t(SEC_FORM[x.form]||x.form))+(x.title?' — <bdi dir="ltr">'+esc(x.title)+'</bdi>':'')+(x.items?' <span class="small muted" dir="ltr">('+esc(x.items)+')</span>':''):esc(x.title);
 const ROLE={director:'عضو مجلس إدارة',officer:'مسؤول تنفيذي',ten:'مالك 10% أو أكثر',other:'داخلي'};
 async function loadCompanyFile(seq){S.cfile=null;const row=$('#fileRow');if(!row)return;
-  if(!LOCAL||S.source!=='live'||S.isFund||!['SR','CA','US'].includes(S.ex)){row.hidden=true;return;}
-  row.hidden=false;$('#fileNote').textContent=_t('جارٍ التحميل…');$('#fileList').innerHTML='';$('#fileIns').innerHTML='';$('#fileRec').innerHTML='';renderNine();
+  const nine=$('#nineCard');
+  if(!LOCAL||S.source!=='live'||S.isFund||!['SR','CA','US'].includes(S.ex)){row.hidden=true;if(nine)nine.hidden=true;return;}
+  row.hidden=false;if(nine)nine.hidden=false;$('#fileNote').textContent=_t('جارٍ التحميل…');$('#fileList').innerHTML='';$('#fileIns').innerHTML='';$('#fileRec').innerHTML='';renderNine();
   const j=await api('/api/filings',{code:purCode(S.code),ex:S.ex}).catch(()=>null);if(seq!==S.loadSeq)return;
   S.cfile=j&&j.ok?j:{ok:false,error:j&&j.error||'تعذّر جلب ملف الشركة.'};renderCompanyFile();renderNine();}
 /* Saudi and Egyptian markets give only the newest announcements of the whole market, so the app reads them every

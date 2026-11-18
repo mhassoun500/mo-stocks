@@ -149,7 +149,22 @@ def test_analysis_layout_chart_first_details_in_tabs(page_for, width):
     page.set_viewport_size({"width": width, "height": 1000 if width > 500 else 844})
     open_stock(page, "SR", "1120")
     y = lambda sel: page.evaluate("document.querySelector(%r).getBoundingClientRect().top+scrollY" % sel)
-    assert y("#chartCard") < y("#verdictSec") < y("#planCard") < y("#infoRow") < y("#moreCard"), "chart first, details last"
+    assert y("#chartCard") < y("#verdictSec") < y("#moreCard") < y("#planCard") < y("#infoRow"), "chart, verdict, levels, plan, company"
+    box = lambda sel: page.evaluate("(r=>[r.left,r.top,r.width,r.height])(document.querySelector(%r).getBoundingClientRect())" % sel)
+    assert page.evaluate("document.querySelector('#mtfBox').parentElement.classList.contains('metrics')"), "timeframes among the metric cards"
+    if width >= 1440:
+        fair, main, lad, ex = box("#fairBox"), box(".plan-main"), box("#ladder"), box("#exitPlan")
+        assert abs(fair[1] - main[1]) < 4 and fair[0] > main[0], "fair value in its own column, the plan beside it"
+        assert ex[1] > lad[1] and abs(ex[0] - lad[0]) < 4, "the exit plan under the price plan"
+        mt, last = box("#mtfBox"), page.evaluate("Math.max(...[...document.querySelectorAll('.metrics>.metric')].filter(m=>m.offsetParent).map(m=>m.getBoundingClientRect().bottom))")
+        assert mt[1] < last + 20 or mt[2] > 600, "the timeframes box fills the last row of the cards"
+        nine, co = box("#nineCard"), box("#companyRow")
+        assert abs(nine[1] - co[1]) < 4, "nine questions beside the company file"
+    tabs = page.evaluate("[...document.querySelectorAll('#companyRow > .more-tabs button')].filter(b=>!b.hidden).map(b=>b.dataset.tab)")
+    assert tabs == ["data", "ev", "file", "news"], tabs
+    for t in tabs:
+        page.click("#companyRow > .more-tabs button[data-tab='%s']" % t)
+        assert page.evaluate("[...document.querySelectorAll('#companyRow > .tab-panel')].filter(p=>p.offsetParent).map(p=>p.dataset.tab)") == [t]
     assert not page.evaluate("document.documentElement.scrollWidth>document.documentElement.clientWidth"), "no sideways scrolling"
     shown = lambda: page.evaluate("[...document.querySelectorAll('#moreCard .tab-panel')].filter(p=>p.offsetParent).map(p=>p.id)")
     for tab, panel in (("bt", "calcRow"), ("calc", "calcBox"), ("lv", "levelsRow")):
@@ -165,7 +180,9 @@ def test_analysis_layout_chart_first_details_in_tabs(page_for, width):
 def test_gold_hides_the_company_parts_and_keeps_its_news(page_for):
     page = page_for("en")
     open_stock(page, "GOLD", "")
-    assert page.is_hidden("#fileRow") and page.is_visible("#companyRow .card")
+    assert page.is_hidden("#fileRow") and page.is_hidden("#nineCard") and page.is_visible("#companyRow")
+    assert page.evaluate("[...document.querySelectorAll('#companyRow > .more-tabs button')].filter(b=>!b.hidden).map(b=>b.dataset.tab)") == ["ev", "news"]
+    assert "no-fv" in page.get_attribute("#planCard", "class"), "no fair value for gold: the plan takes the whole width"
     assert page.errors == []
 
 
@@ -219,4 +236,23 @@ def test_portfolios_backtest_performance_telegram_and_cloud(page_for, lang):
     page.click("#bkCloudNow")
     page.wait_for_function("document.querySelector('#bkCloudStatus').textContent.length>3")
     assert "status err" in page.get_attribute("#bkCloudStatus", "class"), "no folder chosen: told so, nothing written"
+    assert page.errors == []
+
+
+def test_home_opportunities_show_their_market_and_settings_layout(page_for):
+    import core, time
+    core.Store.set("lastScan", {"ex": "CA", "sel": "CA", "at": int(time.time() * 1000), "rows": [
+        {"code": "COMI", "name": "CIB", "price": 80, "conf": 70, "stance": "buy", "inBuy": True, "symbol": "EGX:COMI"}]})
+    page = page_for("ar")
+    page.set_viewport_size({"width": 1440, "height": 1000})
+    page.goto(page.base + "#home")
+    page.wait_for_selector("#homeOpp .mk-badge")
+    assert page.inner_text("#homeOpp .mk-badge") == "مصر"
+    page.goto(page.base + "#prefs")
+    page.click("#prefTabs button[data-pg='data']")
+    page.wait_for_timeout(300)
+    b = lambda sel: page.evaluate("(r=>[r.left,r.top,r.right,r.bottom])(document.querySelector(%r).getBoundingClientRect())" % sel)
+    src, sec, sh, grid = b("#srcPanel"), b("#secPanel"), b("#shPanel"), b("#prefsGrid")
+    assert abs(src[0] - sec[0]) < 4 and sec[1] > src[3], "the US insiders card under the price source"
+    assert abs(sh[1] - src[1]) < 4 and abs(sh[0] - grid[0]) < 4, "the Sharia card takes all the width beside them"
     assert page.errors == []

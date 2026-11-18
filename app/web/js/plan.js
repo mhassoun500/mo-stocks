@@ -85,6 +85,7 @@ function fairValue(r,opt){
 
 function renderFair(){
   const box=$('#fairBox');if(!box)return;const f=S.fund,A=S.A;
+  const noFv=!LOCAL||S.ex==='GOLD'||S.ex==='FUND'||S.ex==='XX'||S.isFund||S.source!=='live',pc=$('#planCard');if(pc)pc.classList.toggle('no-fv',noFv);  /* no fair value: the plan takes the whole width */
   if(!LOCAL||S.ex==='GOLD'||S.ex==='FUND'||S.ex==='XX'||S.isFund||S.source!=='live'){box.innerHTML='<b>السعر العادل</b><p class="muted small">'+
     (S.ex==='GOLD'?'الذهب سلعة لا أرباح لها، فلا يُحسب له سعر عادل؛ استخدم الأهداف الفنية.':S.isFund?'سعر الصندوق هو قيمة أصوله الصافية، فهو سعره العادل.':!LOCAL?'يُحسب السعر العادل في نسخة البرنامج المثبتة.':'يتوفر للأسهم السعودية والمصرية والأمريكية.')+'</p>';return;}
   if(f===undefined||f==='loading'){box.innerHTML='<b>السعر العادل</b><p class="muted small">جارٍ جلب بيانات الشركة المالية…</p>';return;}

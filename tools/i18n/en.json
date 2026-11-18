@@ -2510,5 +2510,16 @@
  "يُفحص مع قائمة المراقبة كل": "Checked with the watchlist every",
  "نقل إلى محفظة": "Move to portfolio",
  "نُقلت الصفقة إلى": "Trade moved to",
- "\">حذف</button>": "\">Delete</button>"
+ "\">حذف</button>": "\">Delete</button>",
+ "<li class=\"plain\"><h3 class=\"sub-h\">التوزيعات السابقة</h3>": "<li class=\"plain\"><h3 class=\"sub-h\">Past dividends</h3>",
+ "مجموع آخر 12 شهرًا": "Total of the last 12 months",
+ "للسهم": "per share",
+ "<li><span class=\"kind s\">توزيع</span><span>": "<li><span class=\"kind s\">Dividend</span><span>",
+ " للسهم</span>": " per share</span>",
+ "<li class=\"plain\"><p class=\"small muted\">لا توجد توزيعات في سجل الأسعار للفترة المختارة.</p></li>": "<li class=\"plain\"><p class=\"small muted\">No dividends in the price record for the chosen period.</p></li>",
+ "ملف الشركة": "Company file",
+ "الأحداث والتوزيعات": "Events and dividends",
+ "الإفصاحات والداخليون": "Disclosures and insiders",
+ "الأخبار": "News",
+ "توزيع": "dividends"
 }

@@ -1,5 +1,7 @@
 /* ================= dashboard (Phase 6): markets, portfolio, opportunities, alerts, events ================= */
 /* usual trading hours; public holidays are not known to the app, so it says "usual hours" */
+/* 2.18: which market an opportunity belongs to, beside its name */
+function mkBadge(ex){const n=SRC_MK[ex];return n?'<span class="mk-badge mk-'+esc(ex)+'" title="'+esc(_t('السوق'))+'">'+esc(_t(n))+'</span>':'';}
 const SESSIONS={SR:{tz:'Asia/Riyadh',days:[0,1,2,3,4],open:600,close:900,ar:'السوق السعودية'},
   CA:{tz:'Africa/Cairo',days:[0,1,2,3,4],open:600,close:870,ar:'البورصة المصرية'},
   US:{tz:'America/New_York',days:[1,2,3,4,5],open:570,close:960,ar:'السوق الأمريكية'}};
@@ -39,7 +41,7 @@ async function renderHome(){
       :'<p class="small muted">'+esc(_t('لا توجد صفقات مفتوحة. سجّلها من «الصفقات والمحفظة».'))+'</p>';
     /* opportunities */
     const scan=await Store.get('lastScan',null),top=topOpportunities(scan,5);
-    $('#homeOpp').innerHTML=top.length?'<ul class="list">'+top.map(r=>'<li><span class="kind s">'+NUM((r.conf||0)+'%')+'</span><span><a href="#" data-open="'+esc(scan.ex)+':'+esc(r.code)+'"><b>'+esc(r.name)+'</b></a> <span class="small muted num">'+esc(r.code)+'</span></span>'
+    $('#homeOpp').innerHTML=top.length?'<ul class="list">'+top.map(r=>'<li><span class="kind s">'+NUM((r.conf||0)+'%')+'</span><span><a href="#" data-open="'+esc(scan.ex)+':'+esc(r.code)+'"><b>'+esc(r.name)+'</b></a> <span class="small muted num">'+esc(r.code)+'</span> '+mkBadge(r.ex||scan.ex)+'</span>'
         +'<span class="small muted">'+NUM(fp(r.price))+(r.fairDisc!=null?' · '+esc(_t('السعر العادل'))+' '+NUM((r.fairDisc>=0?'+':'')+r.fairDisc.toFixed(0)+'%'):'')+'</span></li>').join('')+'</ul>'
         +'<p class="small muted">'+esc(_t('من آخر فحص للماسح'))+' · '+NUM(fmtLocalTime.format(new Date(scan.at)))+'</p>'
       :'<p class="small muted">'+esc(_t(scan?'لا توجد أسهم في منطقة شراء في آخر فحص.':'شغّل الماسح مرة لتظهر هنا أقوى الفرص.'))+'</p>';

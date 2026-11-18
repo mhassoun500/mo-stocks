@@ -1089,3 +1089,8 @@ test('alerts: the log is shown in the language chosen now, not the one of the mo
   const ev = MP.eventAlerts([{ t: Date.now() + 1000, txt: 'إعلان النتائج' }], 'X', 3);
   assert.equal(ev[0].parts[0], 'X'); assert.ok(ev[0].parts.some(p => p && p.p === 'إعلان النتائج'), 'the words are kept apart from the name');
 });
+test('the timeframes box fills what is left of the last row of metric cards', () => {
+  const U = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'ai', 'ux'], ['mtfSpan']);
+  assert.equal(U.mtfSpan(6, 9), 3); assert.equal(U.mtfSpan(4, 9), 3); assert.equal(U.mtfSpan(4, 8), 4);
+  assert.equal(U.mtfSpan(6, 8), 4); assert.equal(U.mtfSpan(2, 9), 2, 'one cell left: a row of its own'); assert.equal(U.mtfSpan(3, 9), 3);
+});
