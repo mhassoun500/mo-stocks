@@ -342,7 +342,7 @@
           <label class="field" for="cFee"><span>العمولة % لكل اتجاه</span><input id="cFee" type="number" min="0" step="0.01" inputmode="decimal"></label>
         </div>
         <div class="kv" id="calcOut"></div>
-        <div class="actions"><button class="btn sm" id="calcReset" type="button">إعادة الأسعار من التحليل</button><button class="btn sm primary" id="calcToJournal" type="button">سجّل هذه الصفقة</button></div>
+        <div class="actions"><button class="btn sm" id="calcReset" type="button">إعادة الأسعار من التحليل</button><button class="btn sm" id="calcFromRk" type="button" hidden>رأس المال من محفظتي</button><button class="btn sm primary" id="calcToJournal" type="button">سجّل هذه الصفقة</button></div>
         <p class="edu">القاعدة المهنية: لا تخاطر بأكثر من 1% إلى 2% من رأس مالك في الصفقة الواحدة. الحاسبة تحدد عدد الأسهم بحيث لا تتجاوز خسارتك هذه النسبة إذا ضُرب وقف الخسارة.</p>
       </div>
     </section>
@@ -650,6 +650,13 @@
       <p class="small muted pf-note">الإحصاءات والتطهير والزكاة والأداء تُحسب للمحفظة المختارة. التقرير الأسبوعي وتنبيهات الوقف وتيليجرام تشمل كل المحافظ.</p>
     </section>
     <section class="kpis" id="jKpis"></section>
+    <section class="card panel" id="rkBox" hidden>
+      <div class="panel-head"><h2>لوحة المحفظة</h2><span class="muted small">كل سوق بعملته: لا تحويل ولا جمع بين الأسواق</span></div>
+      <ul class="rk-alerts" id="rkAlerts" hidden></ul>
+      <p class="small muted rk-lim"><span id="rkLimTxt"></span> <a href="#prefs" id="rkGoSet">غيّر الحدّين من الإعدادات</a></p>
+      <div id="rkMarkets"></div>
+      <p class="edu">المخاطرة المفتوحة هي الخسارة لو ضُربت أوقاف كل الصفقات من سعرها الحالي. صفقة بلا وقف لا تدخل في الحساب ويُنبَّه عليها. وحصة السهم محسوبة من قيمة أسهم السوق مع النقد الذي تدخله، وللمحفظة المختارة أعلاه.</p>
+    </section>
     <section class="card panel">
       <div class="panel-head"><h2>المحفظة: الصفقات المفتوحة</h2><span class="actions"><button class="btn sm local-only" id="jRefresh" type="button">تحديث الأسعار</button><button class="btn sm primary" id="jNew" type="button">صفقة جديدة</button></span></div>
       <div class="tbl-wrap">
@@ -824,6 +831,16 @@
           <label class="field" for="pTf"><span>الإطار الافتراضي</span><select id="pTf" data-pref="ana.tf"><option value="D">يومي</option><option value="W">أسبوعي</option></select></label>
         </div>
         <button class="btn sm ghost" id="pAnaReset" type="button">استعادة القيم الافتراضية</button>
+      </section>
+
+      <section data-pg="gen" class="card panel" id="rkSetPanel">
+        <h2>حدّا التركز في المحفظة</h2>
+        <p class="small muted">تظهر في لوحة المحفظة (صفحة اليومية) رسالة تنبيه عندما تتجاوز حصة سهم واحد أو قطاع واحد من سوقه الحدّ الذي تضعه هنا. إن ساوت الحصة الحدّ تمامًا فلا تنبيه.</p>
+        <div class="form-grid">
+          <label class="field" for="pRkPos"><span>أقصى حصة لسهم واحد %</span><input id="pRkPos" type="number" min="1" max="100" step="1" inputmode="decimal" data-pref="rk.posMax"></label>
+          <label class="field" for="pRkSec"><span>أقصى حصة لقطاع واحد %</span><input id="pRkSec" type="number" min="1" max="100" step="1" inputmode="decimal" data-pref="rk.secMax"></label>
+        </div>
+        <button class="btn sm ghost" id="pRkReset" type="button">استعادة الحدّين الافتراضيين (25% و40%)</button>
       </section>
 
       <section data-pg="data" class="pref-stack local-only" id="srcStack">

@@ -1107,3 +1107,61 @@ test('dashboard: the main indices grouped by market, with a spark line and a lin
   assert.ok(g.indexOf('S&amp;P 500') < g.indexOf('مصراوي'), 'gold after the markets'); assert.match(g, /data-open="GOLD:XAU-EGP-21"/); assert.match(g, /جنيه/);
   assert.match(H.idxSpark([1, 2, 3]), /var\(--up\)/); assert.match(H.idxSpark([3, 2, 1]), /var\(--down\)/); assert.equal(H.idxSpark([1]), '');
 });
+
+/* ---------- portfolio dashboard: sectors, concentration, open risk (2.19) ---------- */
+const RK = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'risk'], ['rkPositions', 'rkSummary', 'rkLimits', 'rkRiskAfter', 'RK_DEF']);
+const rkJ = (x) => JSON.parse(JSON.stringify(x));
+const rkTr = (o) => Object.assign({ id: 'x', code: 'A', name: 'A', ex: 'SR', qty: 100, entry: 10, last: 12, stop: 9, sector: 'Finance' }, o);
+const rkSum = (trades, cash, lim) => rkJ(RK.rkSummary(RK.rkPositions(trades), lim || { posMax: 25, secMax: 40 }, cash));
+
+test('dashboard: only open trades with a quantity and a price count', () => {
+  assert.equal(RK.rkPositions([rkTr({}), rkTr({ exit: 11 }), rkTr({ qty: 0 }), rkTr({ entry: 0 })]).length, 1);
+});
+test('dashboard: every market keeps its own currency and is never added to another', () => {
+  const s = rkSum([rkTr({ ex: 'SR', qty: 100, last: 10 }), rkTr({ ex: 'US', qty: 10, last: 300, sector: 'Tech' }), rkTr({ ex: 'CA', qty: 50, last: 20 })]);
+  assert.deepEqual(s.map(x => x.ex), ['SR', 'CA', 'US']);
+  const v = Object.fromEntries(s.map(x => [x.ex, x.value]));
+  assert.equal(v.SR, 1000); assert.equal(v.US, 3000); assert.equal(v.CA, 1000);
+  assert.ok(s.every(x => Math.abs(x.sectors.reduce((a, e) => a + e.share, 0) - 100) < 1e-9), 'sector shares add to 100% inside each market');
+});
+test('dashboard: shares include the cash the user entered', () => {
+  const s = rkSum([rkTr({ qty: 100, last: 10 })], { SR: 1000 })[0];
+  assert.equal(s.equity, 2000); assert.ok(Math.abs(s.positions[0].share - 50) < 1e-9);
+});
+test('dashboard: a trade without a fetched price is valued at cost and kept out of profit', () => {
+  const s = rkSum([rkTr({ last: null, qty: 10, entry: 20 }), rkTr({ id: 'y', code: 'B', last: 15, entry: 10, qty: 10 })])[0];
+  assert.equal(s.value, 350); assert.equal(s.unpriced, 1); assert.equal(s.cost, 100); assert.equal(s.pl, 50);
+});
+test('dashboard: open risk is the loss if every stop is hit; trades without a stop are listed, not counted as zero', () => {
+  const s = rkSum([rkTr({ last: 12, stop: 9, qty: 100 }), rkTr({ id: 'y', code: 'B', name: 'B', last: 20, stop: null, qty: 10 }), rkTr({ id: 'z', code: 'C', last: 10, stop: 11, qty: 10 })])[0];
+  assert.equal(s.riskNow, 300);               // (12-9)*100; a stop above the price adds nothing
+  assert.deepEqual(s.noStop, ['B']);
+  assert.ok(Math.abs(s.riskPct - 300 / s.equity) < 1e-12);
+});
+test('dashboard: concentration alerts fire above the limit, not at it', () => {
+  const two = (a, b, lim) => rkSum([rkTr({ code: 'A', name: 'A', qty: a, last: 1, sector: 'S1' }), rkTr({ id: 'y', code: 'B', name: 'B', qty: b, last: 1, sector: 'S2' })], {}, lim)[0];
+  assert.equal(two(25, 75).alerts.filter(a => a.type === 'pos').length, 1, 'only the 75% stock is above 25%');
+  assert.equal(two(25, 75, { posMax: 75, secMax: 75 }).alerts.length, 0, 'exactly at the limit is not an alert');
+  const sec = rkSum([rkTr({ code: 'A', qty: 30, last: 1, sector: 'S1' }), rkTr({ id: 'y', code: 'B', qty: 30, last: 1, sector: 'S1' }), rkTr({ id: 'z', code: 'C', qty: 40, last: 1, sector: 'S2' })], {}, { posMax: 100, secMax: 50 })[0];
+  assert.deepEqual(sec.alerts.map(a => [a.type, a.sector]), [['sec', 'S1']]);
+});
+test('dashboard: an unknown sector is never a sector alert', () => {
+  assert.equal(rkSum([rkTr({ sector: '', qty: 100, last: 1 })], {}, { posMax: 100, secMax: 10 })[0].alerts.length, 0);
+});
+test('dashboard: limits fall back to the defaults and ignore nonsense', () => {
+  assert.deepEqual(rkJ(RK.rkLimits()), { posMax: 25, secMax: 40 });
+  RK.P.rk = { posMax: 'x', secMax: 0 }; assert.deepEqual(rkJ(RK.rkLimits()), { posMax: 25, secMax: 40 });
+  RK.P.rk = { posMax: 150, secMax: '' }; assert.deepEqual(rkJ(RK.rkLimits()), { posMax: 25, secMax: 40 });
+  RK.P.rk = { posMax: 10, secMax: 60 }; assert.deepEqual(rkJ(RK.rkLimits()), { posMax: 10, secMax: 60 });
+  RK.P.rk = { posMax: 25, secMax: 40, cash: {} };
+});
+test('dashboard: empty and single-position cases do not break', () => {
+  assert.deepEqual(rkJ(RK.rkSummary([], { posMax: 25, secMax: 40 }, {})), []);
+  assert.equal(rkSum([rkTr({})])[0].positions[0].share, 100);
+});
+test('calculator link: open risk after the new trade adds its loss to what is already open', () => {
+  const s = rkSum([rkTr({ last: 12, stop: 9, qty: 100 })], { SR: 1700 })[0];   // equity 1200+1700 = 2900, risk 300
+  const r = RK.rkRiskAfter(s, 100);
+  assert.equal(r.total, 400); assert.ok(Math.abs(r.pct - 400 / 2900) < 1e-12); assert.ok(Math.abs(r.now - 300 / 2900) < 1e-12);
+  assert.equal(RK.rkRiskAfter(null, 5), null); assert.equal(RK.rkRiskAfter({ equity: 0, riskNow: 0, noStop: [] }, 5), null);
+});

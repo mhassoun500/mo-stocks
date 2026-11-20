@@ -106,6 +106,7 @@ const PREF_DEFAULTS={
   cloudBackup:{on:false,dir:''},
   report:{enabled:false,time:'09:30',days:[0,1,2,3,4],ai:false,weekly:{on:false,day:5,time:'20:00'}},
   sharia:{ok:'',no:'',asOf:'',purify:'',gains:true},
+  rk:{posMax:25,secMax:40,cash:{}},
   zakat:{method:'invest',cal:'hijri',saPays:true,assets:'',over:{}},
   calc:{capital:100000,risk:1,fee:0.15},
   egpLocal:{},

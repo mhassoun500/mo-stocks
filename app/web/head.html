@@ -352,6 +352,14 @@ details summary{cursor:pointer;color:var(--accent);font-size:13px}
 .pref-tabs button:hover{background:var(--surface-2);color:var(--text)}
 .pref-tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
 .pref-tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* portfolio dashboard (risk) */
+.rk-alerts{list-style:none;margin:0 0 10px;padding:10px 12px;border:1px solid var(--sell);background:var(--sell-soft);border-radius:8px;font-size:13px;line-height:1.9}
+.rk-lim{margin:0 0 6px}.rk-mk{padding:12px 0;border-top:1px solid var(--line)}.rk-mk h3{margin:0 0 8px;font-size:15px}.rk-kpis{margin-bottom:6px}.rk-cash{max-width:320px}
+.rk-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px 28px;margin-top:8px}.rk-cols h4{margin:0 0 6px;font-size:13px}
+.rk-row{display:grid;grid-template-columns:minmax(0,1fr) 90px 52px;gap:8px;align-items:center;font-size:13px;padding:3px 0}
+.rk-row span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rk-row b{text-align:end;font-weight:600}
+.rk-bar{display:block;height:8px;border-radius:4px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden}.rk-bar i{display:block;height:100%;background:var(--accent)}.rk-bar.over i{background:var(--sell)}
+.rk-warn{color:var(--sell)}
 #srcList{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:0 28px}
 .src-chips{display:flex;flex-wrap:wrap;gap:4px 6px;margin:2px 0 6px}.src-chip{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:2px 8px;font-size:11.5px;color:var(--muted)}
 

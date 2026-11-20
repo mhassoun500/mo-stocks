@@ -287,6 +287,7 @@ function calcFill(){const A=S.A;if(!A)return;
   $('#cEntry').value=+A.entry.toFixed(dec(A.entry));$('#cStop').value=+A.stop.toFixed(dec(A.stop));$('#cTarget').value=+A.t1.toFixed(dec(A.t1));
   calcCompute();}
 function calcCompute(){
+  if(typeof rkCalcButton==='function')rkCalcButton();
   const cap=+$('#cCap').value,risk=+$('#cRisk').value,entry=+$('#cEntry').value,stop=+$('#cStop').value,target=+$('#cTarget').value,fee=(+$('#cFee').value||0)/100;
   const out=$('#calcOut');
   if(!(cap>0&&risk>0&&entry>0&&stop>0)){out.innerHTML='<p class="empty">أدخل رأس المال والأسعار.</p>';return null;}
@@ -298,7 +299,7 @@ function calcCompute(){
   out.innerHTML='<div><span>عدد الأسهم</span><b>'+fmtMoney.format(qty)+'</b></div><div><span>قيمة الصفقة</span><b>'+fmtMoney.format(cost)+'</b></div>'+
     '<div><span>نسبة من رأس المال</span><b>'+(cost/cap*100).toFixed(1)+'%</b></div><div><span>الخسارة عند الوقف</span><b style="color:var(--sell)">'+fmtMoney.format(loss)+'</b></div>'+
     '<div><span>الربح عند الهدف</span><b style="color:var(--buy)">'+fmtMoney.format(profit)+'</b></div><div><span>العائد إلى المخاطرة</span><b>1 : '+(R>0?R.toFixed(2):'—')+'</b></div>'+
-    (capped?'<div style="grid-column:1/-1"><span>الكمية محدودة برأس المال المتاح وليس بنسبة المخاطرة.</span></div>':'');
+    (capped?'<div style="grid-column:1/-1"><span>الكمية محدودة برأس المال المتاح وليس بنسبة المخاطرة.</span></div>':'')+rkCalcHTML(loss);
   return{qty,entry,stop,target};
 }
 

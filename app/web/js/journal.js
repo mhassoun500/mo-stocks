@@ -15,7 +15,7 @@ function jView(){J.trades=pfFilter(J.all,J.pf);}
 function jAdd(t){if(!t.pf)t.pf=J.pf==='all'?PF_MAIN:J.pf;J.all.push(t);jView();}
 function jRemove(id){J.all=J.all.filter(t=>t.id!==id);jView();}
 async function loadJournal(){J.all=await Store.get('journal',[]);J.pfs=pfList(await Store.get('portfolios',[]));
-  const cur=await Store.get('pfCur','all');J.pf=cur==='all'||J.pfs.some(p=>p.id===cur)?cur:'all';jView();J.loaded=true;renderPfBar();renderJournal();purFetchEst();
+  const cur=await Store.get('pfCur','all');J.pf=cur==='all'||J.pfs.some(p=>p.id===cur)?cur:'all';jView();J.loaded=true;renderPfBar();renderJournal();purFetchEst();rkLoadSectors();
   if((location.hash||'')==='#journal')refreshJournalPrices();}  /* opened straight on this page: the refresh skipped while loading runs now */
 async function saveJournal(){if(!J.loaded)return;await Store.set('journal',J.all);}
 async function savePfs(){await Store.set('portfolios',J.pfs);await Store.set('pfCur',J.pf);}
@@ -118,6 +118,7 @@ function renderJournal(){
   if(wins.length&&losses.length){const aw=wins.reduce((s,t)=>s+(t.exit/t.entry-1),0)/wins.length,al=losses.reduce((s,t)=>s+(t.exit/t.entry-1),0)/losses.length;
     items.push('<li><span class="kind n">الربح مقابل الخسارة</span><span>متوسط الصفقة الرابحة '+NUM(pct(aw))+' والخاسرة '+NUM(pct(al))+(Math.abs(al)>aw?'. خسائرك أكبر من أرباحك، فالتزم بوقف الخسارة.':'.')+'</span><span></span></li>');}
   renderPurify();renderZakat();if(typeof renderStats==='function')renderStats();
+  renderRisk();
   $('#jMistakes').innerHTML=items.join('')||'<li class="plain"><p class="empty">بعد إغلاق عدة صفقات ووسمها، ستظهر هنا أخطاؤك المتكررة وأثرها على نتائجك.</p></li>';
 }
 async function exportJournal(){
