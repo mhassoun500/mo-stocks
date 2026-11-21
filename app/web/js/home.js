@@ -73,12 +73,8 @@ async function renderHome(){
     $('#homePort').innerHTML=curs.length?curs.map(c=>{const x=s.cur[c];return '<div class="metric"><span class="k">'+esc(_t('المفتوحة'))+' ('+esc(purCurLabel(c))+')</span><span class="v">'+(x.value?NUM(fmtMoney.format(x.value)):'—')+'</span>'
         +'<span class="s">'+NUM(x.n)+' '+esc(_t('صفقة'))+(x.value?' · <b style="color:'+(x.pl>=0?'var(--up)':'var(--down)')+'">'+NUM(fmtMoney.format(x.pl))+'</b>':'')+(x.noPrice?' · '+NUM(x.noPrice)+' '+esc(_t('بلا سعر حديث')):'')+'</span></div>';}).join('')
       :'<p class="small muted">'+esc(_t('لا توجد صفقات مفتوحة. سجّلها من «الصفقات والمحفظة».'))+'</p>';
-    /* opportunities */
-    const scan=await Store.get('lastScan',null),top=topOpportunities(scan,5);
-    $('#homeOpp').innerHTML=top.length?'<ul class="list">'+top.map(r=>'<li><span class="kind s">'+NUM((r.conf||0)+'%')+'</span><span><a href="#" data-open="'+esc(scan.ex)+':'+esc(r.code)+'"><b>'+esc(r.name)+'</b></a> <span class="small muted num">'+esc(r.code)+'</span> '+mkBadge(r.ex||scan.ex)+'</span>'
-        +'<span class="small muted">'+NUM(fp(r.price))+(r.fairDisc!=null?' · '+esc(_t('السعر العادل'))+' '+NUM((r.fairDisc>=0?'+':'')+r.fairDisc.toFixed(0)+'%'):'')+'</span></li>').join('')+'</ul>'
-        +'<p class="small muted">'+esc(_t('من آخر فحص للماسح'))+' · '+NUM(fmtLocalTime.format(new Date(scan.at)))+'</p>'
-      :'<p class="small muted">'+esc(_t(scan?'لا توجد أسهم في منطقة شراء في آخر فحص.':'شغّل الماسح مرة لتظهر هنا أقوى الفرص.'))+'</p>';
+    /* opportunities of the three markets, each with the time of its own last scan */
+    await renderHomeOpp();
     /* alerts */
     const log=(await Store.get('alertLog',[])).slice(0,5);
     $('#homeAlerts').innerHTML=log.length?'<ul class="list">'+log.map(l=>'<li class="plain"><span>'+esc(alertText(l))+'</span><br><span class="d">'+fmtLocalTime.format(new Date(l.t))+'</span></li>').join('')+'</ul>'

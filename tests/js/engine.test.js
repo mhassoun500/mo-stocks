@@ -1165,3 +1165,38 @@ test('calculator link: open risk after the new trade adds its loss to what is al
   assert.equal(r.total, 400); assert.ok(Math.abs(r.pct - 400 / 2900) < 1e-12); assert.ok(Math.abs(r.now - 300 / 2900) < 1e-12);
   assert.equal(RK.rkRiskAfter(null, 5), null); assert.equal(RK.rkRiskAfter({ equity: 0, riskNow: 0, noStop: [] }, 5), null);
 });
+
+/* ---------- periodic opportunity scan of the three markets (2.20) ---------- */
+const OP = load(['core', 'indicators', 'advanced', 'engine', 'plan', 'opp'], ['oppInterval', 'oppDue', 'oppPick', 'oppUsable', 'OPP_MK']);
+const HOUR = 3600e3;
+test('opportunity scan: interval is kept in a safe range and falls back to an hour', () => {
+  assert.equal(OP.oppInterval(60), 60); assert.equal(OP.oppInterval('120'), 120);
+  assert.equal(OP.oppInterval(1), 15, 'never faster than every 15 minutes'); assert.equal(OP.oppInterval(99999), 1440);
+  assert.equal(OP.oppInterval(''), 60); assert.equal(OP.oppInterval(null), 60); assert.equal(OP.oppInterval('x'), 60); assert.equal(OP.oppInterval(-5), 60);
+});
+test('opportunity scan: an open market is scanned only after the interval has passed', () => {
+  const now = 1e12, o = (m, over) => Object.assign({ open: true, lastAt: now - m * 60000, now, interval: 60 }, over);
+  assert.equal(OP.oppDue(o(59)), false); assert.equal(OP.oppDue(o(60)), true); assert.equal(OP.oppDue(o(500)), true);
+  assert.equal(OP.oppDue(o(20, { interval: 15 })), true); assert.equal(OP.oppDue(o(20, { interval: 30 })), false);
+});
+test('opportunity scan: a closed market keeps its last result, and a market never scanned is scanned once', () => {
+  const now = 1e12;
+  assert.equal(OP.oppDue({ open: false, lastAt: now - 20 * HOUR, now, interval: 60 }), false, 'closed: the last result stays');
+  assert.equal(OP.oppDue({ open: false, lastAt: null, now, interval: 60 }), true, 'nothing saved yet: one scan so the card is not empty');
+  assert.equal(OP.oppDue({ open: true, lastAt: null, now, interval: 60 }), true);
+});
+test('opportunity scan: only buy setups are kept, strongest first, trimmed to the limit', () => {
+  const rows = [{ code: 'A', stance: 'buy', conf: 60, q: 1 }, { code: 'B', stance: 'sell', conf: 99 }, { code: 'C', stance: 'buy', conf: 80, q: 1 }, { code: 'D', stance: 'buy', conf: 80, q: 5 }, { code: 'E', stance: 'neutral', conf: 70 }];
+  const J2 = (x) => JSON.parse(JSON.stringify(x));
+  assert.deepEqual(J2(OP.oppPick(rows, 10).map(r => r.code)), ['D', 'C', 'A']);
+  assert.deepEqual(J2(OP.oppPick(rows, 2).map(r => r.code)), ['D', 'C']);
+  assert.deepEqual(J2(OP.oppPick(null, 5)), []);
+  assert.equal(OP.oppPick([{ code: 'A', stance: 'buy', conf: 1 }])[0].fairDisc, null);
+});
+test('opportunity scan: a scan that reached under half of the companies is not saved over the old result', () => {
+  assert.equal(OP.oppUsable(100, 200), true); assert.equal(OP.oppUsable(99, 200), false); assert.equal(OP.oppUsable(0, 0), false); assert.equal(OP.oppUsable(200, 200), true);
+});
+test('opportunity scan: the three markets are covered, the US one with a bounded universe', () => {
+  assert.deepEqual(JSON.parse(JSON.stringify(OP.OPP_MK.map(m => m.ex))), ['SR', 'CA', 'US']);
+  assert.ok(OP.OPP_MK.find(m => m.ex === 'US').size, 'US is limited to the largest companies, not all ~5000');
+});

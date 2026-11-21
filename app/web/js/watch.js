@@ -131,6 +131,7 @@ async function sendReport(){
 async function schedulerTick(){
   if(!LOCAL)return;const now=new Date();
   if(typeof scanAutoTick==='function')scanAutoTick(now).catch(()=>{});
+  if(typeof oppTick==='function')oppTick().catch(()=>{});
   if(typeof weeklyTick==='function')weeklyTick(now).catch(()=>{});
   if(P.alerts.enabled&&W.items.length&&Date.now()-W.lastCheck>=Math.max(5,P.alerts.interval)*60000)checkWatchlist(true);
   if(P.report.enabled&&(P.report.days||[]).includes(now.getDay())){const [h,m]=(P.report.time||'09:30').split(':').map(Number);

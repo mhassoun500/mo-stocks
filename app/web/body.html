@@ -44,7 +44,7 @@
     <section class="grid-2 even">
       <div class="card panel"><div class="panel-head"><h2>المحفظة</h2></div><div class="metrics" id="homePort"></div>
         <p class="small muted">بآخر سعر معروف لكل صفقة، وكل عملة على حدة.</p></div>
-      <div class="card panel"><div class="panel-head"><h2>أقوى الفرص</h2></div><div id="homeOpp"></div></div>
+      <div class="card panel"><div class="panel-head"><h2>أقوى الفرص</h2><button class="btn xs local-only" id="homeOppNow" type="button">افحص الآن</button></div><p class="small muted" id="homeOppMeta"></p><div id="homeOpp"></div></div>
     </section>
     <section class="grid-2 even">
       <div class="card panel"><div class="panel-head"><h2>آخر التنبيهات</h2></div><div id="homeAlerts"></div></div>
@@ -932,6 +932,21 @@
         <div id="aiTplEdit"></div>
       </section>
 
+      <section data-pg="alerts" class="card panel local-only" id="oppSet">
+        <h2>الفحص الدوري للفرص</h2>
+        <p class="small muted">يفحص البرنامج الأسواق الثلاثة تلقائيًا ما دام مفتوحًا أو مصغّرًا، ويحدّث بطاقة «أقوى الفرص» في الرئيسية. لا يفحص سوقًا مغلقًا؛ تبقى نتيجة آخر فحص له. السوق الأمريكي يُفحص بأكبر 500 شركة. لا يعمل والبرنامج مغلق. هذه أسهم في منطقة شراء بحسب مقاييس البرنامج وليست توصية.</p>
+        <div class="form-grid">
+          <label class="field row" for="pOppOn"><input id="pOppOn" type="checkbox" data-pref="opp.on"><span>فحص الأسواق تلقائيًا</span></label>
+          <label class="field" for="pOppInt"><span>كل كم</span><select id="pOppInt" data-pref="opp.interval"><option value="15">15 دقيقة</option><option value="30">30 دقيقة</option><option value="60">60 دقيقة</option><option value="120">ساعتان</option><option value="240">4 ساعات</option></select></label>
+        </div>
+        <div class="form-grid">
+          <label class="field row" for="pOppSR"><input id="pOppSR" type="checkbox" data-pref="opp.mk.SR"><span>السوق السعودية</span></label>
+          <label class="field row" for="pOppCA"><input id="pOppCA" type="checkbox" data-pref="opp.mk.CA"><span>البورصة المصرية</span></label>
+          <label class="field row" for="pOppUS"><input id="pOppUS" type="checkbox" data-pref="opp.mk.US"><span>السوق الأمريكية</span></label>
+        </div>
+        <div class="actions"><button class="btn sm" id="oppNow" type="button">افحص الآن</button><button class="btn sm ghost" id="oppStop" type="button">أوقف الفحص الجاري</button></div>
+        <p class="small muted" id="oppMeta"></p>
+      </section>
       <section data-pg="alerts" class="card panel local-only">
         <h2>التنبيهات</h2>
         <label class="field row" for="pAlerts"><input id="pAlerts" type="checkbox" data-pref="alerts.enabled"><span>تفعيل تنبيهات قائمة المراقبة</span></label>

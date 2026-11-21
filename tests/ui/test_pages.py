@@ -242,8 +242,9 @@ def test_portfolios_backtest_performance_telegram_and_cloud(page_for, lang):
 
 def test_home_opportunities_show_their_market_and_settings_layout(page_for):
     import core, time
-    core.Store.set("lastScan", {"ex": "CA", "sel": "CA", "at": int(time.time() * 1000), "rows": [
-        {"code": "COMI", "name": "CIB", "price": 80, "conf": 70, "stance": "buy", "inBuy": True, "symbol": "EGX:COMI"}]})
+    core.Store.set("prefs", {"opp": {"on": False}})   # no automatic scan while the test looks at a stored result
+    core.Store.set("opp:CA", {"ex": "CA", "at": int(time.time() * 1000), "n": 100, "reached": 100, "rows": [
+        {"code": "COMI", "name": "CIB", "nameEn": "CIB", "price": 80, "conf": 70, "q": 60, "symbol": "COMI.CA", "fairDisc": 12}]})
     page = page_for("ar")
     page.set_viewport_size({"width": 1440, "height": 1000})
     page.goto(page.base + "#home")
